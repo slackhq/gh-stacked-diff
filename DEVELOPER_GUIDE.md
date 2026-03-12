@@ -50,13 +50,13 @@ Follow the steps in golang docs
 [Publishing a module](https://go.dev/doc/modules/publishing):
 
 ```bash
-# Make addition to [CHANGELOG.md]
-# Update the stable version so that it is equal to current version
-# [util/stable_version.txt]
-# Update README.md so it matches latest commands and options.
+# 1. Make addition to [CHANGELOG.md], including Contributors section.
+# 2. Update the stable version so that it is equal to current version [util/stable_version.txt]
+# 3. Update README.md so it matches latest commands and options.
+# Then...
 make build
 # See that the [README.md] is updated with stable version.
-# merge changes, update local, and then:
+# merge changes, `sd rebase-main`, and then:
 git checkout main
 go mod tidy
 make test

@@ -29,6 +29,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Do not include commit comments (usually about conflicts) from body when creating PR description.
 
+### Contributors
+
+Special thanks to the following contributors for contributing to this release!
+
+- [Ritesh Bhatia - @ritesh.bhatia](https://github.com/ritesh.bhatia)
+
 ## [2.0.8](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.7...v2.0.8) - 2026-02-13
 
 ### Fixed
@@ -73,6 +79,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `sd rebase-main` deletes branches for closed PRs.
 - Better messaging when rebase fails.
 - `sd log` and interactive prompts: shorter display of branches with many commits.
+
+### Contributors
+
+Special thanks to the following contributors for contributing to this release!
+
+- [Hossain Khan - @hossain-khan](https://github.com/hossain-khan)
+- [Ritesh Bhatia - @ritesh.bhatia](https://github.com/ritesh.bhatia)
 
 ## [2.0.1](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.0...v2.0.1) - 2026-06-13
 
