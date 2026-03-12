@@ -13,10 +13,10 @@ import (
 
 	"errors"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/interactive"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -2,7 +2,7 @@ package interactive
 
 import (
 	"github.com/charmbracelet/x/term"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 func InteractiveEnabled(appConfig util.AppConfig) bool {

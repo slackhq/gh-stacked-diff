@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 // Returned by some of the Get*Commit functions.

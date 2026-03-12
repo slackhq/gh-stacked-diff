@@ -5,12 +5,12 @@ import (
 
 	"slices"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 /*
 Example output of gh api collaborators:
-gh api repos/tinyspeck/gh-stacked-diff/collaborators
+gh api repos/slackhq/gh-stacked-diff/collaborators
 [
 
 	{
@@ -19,17 +19,17 @@ gh api repos/tinyspeck/gh-stacked-diff/collaborators
 	  "node_id": "MDQ6VXNlcjQyOTMwMDE=",
 	  "avatar_url": "https://avatars.githubusercontent.com/u/4293001?v=4",
 	  "gravatar_id": "",
-	  "url": "https://api.github.com/users/tinyspeck",
-	  "html_url": "https://github.com/tinyspeck",
-	  "followers_url": "https://api.github.com/users/tinyspeck/followers",
-	  "following_url": "https://api.github.com/users/tinyspeck/following{/other_user}",
-	  "gists_url": "https://api.github.com/users/tinyspeck/gists{/gist_id}",
-	  "starred_url": "https://api.github.com/users/tinyspeck/starred{/owner}{/repo}",
-	  "subscriptions_url": "https://api.github.com/users/tinyspeck/subscriptions",
-	  "organizations_url": "https://api.github.com/users/tinyspeck/orgs",
-	  "repos_url": "https://api.github.com/users/tinyspeck/repos",
-	  "events_url": "https://api.github.com/users/tinyspeck/events{/privacy}",
-	  "received_events_url": "https://api.github.com/users/tinyspeck/received_events",
+	  "url": "https://api.github.com/users/slackhq",
+	  "html_url": "https://github.com/slackhq",
+	  "followers_url": "https://api.github.com/users/slackhq/followers",
+	  "following_url": "https://api.github.com/users/slackhq/following{/other_user}",
+	  "gists_url": "https://api.github.com/users/slackhq/gists{/gist_id}",
+	  "starred_url": "https://api.github.com/users/slackhq/starred{/owner}{/repo}",
+	  "subscriptions_url": "https://api.github.com/users/slackhq/subscriptions",
+	  "organizations_url": "https://api.github.com/users/slackhq/orgs",
+	  "repos_url": "https://api.github.com/users/slackhq/repos",
+	  "events_url": "https://api.github.com/users/slackhq/events{/privacy}",
+	  "received_events_url": "https://api.github.com/users/slackhq/received_events",
 	  "type": "User",
 	  "user_view_type": "public",
 	  "site_admin": false,
@@ -77,7 +77,7 @@ gh api repos/tinyspeck/gh-stacked-diff/collaborators
 Example output from: gh repo view --json nameWithOwner
 
 	{
-	  "nameWithOwner": "tinyspeck/gh-stacked-diff"
+	  "nameWithOwner": "slackhq/gh-stacked-diff"
 	}
 */
 func getAllCollaborators() []string {

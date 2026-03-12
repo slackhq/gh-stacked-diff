@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 type dashboardRow struct {

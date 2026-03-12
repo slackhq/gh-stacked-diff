@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 //go:embed config/branch_name.template
