@@ -56,7 +56,7 @@ import (
 	"flag"
 	"log/slog"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 func create<CommandName>Command() Command {
@@ -100,7 +100,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 )
 
 func TestSd<CommandName>_BasicTest(t *testing.T) {

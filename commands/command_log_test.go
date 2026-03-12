@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/fatih/color"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/stretchr/testify/assert"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
 )
 
 func TestSdLog_WhenRemoteHasSomeCommits_PrintsNewLogsOnly(t *testing.T) {

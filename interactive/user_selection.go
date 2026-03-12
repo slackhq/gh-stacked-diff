@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 var ReviewersHistory = util.NewHistoricalData("reviewers.history", 30)

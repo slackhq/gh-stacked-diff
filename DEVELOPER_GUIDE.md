@@ -70,7 +70,7 @@ git push origin v$RELEASE_VERSION
 # This `go list` command is only required for using the project as a go library.
 # It will not work while the repository is private.
 GOPROXY=proxy.golang.org go list -m \
-  github.com/tinyspeck/gh-stacked-diff/v2@v$RELEASE_VERSION
+  github.com/slackhq/gh-stacked-diff/v2@v$RELEASE_VERSION
 # Update [util/current_version.txt]
 ```
 
@@ -85,7 +85,7 @@ git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
 # sd rebase-main if required
 GOPROXY=proxy.golang.org go list -m \
-  github.com/tinyspeck/bubbletea@v$RELEASE_VERSION
+  github.com/slackhq/bubbletea@v$RELEASE_VERSION
 # In gh-stacked-diff:
 # Update version in go.mod replace, then:
 # Remove go.work and go.work.sum if using them:
@@ -95,7 +95,7 @@ go mod tidy
 
 # Same steps for:
 GOPROXY=proxy.golang.org go list -m \
-  github.com/tinyspeck/bubbles@v$RELEASE_VERSION
+  github.com/slackhq/bubbles@v$RELEASE_VERSION
 ```
 
 Once a tag is created [.github/workflows/release.yml] kicks off and

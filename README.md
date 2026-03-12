@@ -26,7 +26,7 @@ brew install gh
 # Setup login for Github CLI
 gh auth login
 # Install plugin
-gh extensions install tinyspeck/gh-stacked-diff
+gh extensions install slackhq/gh-stacked-diff
 # Add a shell alias to make it faster to use.
 # For example if using zsh:
 echo "alias sd='gh stacked-diff'" >> ~/.zshrc
@@ -42,7 +42,7 @@ source ~/.zshrc
       ```bash
       gh auth login
       # Install plugin
-      gh extensions install tinyspeck/gh-stacked-diff
+      gh extensions install slackhq/gh-stacked-diff
       # Add a shell alias to make it faster to use.
       # For example if using Git Bash:
       echo "alias sd='gh stacked-diff'" >> ~/.bashrc
@@ -54,7 +54,7 @@ source ~/.zshrc
 The code can also be used as a go library within your own go application. See the [Developer Guide](DEVELOPER_GUIDE.md#usage-as-a-golang-library) for more info.
 
 ```bash
-go get github.com/tinyspeck/gh-stacked-diff/v2@v2.0.11
+go get github.com/slackhq/gh-stacked-diff/v2@v2.0.11
 ```
 
 ## Command Line Interface

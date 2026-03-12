@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 func createVersionCommand() Command {

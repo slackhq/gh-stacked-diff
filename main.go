@@ -38,8 +38,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/commands"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/commands"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 func main() {

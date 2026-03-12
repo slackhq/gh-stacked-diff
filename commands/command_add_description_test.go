@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/interactive"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 const prBodyBegin = "This is a first PR\nWith lots of info\n"

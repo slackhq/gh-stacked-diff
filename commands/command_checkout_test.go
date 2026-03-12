@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/stretchr/testify/assert"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
 )
 
 func TestSdCheckout_ChecksOutBranch(t *testing.T) {
