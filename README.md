@@ -543,7 +543,7 @@ Note: these scripts do *not* facilitate Stacked *Pull Requests*. Github does som
 
 | Stacked Diff version | gh CLI versions tested | git versions tested |
 | -------------------- | ---------------------- | ------------------- |
-| [2.0.0](CHANGELOG.md#200---2025-02-28) | 2.38.0, 2.64.0, 2.66.1 | 2.38.1, 2.47.1, 2.48.1 |
+| [2.0.0](CHANGELOG.md#200---2025-02-28) | 2.38.0, 2.64.0, 2.66.1, 2.86.0 | 2.38.1, 2.47.1, 2.48.1, 2.51.1 |
 
 ## Troubleshooting
 
