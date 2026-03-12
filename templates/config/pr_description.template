@@ -1,0 +1,29 @@
+{{.CommitBody}}
+
+<!-- 
+
+#### Testing
+
+<img src="XXXCOPYURLXXX" alt="" width="300"/> 
+
+<video src="XXXCOPYURLXXX" alt="" width="300"/>
+
+| Before | After |
+| ------------- | ------------- |
+| <img src="XXXCOPYURLXXX" alt="" width="300"/> | <img src="XXXCOPYURLXXX" alt="" width="300"/> |
+
+
+| Before | After |
+| ------------- | ------------- |
+| <video src="XXXCOPYURLXXX" alt="" width="300"/> | <video src="XXXCOPYURLXXX" alt="" width="300"/> |
+
+<details>
+  <summary>Detailed Section (click me)</summary>
+  
+</details>
+
+-->
+
+#### Ticket: [{{.TicketNumber}}](https://jira.tinyspeck.com/browse/{{.TicketNumber}})
+
+#### Feature flag(s): `{{.FeatureFlag}}`

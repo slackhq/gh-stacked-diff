@@ -1,0 +1,25 @@
+/bin
+
+# VS Code
+.vscode
+
+# IntelliJ
+.idea
+
+# macOS
+.DS_Store
+
+# vim
+*.swp
+
+# Emacs
+*~
+
+vendor/
+
+# To allow using locally checked out modules.
+go.work
+go.work.sum
+
+# Claude
+.claude/*.local.*
