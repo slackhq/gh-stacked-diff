@@ -1,4 +1,4 @@
-module github.com/tinyspeck/gh-stacked-diff/v2
+module github.com/slackhq/gh-stacked-diff/v2
 
 go 1.24
 

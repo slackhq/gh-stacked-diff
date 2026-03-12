@@ -24,6 +24,6 @@
 
 -->
 
-#### Ticket: [{{.TicketNumber}}](https://jira.tinyspeck.com/browse/{{.TicketNumber}})
+#### Ticket: [{{.TicketNumber}}](https://jira.slackhq.com/browse/{{.TicketNumber}})
 
 #### Feature flag(s): `{{.FeatureFlag}}`

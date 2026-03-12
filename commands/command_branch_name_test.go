@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/testutil"
 )
 
 func TestSdBranchName_OutputsBranchName(t *testing.T) {

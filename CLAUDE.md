@@ -129,4 +129,4 @@ To add a new command:
 - Windows support: Uses Git Bash, handles path separators and escaping
 - Platform-specific code: Check `runtime.GOOS` for Darwin/Windows differences
 - Demo mode: Set `GH_STACKED_DIFF_DEMO_MODE=true` environment variable
-- The tool can be used as a Go library (import `github.com/tinyspeck/gh-stacked-diff/v2`)
+- The tool can be used as a Go library (import `github.com/slackhq/gh-stacked-diff/v2`)

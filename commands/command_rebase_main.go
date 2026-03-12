@@ -8,9 +8,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/interactive"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 func createRebaseMainCommand() Command {

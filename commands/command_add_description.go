@@ -10,10 +10,10 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/tinyspeck/gh-stacked-diff/v2/ai"
-	"github.com/tinyspeck/gh-stacked-diff/v2/interactive"
-	"github.com/tinyspeck/gh-stacked-diff/v2/templates"
-	"github.com/tinyspeck/gh-stacked-diff/v2/util"
+	"github.com/slackhq/gh-stacked-diff/v2/ai"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 const GENERATED_CLAUDE_SUMMARY_BEGIN = "\n<details>\n<summary>Claude Generated Summary (click me)</summary>\n\n"
