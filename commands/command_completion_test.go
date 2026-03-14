@@ -44,7 +44,9 @@ func TestCompletion_Bash(t *testing.T) {
 	// Verify flag completions are wired through.
 	assert.Contains(output, "-indicator")
 	// Verify the completion command itself is excluded from the commands list.
-	assert.NotContains(output, "completion)")
+	// Check both as first entry and as a middle entry in the space-separated commands string.
+	assert.NotContains(output, `commands="completion `)
+	assert.NotContains(output, ` completion "`)
 }
 
 func TestCompletion_Fish(t *testing.T) {
@@ -88,6 +90,6 @@ func TestCompletion_UnsupportedShell(t *testing.T) {
 func TestCompletion_TooManyArgs(t *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	assert.PanicsWithValue(t, "Panicking instead of exiting with code 1", func() {
-		testParseArguments("completion", "extra")
+		testParseArguments("completion", "--shell", "zsh", "extra")
 	})
 }

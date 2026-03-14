@@ -28,11 +28,11 @@ func createCompletionCommand() Command {
 		Usage:         "sd " + flagSet.Name() + " --shell zsh|bash|fish|powershell",
 		SkipRepoCheck: true,
 		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() != 0 {
-				commandError(appConfig, flagSet, "too many args", command.Usage)
-			}
 			if *shell == "" {
 				commandError(appConfig, flagSet, "--shell is required", command.Usage)
+			}
+			if flagSet.NArg() != 0 {
+				commandError(appConfig, flagSet, "too many args", command.Usage)
 			}
 			switch *shell {
 			case "zsh":
