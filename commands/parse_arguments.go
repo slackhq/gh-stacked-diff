@@ -70,6 +70,7 @@ func parseArguments(appConfig util.AppConfig, commandLine *flag.FlagSet, command
 		createCheckoutCommand(),
 		createCodeOwnersCommand(),
 		createDropAlreadyMergedCommand(),
+		createCompletionCommand(),
 		createLogCommand(),
 		createMarkAsFixupCommand(),
 		createMigrateCommand(),
