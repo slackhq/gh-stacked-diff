@@ -48,6 +48,8 @@ source ~/.zshrc
       # Add a shell function to make it faster to use.
       # For example if using Git Bash:
       echo 'sd() { gh stacked-diff "$@"; }' >> ~/.bashrc
+      # Enable shell completions for bash:
+      echo 'eval "$(sd completion --shell bash)"' >> ~/.bashrc
       source ~/.bashrc
       ```
 

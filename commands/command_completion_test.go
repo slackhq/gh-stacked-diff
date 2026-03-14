@@ -18,6 +18,10 @@ func TestCompletion_Zsh(t *testing.T) {
 	assert.Contains(output, "log")
 	assert.Contains(output, "new")
 	assert.Contains(output, "version")
+	// Verify flag completions are wired through.
+	assert.Contains(output, "-indicator")
+	// Verify the completion command itself is excluded.
+	assert.NotContains(output, "'completion:")
 }
 
 func TestCompletion_MissingShellFlag(t *testing.T) {
@@ -35,6 +39,10 @@ func TestCompletion_Bash(t *testing.T) {
 	assert.Contains(output, "_sd()")
 	assert.Contains(output, "update")
 	assert.Contains(output, "log")
+	// Verify flag completions are wired through.
+	assert.Contains(output, "-indicator")
+	// Verify the completion command itself is excluded from the commands list.
+	assert.NotContains(output, "completion)")
 }
 
 func TestCompletion_Fish(t *testing.T) {
@@ -48,6 +56,10 @@ func TestCompletion_Fish(t *testing.T) {
 	// Verify single-dash flags use -o (old-style) not -l (long/double-dash).
 	assert.Contains(output, "-o log-level")
 	assert.NotContains(output, "-l log-level")
+	// Verify flag completions are wired through.
+	assert.Contains(output, "-o indicator")
+	// Verify the completion command itself is excluded.
+	assert.NotContains(output, "-a 'completion'")
 }
 
 func TestCompletion_Powershell(t *testing.T) {
@@ -58,6 +70,10 @@ func TestCompletion_Powershell(t *testing.T) {
 	assert.Contains(output, "CompletionResult")
 	assert.Contains(output, "update")
 	assert.Contains(output, "log")
+	// Verify flag completions are wired through.
+	assert.Contains(output, "-indicator")
+	// Verify the completion command itself is excluded.
+	assert.NotContains(output, "'completion'")
 }
 
 func TestCompletion_UnsupportedShell(t *testing.T) {

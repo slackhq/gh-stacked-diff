@@ -49,14 +49,24 @@ func createCompletionCommand() Command {
 		}}
 }
 
-func generateZshCompletion() string {
-	// Build the list of commands and their summaries for zsh completion.
-	commands := allCommands()
-	var subcommands []string
-	for _, cmd := range commands {
-		if cmd.Hidden {
+// completableCommands returns all commands that should appear in shell completions.
+// Excludes hidden commands and the completion command itself.
+func completableCommands() []Command {
+	var result []Command
+	for _, cmd := range allCommands() {
+		if cmd.Hidden || cmd.FlagSet.Name() == "completion" {
 			continue
 		}
+		result = append(result, cmd)
+	}
+	return result
+}
+
+func generateZshCompletion() string {
+	// Build the list of commands and their summaries for zsh completion.
+	commands := completableCommands()
+	var subcommands []string
+	for _, cmd := range commands {
 		// Escape colons and single quotes in summaries for zsh.
 		summary := strings.ReplaceAll(cmd.Summary, "'", "'\\''")
 		summary = strings.ReplaceAll(summary, ":", "\\:")
@@ -66,9 +76,6 @@ func generateZshCompletion() string {
 
 	var flagCases []string
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		var flags []string
 		cmd.FlagSet.VisitAll(func(f *flag.Flag) {
 			usage := strings.ReplaceAll(f.Usage, "'", "'\\''")
@@ -97,7 +104,7 @@ _sd() {
     _arguments -C \
         '-log-level[Set log level]:level:(debug info warn error)' \
         '1:command:->command' \
-        '*::arg:->args'
+        '*::arg:->args' && return
 
     case "$state" in
         command)
@@ -116,20 +123,14 @@ compdef _sd sd
 }
 
 func generateBashCompletion() string {
-	commands := allCommands()
+	commands := completableCommands()
 	var commandNames []string
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		commandNames = append(commandNames, cmd.FlagSet.Name())
 	}
 
 	var flagCases []string
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		var flags []string
 		cmd.FlagSet.VisitAll(func(f *flag.Flag) {
 			flags = append(flags, "-"+f.Name)
@@ -178,6 +179,8 @@ func generateBashCompletion() string {
 
     case "$cmd" in
 %s
+        *)
+            ;;
     esac
 }
 
@@ -186,18 +189,15 @@ complete -F _sd sd
 }
 
 func generateFishCompletion() string {
-	commands := allCommands()
+	commands := completableCommands()
 	var lines []string
 	lines = append(lines, "# Top-level flags")
 	lines = append(lines, "complete -c sd -n '__fish_use_subcommand' -o log-level -xa 'debug info warn error' -d 'Set log level'")
 	lines = append(lines, "")
 	lines = append(lines, "# Subcommands")
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		// Escape single quotes in summary.
-		summary := strings.ReplaceAll(cmd.Summary, "'", "\\'")
+		summary := strings.ReplaceAll(cmd.Summary, "'", "'\\''")
 		lines = append(lines, fmt.Sprintf(
 			"complete -c sd -n '__fish_use_subcommand' -a '%s' -d '%s'",
 			cmd.FlagSet.Name(), summary,
@@ -206,13 +206,10 @@ func generateFishCompletion() string {
 	lines = append(lines, "")
 	lines = append(lines, "# Subcommand flags")
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		cmd.FlagSet.VisitAll(func(f *flag.Flag) {
 			// Remove newlines from usage.
 			usage := strings.ReplaceAll(f.Usage, "\n", " ")
-			usage = strings.ReplaceAll(usage, "'", "\\'")
+			usage = strings.ReplaceAll(usage, "'", "'\\''")
 			lines = append(lines, fmt.Sprintf(
 				"complete -c sd -n '__fish_seen_subcommand_from %s' -o %s -d '%s'",
 				cmd.FlagSet.Name(), f.Name, usage,
@@ -224,12 +221,9 @@ func generateFishCompletion() string {
 }
 
 func generatePowershellCompletion() string {
-	commands := allCommands()
+	commands := completableCommands()
 	var commandEntries []string
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		// Escape single quotes in summary.
 		summary := strings.ReplaceAll(cmd.Summary, "'", "''")
 		commandEntries = append(commandEntries, fmt.Sprintf(
@@ -240,9 +234,6 @@ func generatePowershellCompletion() string {
 
 	var flagCases []string
 	for _, cmd := range commands {
-		if cmd.Hidden {
-			continue
-		}
 		var flags []string
 		cmd.FlagSet.VisitAll(func(f *flag.Flag) {
 			// Remove newlines and escape single quotes.
