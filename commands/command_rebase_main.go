@@ -88,7 +88,7 @@ func rebaseMain(appConfig util.AppConfig) {
 			EnvironmentVariables: environmentVariables,
 			Io:                   appConfig.Io,
 		}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(appConfig, options, "-i", "origin/"+util.GetMainBranchOrDie())
+		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "-i", "origin/"+util.GetMainBranchOrDie())
 		slog.Info("Deleting branches...")
 		// Delete merged branches (including remote)
 		deleteBranches(appConfig.Io, mergedCommits, true)
@@ -96,7 +96,7 @@ func rebaseMain(appConfig util.AppConfig) {
 		deleteBranches(appConfig.Io, confirmedClosedCommits, false)
 	} else {
 		options := util.ExecuteOptions{Io: appConfig.Io}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(appConfig, options, "origin/"+util.GetMainBranchOrDie())
+		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "origin/"+util.GetMainBranchOrDie())
 	}
 	if rebaseError != nil {
 		panic("Rebase failed, check output ^^ for details. Continue rebase manually.")

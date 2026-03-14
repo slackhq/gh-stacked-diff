@@ -207,12 +207,12 @@ func CherryPickAndSkipAllEmpty(commits []string) {
 	}
 }
 
-func RebaseAndSkipAllEmpty(appConfig AppConfig, options ExecuteOptions, otherRebaseArgs ...string) (string, error) {
+func RebaseAndSkipAllEmpty(options ExecuteOptions, otherRebaseArgs ...string) (string, error) {
 	outRecorder := NewWriteRecorder(options.Io.Out)
 	options.Io.Out = outRecorder
 	options.Io.Err = outRecorder
 	out, err := Execute(options,
-		"git", append(rebaseNoVerify(appConfig), otherRebaseArgs...)...)
+		"git", append(rebaseNoVerify(), otherRebaseArgs...)...)
 	for err != nil {
 		if strings.Contains(outRecorder.String(), "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")
@@ -224,11 +224,11 @@ func RebaseAndSkipAllEmpty(appConfig AppConfig, options ExecuteOptions, otherReb
 	return out, err
 }
 
-func RebaseAndSkipAllEmptyOrDie(appConfig AppConfig, options ExecuteOptions, otherRebaseArgs ...string) string {
+func RebaseAndSkipAllEmptyOrDie(options ExecuteOptions, otherRebaseArgs ...string) string {
 	outRecorder := NewWriteRecorder(options.Io.Out)
 	options.Io.Out = outRecorder
 	options.Io.Err = outRecorder
-	out, err := RebaseAndSkipAllEmpty(appConfig, options, otherRebaseArgs...)
+	out, err := RebaseAndSkipAllEmpty(options, otherRebaseArgs...)
 	if err != nil {
 		if _, abortErr := Execute(ExecuteOptions{}, "git", "rebase", "--abort"); abortErr != nil {
 			slog.Warn(fmt.Sprintf("Failed to abort rebase: %s", abortErr.Error()))
@@ -240,10 +240,9 @@ func RebaseAndSkipAllEmptyOrDie(appConfig AppConfig, options ExecuteOptions, oth
 
 // Arguments to git that specify rebase with no-verify that works.
 // --no-verify on its own does not propagate to commits that are done,
-// so set the hooksPath to a non-existant directory.
+// so set the hooksPath to /dev/null.
 // Modified from https://superuser.com/a/1827815/681646
-func rebaseNoVerify(appConfig AppConfig) []string {
-	hooksPath := filepath.Join(appConfig.UserCacheDir, "gh-stacked-diff", GetRepoName(), "no-hooks-dir")
+func rebaseNoVerify() []string {
 	// Also use commit.cleanup=strip to avoid having conflict comments added to commit message.
-	return []string{"-c", "core.hooksPath=" + hooksPath, "-c", "commit.cleanup=strip", "-c", "advice.skippedCherryPicks=false", "rebase", "--no-verify"}
+	return []string{"-c", "core.hooksPath=/dev/null", "-c", "commit.cleanup=strip", "-c", "advice.skippedCherryPicks=false", "rebase", "--no-verify"}
 }

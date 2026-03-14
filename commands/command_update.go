@@ -85,7 +85,7 @@ func updatePr(appConfig util.AppConfig, destCommit templates.GitLog, commitsToCh
 		forcePush := false
 		if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "--ff-only", "origin/"+destCommit.Branch); err != nil {
 			slog.Info(fmt.Sprint("Could not fast forward to match origin. Rebasing instead. ", err))
-			util.RebaseAndSkipAllEmptyOrDie(appConfig, util.ExecuteOptions{Io: appConfig.Io}, "origin", destCommit.Branch)
+			util.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, "origin", destCommit.Branch)
 			// As we rebased, a force push may be required.
 			forcePush = true
 		}
@@ -103,7 +103,7 @@ func updatePr(appConfig util.AppConfig, destCommit templates.GitLog, commitsToCh
 			rebaseCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
 			slog.Info(fmt.Sprint("Rebasing with the base commit on "+util.GetMainBranchOrDie()+" branch, ", rebaseCommit,
 				", in case the local "+util.GetMainBranchOrDie()+" was rebased with origin/"+util.GetMainBranchOrDie()))
-			util.RebaseAndSkipAllEmptyOrDie(appConfig, util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
+			util.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
 			slog.Info(fmt.Sprint("Cherry picking again ", commitsToCherryPick))
 			util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", cherryPickArgs...)
 			forcePush = true
@@ -120,7 +120,7 @@ func updatePr(appConfig util.AppConfig, destCommit templates.GitLog, commitsToCh
 		slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
 		options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: appConfig.Io}
 		rebaseBase := earliestCommit(destCommit, commitsToCherryPick)
-		util.RebaseAndSkipAllEmptyOrDie(appConfig, options, "-i", rebaseBase+"^")
+		util.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
 		// Do the push last so that if there is a rollback origin was not updated.
 		slog.Info("Pushing to remote")
 		if forcePush {

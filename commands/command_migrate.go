@@ -146,7 +146,6 @@ func processBranch(appConfig util.AppConfig, branch string, baseCommit string) m
 func rebaseBranch(appConfig util.AppConfig, branch string, baseCommit string) {
 	slog.Info("Rebasing branch " + branch + " onto most recent main commit " + baseCommit)
 	util.RebaseAndSkipAllEmptyOrDie(
-		appConfig,
 		util.ExecuteOptions{Io: util.StdIo{Out: appConfig.Io.Out, In: nil, Err: appConfig.Io.Err}},
 		baseCommit)
 	slog.Info(fmt.Sprintf("Successfully rebased branch: %s", branch))
