@@ -151,11 +151,6 @@ func generateBashCompletion() string {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     commands="%s"
 
-    if [[ "$prev" == "-log-level" ]]; then
-        COMPREPLY=($(compgen -W "debug info warn error" -- "$cur"))
-        return 0
-    fi
-
     # Find the subcommand by scanning past flags.
     cmd=""
     for ((i=1; i < COMP_CWORD; i++)); do
@@ -171,6 +166,12 @@ func generateBashCompletion() string {
                 ;;
         esac
     done
+
+    # Complete -log-level values regardless of position.
+    if [[ "$prev" == "-log-level" ]]; then
+        COMPREPLY=($(compgen -W "debug info warn error" -- "$cur"))
+        return 0
+    fi
 
     if [[ -z "$cmd" ]]; then
         COMPREPLY=($(compgen -W "$commands -log-level" -- "$cur"))
@@ -255,19 +256,20 @@ func generatePowershellCompletion() string {
 
 	return fmt.Sprintf(`Register-ArgumentCompleter -Native -CommandName sd -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
-    $commands = $commandAst.ToString().Split() | Select-Object -Skip 1
-    if ($commands.Count -eq 0) {
+    $elements = $commandAst.CommandElements | Select-Object -Skip 1
+    $args = @($elements | ForEach-Object { $_.ToString() })
+    if ($args.Count -eq 0) {
         # Complete commands and top-level flags.
 %s
         [CompletionResult]::new('-log-level', '-log-level', [CompletionResultType]::ParameterName, 'Set log level')
-    } elseif ($commands.Count -eq 1 -and $commands[0] -eq '-log-level') {
+    } elseif ($args.Count -eq 1 -and $args[0] -eq '-log-level') {
         # Complete log level values.
         'debug', 'info', 'warn', 'error' | ForEach-Object {
             [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
         }
     } else {
         # Complete subcommand flags.
-        $cmd = $commands | Where-Object { -not $_.StartsWith('-') } | Select-Object -First 1
+        $cmd = $args | Where-Object { -not $_.StartsWith('-') } | Select-Object -First 1
         switch ($cmd) {
 %s
         }
