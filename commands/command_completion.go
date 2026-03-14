@@ -144,7 +144,7 @@ func generateBashCompletion() string {
 	}
 
 	return fmt.Sprintf(`_sd() {
-    local cur prev commands
+    local cur prev commands cmd i
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -155,12 +155,27 @@ func generateBashCompletion() string {
         return 0
     fi
 
-    if [[ ${COMP_CWORD} -eq 1 ]]; then
+    # Find the subcommand by scanning past flags.
+    cmd=""
+    for ((i=1; i < COMP_CWORD; i++)); do
+        case "${COMP_WORDS[i]}" in
+            -log-level)
+                ((i++))
+                ;;
+            -*)
+                ;;
+            *)
+                cmd="${COMP_WORDS[i]}"
+                break
+                ;;
+        esac
+    done
+
+    if [[ -z "$cmd" ]]; then
         COMPREPLY=($(compgen -W "$commands -log-level" -- "$cur"))
         return 0
     fi
 
-    local cmd="${COMP_WORDS[1]}"
     case "$cmd" in
 %s
     esac
@@ -174,7 +189,7 @@ func generateFishCompletion() string {
 	commands := allCommands()
 	var lines []string
 	lines = append(lines, "# Top-level flags")
-	lines = append(lines, "complete -c sd -n '__fish_use_subcommand' -l log-level -xa 'debug info warn error' -d 'Set log level'")
+	lines = append(lines, "complete -c sd -n '__fish_use_subcommand' -o log-level -xa 'debug info warn error' -d 'Set log level'")
 	lines = append(lines, "")
 	lines = append(lines, "# Subcommands")
 	for _, cmd := range commands {
@@ -199,7 +214,7 @@ func generateFishCompletion() string {
 			usage := strings.ReplaceAll(f.Usage, "\n", " ")
 			usage = strings.ReplaceAll(usage, "'", "\\'")
 			lines = append(lines, fmt.Sprintf(
-				"complete -c sd -n '__fish_seen_subcommand_from %s' -l %s -d '%s'",
+				"complete -c sd -n '__fish_seen_subcommand_from %s' -o %s -d '%s'",
 				cmd.FlagSet.Name(), f.Name, usage,
 			))
 		})
@@ -268,29 +283,4 @@ func generatePowershellCompletion() string {
     } | Where-Object { $_.CompletionText -like "$wordToComplete*" }
 }
 `, strings.Join(commandEntries, "\n"), strings.Join(flagCases, "\n"))
-}
-
-// allCommands returns all registered commands. This is kept in sync with
-// the command list in parseArguments.
-func allCommands() []Command {
-	return []Command{
-		createAddDescriptionCommand(),
-		createAddReviewersCommand(),
-		createBranchNameCommand(),
-		createCheckoutCommand(),
-		createCodeOwnersCommand(),
-		createDropAlreadyMergedCommand(),
-		createCompletionCommand(),
-		createLogCommand(),
-		createMarkAsFixupCommand(),
-		createMigrateCommand(),
-		createNewCommand(),
-		createPrsCommand(),
-		createRebaseMainCommand(),
-		createReplaceCommitCommand(),
-		createReplaceConflictsCommand(),
-		createUpdateCommand(),
-		createVersionCommand(),
-		createWaitForMergeCommand(),
-	}
 }

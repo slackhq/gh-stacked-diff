@@ -63,26 +63,7 @@ func parseArguments(appConfig util.AppConfig, commandLine *flag.FlagSet, command
 	}
 	// parseErr is dealt with below via commandError and commandHelp.
 
-	commands := []Command{
-		createAddDescriptionCommand(),
-		createAddReviewersCommand(),
-		createBranchNameCommand(),
-		createCheckoutCommand(),
-		createCodeOwnersCommand(),
-		createDropAlreadyMergedCommand(),
-		createCompletionCommand(),
-		createLogCommand(),
-		createMarkAsFixupCommand(),
-		createMigrateCommand(),
-		createNewCommand(),
-		createPrsCommand(),
-		createRebaseMainCommand(),
-		createReplaceCommitCommand(),
-		createReplaceConflictsCommand(),
-		createUpdateCommand(),
-		createVersionCommand(),
-		createWaitForMergeCommand(),
-	}
+	commands := allCommands()
 
 	commandLineDescription := "Stacked Diff Workflow"
 	commandLineUsage := "sd [top-level-flags] <command> [<args>]\n" +
@@ -161,6 +142,30 @@ func setSlogLogger(stdOut io.Writer, logLevel slog.Level) *slog.LevelVar {
 	handler := util.NewPrettyHandler(stdOut, slog.HandlerOptions{Level: &levelVar})
 	slog.SetDefault(slog.New(handler))
 	return &levelVar
+}
+
+// allCommands returns all registered commands in alphabetical order.
+func allCommands() []Command {
+	return []Command{
+		createAddDescriptionCommand(),
+		createAddReviewersCommand(),
+		createBranchNameCommand(),
+		createCheckoutCommand(),
+		createCodeOwnersCommand(),
+		createCompletionCommand(),
+		createDropAlreadyMergedCommand(),
+		createLogCommand(),
+		createMarkAsFixupCommand(),
+		createMigrateCommand(),
+		createNewCommand(),
+		createPrsCommand(),
+		createRebaseMainCommand(),
+		createReplaceCommitCommand(),
+		createReplaceConflictsCommand(),
+		createUpdateCommand(),
+		createVersionCommand(),
+		createWaitForMergeCommand(),
+	}
 }
 
 func stringToLogLevel(logLevelString string) (slog.Level, error) {

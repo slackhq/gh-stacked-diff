@@ -45,6 +45,9 @@ func TestCompletion_Fish(t *testing.T) {
 	assert.Contains(output, "__fish_use_subcommand")
 	assert.Contains(output, "update")
 	assert.Contains(output, "log")
+	// Verify single-dash flags use -o (old-style) not -l (long/double-dash).
+	assert.Contains(output, "-o log-level")
+	assert.NotContains(output, "-l log-level")
 }
 
 func TestCompletion_Powershell(t *testing.T) {
