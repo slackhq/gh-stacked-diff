@@ -27,9 +27,11 @@ brew install gh
 gh auth login
 # Install plugin
 gh extensions install slackhq/gh-stacked-diff
-# Add a shell alias to make it faster to use.
-# For example if using zsh:
-echo "alias sd='gh stacked-diff'" >> ~/.zshrc
+# Add a shell function to make it faster to use.
+# For example if using zsh (note: must be a function and not an alias for shell completions to work):
+echo 'sd() { gh stacked-diff "$@"; }' >> ~/.zshrc
+# Enable shell completions for zsh:
+echo 'eval "$(sd completion --shell zsh)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
@@ -43,9 +45,11 @@ source ~/.zshrc
       gh auth login
       # Install plugin
       gh extensions install slackhq/gh-stacked-diff
-      # Add a shell alias to make it faster to use.
+      # Add a shell function to make it faster to use.
       # For example if using Git Bash:
-      echo "alias sd='gh stacked-diff'" >> ~/.bashrc
+      echo 'sd() { gh stacked-diff "$@"; }' >> ~/.bashrc
+      # Enable shell completions for bash:
+      echo 'eval "$(sd completion --shell bash)"' >> ~/.bashrc
       source ~/.bashrc
       ```
 
