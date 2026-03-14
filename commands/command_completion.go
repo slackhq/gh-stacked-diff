@@ -258,18 +258,30 @@ func generatePowershellCompletion() string {
     param($wordToComplete, $commandAst, $cursorPosition)
     $elements = $commandAst.CommandElements | Select-Object -Skip 1
     $args = @($elements | ForEach-Object { $_.ToString() })
-    if ($args.Count -eq 0) {
-        # Complete commands and top-level flags.
-%s
-        [CompletionResult]::new('-log-level', '-log-level', [CompletionResultType]::ParameterName, 'Set log level')
-    } elseif ($args.Count -eq 1 -and $args[0] -eq '-log-level') {
-        # Complete log level values.
+    # Find the subcommand by scanning past flags.
+    $cmd = $null
+    for ($i = 0; $i -lt $args.Count; $i++) {
+        if ($args[$i] -eq '-log-level') {
+            $i++
+        } elseif ($args[$i].StartsWith('-')) {
+            continue
+        } else {
+            $cmd = $args[$i]
+            break
+        }
+    }
+    # Complete -log-level values.
+    $prev = if ($args.Count -gt 0) { $args[$args.Count - 1] } else { $null }
+    if ($prev -eq '-log-level') {
         'debug', 'info', 'warn', 'error' | ForEach-Object {
             [CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
         }
+    } elseif ($null -eq $cmd) {
+        # Complete commands and top-level flags.
+%s
+        [CompletionResult]::new('-log-level', '-log-level', [CompletionResultType]::ParameterName, 'Set log level')
     } else {
         # Complete subcommand flags.
-        $cmd = $args | Where-Object { -not $_.StartsWith('-') } | Select-Object -First 1
         switch ($cmd) {
 %s
         }

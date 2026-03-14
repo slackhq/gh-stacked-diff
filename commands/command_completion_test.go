@@ -22,6 +22,8 @@ func TestCompletion_Zsh(t *testing.T) {
 	assert.Contains(output, "-indicator")
 	// Verify the completion command itself is excluded.
 	assert.NotContains(output, "'completion:")
+	// Verify hidden commands are excluded.
+	assert.NotContains(output, "add-description")
 }
 
 func TestCompletion_MissingShellFlag(t *testing.T) {
