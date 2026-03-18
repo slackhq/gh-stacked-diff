@@ -1,5 +1,7 @@
 # Stacked Diff Workflow
 
+[![Stacked Diff Workflow][docs/README-sd-preview.png]]
+
 Using a [stacked diff workflow](https://newsletter.pragmaticengineer.com/p/stacked-diffs) and `sd` allows you to:
 
 - Break down a pull request into several smaller PRs.
