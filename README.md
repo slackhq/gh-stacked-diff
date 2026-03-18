@@ -1,5 +1,11 @@
 # Stacked Diff Workflow
 
+<p align="center">
+  <img 
+    src="docs/README-sd-preview.png" 
+    alt="Stacked Diff Workflow. Stay on main, skip the branches. Put up pull requests in slices.">
+</p>
+
 Using a [stacked diff workflow](https://newsletter.pragmaticengineer.com/p/stacked-diffs) and `sd` allows you to:
 
 - Break down a pull request into several smaller PRs.
