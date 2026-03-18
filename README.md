@@ -1,6 +1,10 @@
 # Stacked Diff Workflow
 
-[![Stacked Diff Workflow][docs/README-sd-preview.png]]
+<p align="center">
+  <img 
+    src="docs/README-sd-preview.png" 
+    alt="Stacked Diff Workflow. Stay on main, skip the branches. Put up pull requests in slices.">
+</p>
 
 Using a [stacked diff workflow](https://newsletter.pragmaticengineer.com/p/stacked-diffs) and `sd` allows you to:
 
