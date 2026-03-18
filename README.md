@@ -1,5 +1,3 @@
-# Stacked Diff Workflow
-
 <p align="center">
   <img 
     src="docs/README-sd-preview.png" 
