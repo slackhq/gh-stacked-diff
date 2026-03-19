@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"flag"
-
 	"fmt"
 	"log/slog"
 	"slices"
@@ -11,15 +9,14 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createRebaseMainCommand() Command {
-	flagSet := flag.NewFlagSet("rebase-main", flag.ContinueOnError)
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Bring your main branch up to date with remote",
-		Description: "Rebase with origin/" + util.GetMainBranchForHelp() + ", dropping any commits who's associated\n" +
+func createRebaseMainCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:   "rebase-main",
+		Short: "Bring your main branch up to date with remote",
+		Long: "Rebase with origin/" + util.GetMainBranchForHelp() + ", dropping any commits who's associated\n" +
 			"branches have been merged or closed.\n" +
 			"\n" +
 			"Commits from merged PRs are automatically dropped. For commits from closed\n" +
@@ -29,13 +26,11 @@ func createRebaseMainCommand() Command {
 			"you have merge conflicts with a commit that has already been merged\n" +
 			"but has slight variation with local main because, for example, a\n" +
 			"change was made with the Github Web UI.",
-		Usage: "sd " + flagSet.Name(),
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() != 0 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
 			rebaseMain(appConfig)
-		}}
+		},
+	}
 }
 
 // Bring local main branch up to date with remote

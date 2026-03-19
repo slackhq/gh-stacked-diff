@@ -1,18 +1,15 @@
 package commands
 
 import (
-	"flag"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
-
-	"bytes"
 	"strings"
-
-	"context"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
@@ -20,7 +17,7 @@ import (
 // Program name
 const programName string = "gh-stacked-diff"
 
-// Calls [parseArguments] for unit tests.
+// Calls [ExecuteCommand] for unit tests.
 func testParseArguments(commandLineArgs ...string) string {
 	if slog.Default().Handler().Enabled(context.Background(), slog.LevelInfo) {
 		out := util.NewWriteRecorder(os.Stdout)
@@ -66,11 +63,7 @@ func testParseArgumentsWithOut(out io.Writer, commandLineArgs ...string) {
 		UserCacheDir:  getTestAppCacheDir(),
 		DemoMode:      false,
 	}
-	parseArguments(
-		appConfig,
-		flag.NewFlagSet("sd", flag.ContinueOnError),
-		commandLineArgs,
-	)
+	ExecuteCommand(appConfig, commandLineArgs)
 	slog.Debug(fmt.Sprint("***Done running arguments*** ", strings.Join(commandLineArgs, " ")))
 }
 

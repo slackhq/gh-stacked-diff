@@ -53,39 +53,38 @@ When the user invokes this skill:
 package commands
 
 import (
-	"flag"
-	"log/slog"
-
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func create<CommandName>Command() Command {
-	flagSet := flag.NewFlagSet("<command-name>", flag.ContinueOnError)
-
-	// Add command-specific flags here
-	// Example: someFlag := flagSet.String("flag-name", "default", "Description")
-
-	return Command{
-		FlagSet:         flagSet,
-		DefaultLogLevel: slog.Level<LogLevel>,
-		Summary:         "<summary>",
-		Description: `<Detailed description>
+func create<CommandName>Command(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "<command-name>",
+		Short: "<summary>",
+		Long: `<Detailed description>
 
 Examples:
   sd <command-name>
   sd <command-name> --flag value`,
-		Usage:         "<usage>",
-		SkipRepoCheck: <skipRepoCheck>,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			// Parse and validate arguments
-			if flagSet.NArg() > 0 {
-				commandError(appConfig, flagSet, "unexpected arguments", command.Usage)
-			}
-
-			// TODO: Implement command logic here
-			util.Fprintln(appConfig.Io.Out, "Command executed successfully")
-		},
+		Args: cobra.NoArgs,
+		// Add Annotations if needed:
+		// Annotations: map[string]string{
+		//   "defaultLogLevel": "error",    // for output commands (default is info)
+		//   "skipRepoCheck":   "true",     // if command doesn't need a git repo
+		// },
 	}
+
+	// Add command-specific flags here
+	// Example: someFlag := cmd.Flags().StringP("flag-name", "f", "default", "Description")
+
+	// Use addIndicatorFlag(cmd) if command selects commits
+	// Use addReviewersFlags(cmd) if command works with PRs
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		// TODO: Implement command logic here
+		util.Fprintln(appConfig.Io.Out, "Command executed successfully")
+	}
+	return cmd
 }
 ```
    - Mark this todo as completed
@@ -126,19 +125,19 @@ func TestSd<CommandName>_BasicTest(t *testing.T) {
    - Mark this todo as completed
 
 7. **Register Command**: Mark this todo as in_progress
-   - Read `commands/parse_arguments.go` to find the commands slice (around line 66-82)
-   - Add `create<CommandName>Command(),` to the list in alphabetical order
+   - Read `commands/parse_arguments.go` to find the `rootCmd.AddCommand(...)` block
+   - Add `create<CommandName>Command(appConfig),` to the list in alphabetical order
    - Mark this todo as completed
 
 8. **Run Tests**: Mark this todo as in_progress
-   - Run `make TEST_ARGS="-run TestSd<CommandName>" test` to verify the code compiles and basic tests pass
+   - Run `make TEST_ARGS="-timeout 10s -run TestSd<CommandName>" -o lint test` to verify the code compiles and basic tests pass
    - If tests fail, report the error to the user and keep this todo as in_progress
    - If tests pass, mark this todo as completed
 
 9. **Provide Next Steps**: Mark this todo as in_progress. Tell the user:
    - The command and test files have been created
    - Basic tests have passed successfully
-   - They need to implement the actual command logic in the OnSelected function
+   - They need to implement the actual command logic in the Run function
    - They should add more test cases
    - They can run all tests with: `make test`
    - They can test the command manually with: `make build && ./bin/gh-stacked-diff <command-name>`
@@ -152,8 +151,17 @@ Replace these placeholders when generating files:
 - `<command-name>`: Command name in kebab-case (for CLI usage)
 - `<summary>`: One-line summary
 - `<usage>`: Usage string
-- `<skipRepoCheck>`: `true` or `false`
-- `<LogLevel>`: `Error` or `Info`
+
+## Key Patterns
+
+- Each `create*Command()` accepts `appConfig util.AppConfig` and returns `*cobra.Command`
+- `appConfig` is captured via closure in `cmd.Run`
+- Per-command metadata uses `cobra.Command.Annotations`:
+  - `"defaultLogLevel": "error"` for output commands (default is info if not set)
+  - `"skipRepoCheck": "true"` for commands that don't need a git repo
+- Error handling uses `panic("message")` — caught by defer/recover in `ExecuteCommand`
+- Use `addIndicatorFlag(cmd)` for commit selection, `addReviewersFlags(cmd)` for PR operations
+- Use `getTargetCommits(appConfig, args, indicatorTypeString, options)` for interactive commit selection
 
 ## Examples
 
@@ -168,5 +176,5 @@ Replace these placeholders when generating files:
 - Follow the patterns in existing commands for consistency
 - Use the common flag helpers when appropriate (addIndicatorFlag, addReviewersFlags)
 - Use getTargetCommits() for commands that need to select commits
-- Commands that output structured data should use DefaultLogLevel: slog.LevelError
-- Commands that show progress should use DefaultLogLevel: slog.LevelInfo
+- Commands that output structured data should use Annotations defaultLogLevel "error"
+- Commands that show progress should use the default log level (info)

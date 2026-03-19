@@ -5,7 +5,6 @@ then use `gh` to update the PR description
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -14,38 +13,33 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
 const GENERATED_CLAUDE_SUMMARY_BEGIN = "\n<details>\n<summary>Claude Generated Summary (click me)</summary>\n\n"
 const GENERATED_CLAUDE_SUMMARY_END = "\n\n</details>\n"
 
-func createAddDescriptionCommand() Command {
-	flagSet := flag.NewFlagSet("add-description", flag.ContinueOnError)
-	indicatorTypeString := addIndicatorFlag(flagSet)
-	return Command{
-		FlagSet:         flagSet,
-		DefaultLogLevel: slog.LevelInfo,
-		Summary:         "Adds a Claude generated summary to a PR description",
-		Description: `Asks Claude to generate a description for a PR, and then adds the summary to the PR description. 
-If the PR description already has a Claude summary, this replaces it.`,
-		Usage:         "sd " + flagSet.Name() + " [flags] [commitIndicator]",
-		SkipRepoCheck: false,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 0 {
-				commandError(appConfig, flagSet, "unexpected arguments", command.Usage)
-			}
-			selectPrsOptions := interactive.CommitSelectionOptions{
-				Prompt:      "What PRs do you want to add AI generated descriptions to?",
-				CommitType:  interactive.CommitTypePr,
-				MultiSelect: true,
-			}
-			aiCommand := ai.GetAiCommandInteractive(appConfig)
-			slog.Info(fmt.Sprint("commands", aiCommand))
-			targetCommits := getTargetCommits(appConfig, command, flagSet.Args(), indicatorTypeString, selectPrsOptions)
-			executeAddDescription(appConfig, targetCommits)
-		},
+func createAddDescriptionCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "add-description [commitIndicator...]",
+		Short:  "Adds a Claude generated summary to a PR description",
+		Long:   "Asks Claude to generate a description for a PR, and then adds the summary to the PR description.\nIf the PR description already has a Claude summary, this replaces it.",
+		Args:   cobra.NoArgs,
 		Hidden: true, // WIP: This command is not yet ready for general use. It requires an AI CLI tool to be configured.
 	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		selectPrsOptions := interactive.CommitSelectionOptions{
+			Prompt:      "What PRs do you want to add AI generated descriptions to?",
+			CommitType:  interactive.CommitTypePr,
+			MultiSelect: true,
+		}
+		aiCommand := ai.GetAiCommandInteractive(appConfig)
+		slog.Info(fmt.Sprint("commands", aiCommand))
+		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectPrsOptions)
+		executeAddDescription(appConfig, targetCommits)
+	}
+	return cmd
 }
 
 func executeAddDescription(appConfig util.AppConfig, targetCommits []templates.GitLog) {

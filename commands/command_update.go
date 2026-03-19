@@ -1,76 +1,67 @@
 package commands
 
 import (
-	"flag"
-	"log/slog"
-
 	"fmt"
+	"log/slog"
+	"slices"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
-
-	"slices"
+	"github.com/spf13/cobra"
 )
 
-func createUpdateCommand() Command {
-	flagSet := flag.NewFlagSet("update", flag.ContinueOnError)
-	indicatorTypeString := addIndicatorFlag(flagSet)
-	reviewers, silent, minChecks, merge := addReviewersFlags(flagSet)
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Add commits from " + util.GetMainBranchForHelp() + " to an existing PR",
-		Description: "Add commits from local " + util.GetMainBranchForHelp() + " branch to an existing PR.\n" +
+func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update [PR commitIndicator [fixup commitIndicator...]]",
+		Short: "Add commits from " + util.GetMainBranchForHelp() + " to an existing PR",
+		Long: "Add commits from local " + util.GetMainBranchForHelp() + " branch to an existing PR.\n" +
 			"\n" +
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
-		Usage: "sd " + flagSet.Name() + " [flags] [PR commitIndicator [fixup commitIndicator [fixup commitIndicator...]]]\n" +
-			"\nIf commitIndicators are missing then you will be prompted to select commits:\n" +
-			"\n" +
-			"   [enter]    confirms selection\n" +
-			"   [space]    adds to selection when selecting commits to add\n" +
-			"   [up,k]     moves cursor up\n" +
-			"   [down,j]   moves cursor down\n" +
-			"   [q,esc]    cancels\n",
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			util.RequireMainBranch()
-			destCommit := getDestCommit(appConfig, command, indicatorTypeString)
-			commitsToCherryPick := getCommitsToCherryPick(appConfig, command, indicatorTypeString)
-			markReady := promptForReviewers(appConfig, reviewers, flagSet.NArg() < 2)
-			updatePr(appConfig, destCommit, commitsToCherryPick)
-			if *reviewers != "" || markReady {
-				addReviewersToPr(appConfig, []templates.GitLog{destCommit}, AddReviewersOptions{
-					WhenChecksPass: true,
-					Silent:         *silent,
-					MinChecks:      *minChecks,
-					Reviewers:      *reviewers,
-					PollFrequency:  DefaultPollFrequency,
-					AutoMerge:      *merge,
-				})
-			}
-		}}
+	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		util.RequireMainBranch()
+		destCommit := getDestCommit(appConfig, args, indicatorTypeString)
+		commitsToCherryPick := getCommitsToCherryPick(appConfig, args, indicatorTypeString)
+		markReady := promptForReviewers(appConfig, reviewers, len(args) < 2)
+		updatePr(appConfig, destCommit, commitsToCherryPick)
+		if *reviewers != "" || markReady {
+			addReviewersToPr(appConfig, []templates.GitLog{destCommit}, AddReviewersOptions{
+				WhenChecksPass: true,
+				Silent:         *silent,
+				MinChecks:      *minChecks,
+				Reviewers:      *reviewers,
+				PollFrequency:  DefaultPollFrequency,
+				AutoMerge:      *merge,
+			})
+		}
+	}
+	return cmd
 }
 
-func getDestCommit(appConfig util.AppConfig, command Command, indicatorTypeString *string) templates.GitLog {
+func getDestCommit(appConfig util.AppConfig, args []string, indicatorTypeString *string) templates.GitLog {
 	selectPrOptions := interactive.CommitSelectionOptions{
 		Prompt:      "What PR do you want to update?",
 		CommitType:  interactive.CommitTypePr,
 		MultiSelect: false,
 	}
-	targetCommits := getTargetCommits(appConfig, command, []string{command.FlagSet.Arg(0)}, indicatorTypeString, selectPrOptions)
+	targetCommits := getTargetCommits(appConfig, args[:min(len(args), 1)], indicatorTypeString, selectPrOptions)
 	return targetCommits[0]
 }
 
-func getCommitsToCherryPick(appConfig util.AppConfig, command Command, indicatorTypeString *string) []templates.GitLog {
+func getCommitsToCherryPick(appConfig util.AppConfig, args []string, indicatorTypeString *string) []templates.GitLog {
 	selectCommitsOptions := interactive.CommitSelectionOptions{
 		Prompt:      "What commits do you want to add?",
 		CommitType:  interactive.CommitTypeNoPr,
 		MultiSelect: true,
 	}
 	var commitsFromCommandLine []string
-	if command.FlagSet.NArg() > 1 {
-		commitsFromCommandLine = command.FlagSet.Args()[1:]
+	if len(args) > 1 {
+		commitsFromCommandLine = args[1:]
 	}
-	return getTargetCommits(appConfig, command, commitsFromCommandLine, indicatorTypeString, selectCommitsOptions)
+	return getTargetCommits(appConfig, commitsFromCommandLine, indicatorTypeString, selectCommitsOptions)
 }
 
 // Add commits from main to an existing PR.

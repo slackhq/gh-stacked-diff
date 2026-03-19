@@ -7,32 +7,28 @@ usage: sequence_editor_drop_already_merged dropCommit1 [dropCommit2...] rebaseFi
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createDropAlreadyMergedCommand() Command {
-	flagSet := flag.NewFlagSet("sequence-editor-drop-already-merged", flag.ContinueOnError)
-	return Command{
-		FlagSet:     flagSet,
-		Summary:     "Sequence editor for git rebase used by rebase-main",
-		Description: "Drops any commits passed as arguments.",
-		Usage:       "sd " + flagSet.Name() + " dropCommit1 [dropCommit2...] rebaseFilename",
-		Hidden:      true,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() < 2 {
-				commandError(appConfig, flagSet, "not enough arguments", command.Usage)
-			}
-			dropCommits := flagSet.Args()[0 : len(flagSet.Args())-1]
-			rebaseFilename := flagSet.Args()[len(flagSet.Args())-1]
-
+func createDropAlreadyMergedCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:    "sequence-editor-drop-already-merged [dropCommit...] rebaseFilename",
+		Short:  "Sequence editor for git rebase used by rebase-main",
+		Long:   "Drops any commits passed as arguments.",
+		Hidden: true,
+		Args:   cobra.MinimumNArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			dropCommits := args[0 : len(args)-1]
+			rebaseFilename := args[len(args)-1]
 			dropAlreadyMerged(dropCommits, rebaseFilename)
-		}}
+		},
+	}
 }
 
 func dropAlreadyMerged(dropCommits []string, rebaseFilename string) {

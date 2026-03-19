@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -19,34 +19,32 @@ const (
 	onCherryPickErrorExit     = "exit"
 )
 
-func createReplaceCommitCommand() Command {
-	flagSet := flag.NewFlagSet("replace-commit", flag.ContinueOnError)
-	indicatorTypeString := addIndicatorFlag(flagSet)
-	onCherryPickError := flagSet.String("on-cherry-pick-error", onCherryPickErrorPrompt,
-		"Action when cherry-pick fails: prompt, rollback, or exit")
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with its associated branch",
-		Description: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
+func createReplaceCommitCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "replace-commit [commitIndicator]",
+		Short: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with its associated branch",
+		Long: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
 			"associated branch.\n" +
 			"\n" +
 			"This is useful when you make changes within a branch, for example to\n" +
 			"fix a problem found on CI, and want to bring the changes over to your\n" +
 			"local " + util.GetMainBranchForHelp() + " branch.",
-		Usage: "sd " + flagSet.Name() + " [flags] <commitIndicator>",
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 1 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
-			selectCommitOptions := interactive.CommitSelectionOptions{
-				Prompt:      "What commit do you want to replace with the contents of its associated branch?",
-				CommitType:  interactive.CommitTypePr,
-				MultiSelect: false,
-			}
-			util.RequireMainBranch()
-			targetCommit := getTargetCommits(appConfig, command, []string{flagSet.Arg(0)}, indicatorTypeString, selectCommitOptions)
-			replaceCommit(appConfig, *onCherryPickError, targetCommit[0])
-		}}
+		Args: cobra.MaximumNArgs(1),
+	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+	onCherryPickError := cmd.Flags().String("on-cherry-pick-error", onCherryPickErrorPrompt,
+		"Action when cherry-pick fails: prompt, rollback, or exit")
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		selectCommitOptions := interactive.CommitSelectionOptions{
+			Prompt:      "What commit do you want to replace with the contents of its associated branch?",
+			CommitType:  interactive.CommitTypePr,
+			MultiSelect: false,
+		}
+		util.RequireMainBranch()
+		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		replaceCommit(appConfig, *onCherryPickError, targetCommit[0])
+	}
+	return cmd
 }
 
 // Replaces a commit on main branch with its associated branch.

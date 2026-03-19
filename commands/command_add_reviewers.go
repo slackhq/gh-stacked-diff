@@ -1,70 +1,64 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
-	"sync"
-
-	"github.com/slackhq/gh-stacked-diff/v2/interactive"
-	"github.com/slackhq/gh-stacked-diff/v2/util"
-
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
 const DefaultPollFrequency = 30 * time.Second
 
-func createAddReviewersCommand() Command {
-	flagSet := flag.NewFlagSet("add-reviewers", flag.ContinueOnError)
-	indicatorTypeString := addIndicatorFlag(flagSet)
-
-	whenChecksPass := flagSet.Bool("when-checks-pass", true, "Poll until all checks pass before adding reviewers")
-	pollFrequency := flagSet.Duration("poll-frequency", DefaultPollFrequency,
-		"Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration")
-	reviewers, silent, minChecks, merge := addReviewersFlags(flagSet)
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Add reviewers to Pull Request on Github once its checks have passed",
-		Description: "Add reviewers to Pull Request on Github once its checks have passed.\n" +
+func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-reviewers [commitIndicator...]",
+		Short: "Add reviewers to Pull Request on Github once its checks have passed",
+		Long: "Add reviewers to Pull Request on Github once its checks have passed.\n" +
 			"\n" +
 			"If PR is marked as a Draft, it is first marked as \"Ready for Review\".",
-		Usage: "sd " + flagSet.Name() + " [flags] [commitIndicator [commitIndicator]...]",
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			selectPrsOptions := interactive.CommitSelectionOptions{
-				Prompt:      "What PR do you want to add reviewers too?",
-				CommitType:  interactive.CommitTypePr,
-				MultiSelect: true,
-			}
-			targetCommits := getTargetCommits(appConfig, command, flagSet.Args(), indicatorTypeString, selectPrsOptions)
-			// Reverse the order as getTargetCommits returns cherry-pick order and we want to display in log order.
-			slices.Reverse(targetCommits)
+	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+
+	whenChecksPass := cmd.Flags().BoolP("when-checks-pass", "w", true, "Poll until all checks pass before adding reviewers")
+	pollFrequency := cmd.Flags().DurationP("poll-frequency", "p", DefaultPollFrequency,
+		"Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration")
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		selectPrsOptions := interactive.CommitSelectionOptions{
+			Prompt:      "What PR do you want to add reviewers too?",
+			CommitType:  interactive.CommitTypePr,
+			MultiSelect: true,
+		}
+		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectPrsOptions)
+		// Reverse the order as getTargetCommits returns cherry-pick order and we want to display in log order.
+		slices.Reverse(targetCommits)
+		if *reviewers == "" {
+			*reviewers = interactive.UserSelection(appConfig, false)
 			if *reviewers == "" {
-				*reviewers = interactive.UserSelection(appConfig, false)
-				if *reviewers == "" {
-					commandError(
-						appConfig,
-						flagSet,
-						"reviewers not specified.",
-						command.Usage)
-				}
-				slog.Info("Using reviewers " + *reviewers)
-			} else {
-				interactive.ReviewersHistory.AddToHistory(appConfig, *reviewers)
+				panic("reviewers not specified.")
 			}
-			addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
-				WhenChecksPass: *whenChecksPass,
-				Silent:         *silent,
-				MinChecks:      *minChecks,
-				Reviewers:      *reviewers,
-				PollFrequency:  *pollFrequency,
-				AutoMerge:      *merge,
-			})
-		}}
+			slog.Info("Using reviewers " + *reviewers)
+		} else {
+			interactive.ReviewersHistory.AddToHistory(appConfig, *reviewers)
+		}
+		addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
+			WhenChecksPass: *whenChecksPass,
+			Silent:         *silent,
+			MinChecks:      *minChecks,
+			Reviewers:      *reviewers,
+			PollFrequency:  *pollFrequency,
+			AutoMerge:      *merge,
+		})
+	}
+	return cmd
 }
 
 type AddReviewersOptions struct {

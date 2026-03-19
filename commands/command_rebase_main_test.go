@@ -351,7 +351,7 @@ func TestSdRebaseMain_WithMergedAndClosedPRs_DropsBothWhenConfirmed(t *testing.T
 
 func TestSdRebaseMain_WhenCommitAlreadyCherryPickedToBranch_SkipsEmptyCommit(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", "second")
 	testutil.AddCommit("first", "")

@@ -1,34 +1,29 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createMarkAsFixupCommand() Command {
-	flagSet := flag.NewFlagSet("sequence-editor-mark-as-fixup", flag.ContinueOnError)
-	return Command{
-		FlagSet:     flagSet,
-		Summary:     "Sequence editor for git rebase used by update",
-		Description: "For use as a sequence editor during an interactive git rebase. Marks commits as fixup commits.",
-		Usage:       "sd " + flagSet.Name() + " targetCommit fixupCommit1 [fixupCommit2...] rebaseFilename",
-		Hidden:      true,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() < 3 {
-				commandError(appConfig, flagSet, "not enough arguments", command.Usage)
-			}
-
-			targetCommit := flagSet.Arg(0)
-			fixupCommits := flagSet.Args()[1 : len(flagSet.Args())-1]
-			rebaseFilename := flagSet.Arg(len(flagSet.Args()) - 1)
-
+func createMarkAsFixupCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:    "sequence-editor-mark-as-fixup targetCommit fixupCommit [fixupCommit...] rebaseFilename",
+		Short:  "Sequence editor for git rebase used by update",
+		Long:   "For use as a sequence editor during an interactive git rebase. Marks commits as fixup commits.",
+		Hidden: true,
+		Args:   cobra.MinimumNArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			targetCommit := args[0]
+			fixupCommits := args[1 : len(args)-1]
+			rebaseFilename := args[len(args)-1]
 			markAsFixup(targetCommit, fixupCommits, rebaseFilename)
-		}}
+		},
+	}
 }
 
 func markAsFixup(targetCommit string, fixupCommits []string, rebaseFilename string) {

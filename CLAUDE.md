@@ -33,27 +33,30 @@ This is a CLI tool (`sd`) that implements a stacked diff workflow for Git/GitHub
 
 ### Entry Point and Command Structure
 - **Entry point**: `main.go` creates an `AppConfig` and calls `commands.ExecuteCommand()`
-- **Command registration**: `commands/parse_arguments.go` contains the command registry (lines 66-82) where all commands are registered in a slice
-- **Command pattern**: Each command is defined by a `Command` struct (in `commands/command.go`) with:
-  - `FlagSet`: Command-specific flags
-  - `OnSelected`: Function executed when command runs
-  - `DefaultLogLevel`: Either `slog.LevelInfo` (for progress commands) or `slog.LevelError` (for output commands)
-  - `Summary`, `Description`, `Usage`: Help text
-  - `SkipRepoCheck`: Whether command requires a git repository
+- **Command framework**: Uses `github.com/spf13/cobra` for CLI parsing, subcommands, help generation, and shell completions
+- **Command registration**: `commands/parse_arguments.go` contains `buildRootCommand(appConfig)` which creates the root `*cobra.Command` and adds all subcommands via `rootCmd.AddCommand(...)`
+- **Command pattern**: Each command is a `*cobra.Command` returned by a `create<CommandName>Command(appConfig util.AppConfig)` factory function
+- **AppConfig injection**: `appConfig` is passed to each factory function and captured via closure in the command's `Run` function. No global state.
 
 ### Command Implementation Pattern
 Commands follow this structure:
 1. Each command has two files: `commands/command_<name>.go` and `commands/command_<name>_test.go`
-2. Each command file exports a `create<CommandName>Command()` function that returns a `Command` struct
-3. Common flag helpers: `addIndicatorFlag()`, `addReviewersFlags()` for reusable functionality
+2. Each command file exports a `create<CommandName>Command(appConfig util.AppConfig)` function that returns `*cobra.Command`
+3. Common flag helpers: `addIndicatorFlag(cmd)`, `addReviewersFlags(cmd)` for reusable functionality
 4. Commands use `getTargetCommits()` for interactive commit selection
+5. **Annotations**: `DefaultLogLevel` and `SkipRepoCheck` are stored in `cobra.Command.Annotations` map:
+   - `"defaultLogLevel"`: `"error"` for output commands, omit for default `"info"`
+   - `"skipRepoCheck"`: `"true"` if command doesn't need a git repo
+6. **Short flags**: Common flags use short forms (e.g. `-i`, `-r`, `-l`). Run `sd <command> --help` to see available flags and their short forms
 
 ### Key Modules
 
 **commands/** - All CLI commands
-- Uses `flag.FlagSet` for argument parsing with `flag.ContinueOnError`
-- Commands are registered in `parse_arguments.go` alphabetically
-- Helper functions: `commandError()`, `commandHelp()`, `getTargetCommits()`
+- Uses cobra/pflag for argument parsing with `--long` and `-s` short flag support
+- Commands are registered in `parse_arguments.go` alphabetically in `buildRootCommand()`
+- `PersistentPreRun` on root command handles log level setup and repo checks
+- Helper functions: `getTargetCommits()`
+- Shell completions are provided by cobra's built-in `completion` command
 
 **util/** - Shared utilities
 - `AppConfig`: Dependency injection struct for testing (holds IO, Exit function, paths)
@@ -80,7 +83,7 @@ Commands follow this structure:
 - Tests run in `${UserCacheDir}/gh-stacked-diff-tests/<test-name>/`
 
 ### Commit Indicators
-The tool supports three ways to reference commits (via the `-indicator` flag):
+The tool supports three ways to reference commits (via the `--indicator`/`-i` flag):
 - `commit`: Git commit hash (abbreviated or full)
 - `pr`: GitHub PR number
 - `list`: Index from `sd log` output (0-99)
@@ -91,27 +94,28 @@ The tool supports three ways to reference commits (via the `-indicator` flag):
 - Tests use `testutil.InitTest()` to create isolated git environments
 - Set log level to `slog.LevelDebug` in tests for detailed output
 - Use `TestExecutor.SetResponse()` to fake git/gh CLI responses
-- Helper: `testParseArguments()` simulates command execution
+- Helper: `testParseArguments()` simulates command execution via `buildRootCommand()` + `rootCmd.Execute()`
 
 ## Creating New Commands
 
 To add a new command:
 
-1. Create `commands/command_<name>.go` with `create<CommandName>Command()` function
+1. Create `commands/command_<name>.go` with `create<CommandName>Command(appConfig util.AppConfig)` function returning `*cobra.Command`
 2. Create `commands/command_<name>_test.go` with test cases
-3. Register in `commands/parse_arguments.go` (add to commands slice, keep alphabetical)
+3. Register in `commands/parse_arguments.go` (add to `rootCmd.AddCommand(...)`, keep alphabetical)
 4. Follow existing command patterns:
-   - Use `addIndicatorFlag()` if command selects commits
-   - Use `addReviewersFlags()` if command works with PRs
+   - Use `addIndicatorFlag(cmd)` if command selects commits
+   - Use `addReviewersFlags(cmd)` if command works with PRs
    - Use `getTargetCommits()` for interactive commit selection
-   - Set `DefaultLogLevel` to `slog.LevelError` for output commands, `slog.LevelInfo` otherwise
-   - Set `SkipRepoCheck: true` if command doesn't need a git repo
+   - Set `Annotations: map[string]string{"defaultLogLevel": "error"}` for output commands
+   - Set `Annotations: map[string]string{"skipRepoCheck": "true"}` if command doesn't need a git repo
+   - Use `Args: cobra.NoArgs`, `cobra.MaximumNArgs(1)`, `cobra.MinimumNArgs(2)`, etc. for argument validation
 
 ## Important Conventions
 
 - **Main branch**: Tool supports either `main` or `master` via `util.GetMainBranchOrDie()`
 - **Branch naming**: Auto-generated from commit subject (sanitized, max 120 chars)
-- **Error handling**: Use `panic()` for user-facing errors (caught by `parseArguments` defer/recover). This is an intentional design choice, not a code smell. The panic/recover pattern keeps command implementations clean — commands just `panic("message")` on errors and the top-level recover in `parseArguments` catches them, prints the message, and exits gracefully. Do NOT refactor this to use returned errors; that would add boilerplate to every command for no benefit
+- **Error handling**: Use `panic()` for user-facing errors (caught by defer/recover in `ExecuteCommand` and `testParseArgumentsWithOut`). This is an intentional design choice, not a code smell. The panic/recover pattern keeps command implementations clean — commands just `panic("message")` on errors and the top-level recover catches them, prints the message, and exits gracefully. Do NOT refactor this to use returned errors; that would add boilerplate to every command for no benefit
 - **Logging**: Use `slog` (Debug, Info, Warn, Error levels). Always pass a single `fmt.Sprint(...)` message string — do NOT use slog's key-value args (e.g. `slog.Debug(fmt.Sprint("msg: ", val))` not `slog.Debug("msg", "key", val)`), as the key-value format produces undesirable output with the project's custom logger
 - **IO abstraction**: Always use `appConfig.Io.Out/Err/In` instead of `os.Stdout/Stderr/Stdin`
 - **Exit abstraction**: Use `appConfig.Exit()` instead of `os.Exit()` for testability
@@ -120,6 +124,7 @@ To add a new command:
 ## Dependencies
 
 - Go 1.24+
+- `github.com/spf13/cobra` for CLI framework
 - Uses forked versions of charmbracelet libraries (`github.com/joshallenit/bubbles` and `github.com/joshallenit/bubbletea`)
 - Requires `gh` (GitHub CLI) and `git` to be installed and in PATH
 - Requires `golangci-lint` for linting

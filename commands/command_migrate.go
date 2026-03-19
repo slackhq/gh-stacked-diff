@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -13,16 +12,14 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createMigrateCommand() Command {
-	flagSet := flag.NewFlagSet("migrate", flag.ContinueOnError)
-
-	return Command{
-		FlagSet:         flagSet,
-		DefaultLogLevel: slog.LevelInfo,
-		Summary:         "Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.",
-		Description: `Migrates work-in-progress branches to main, preparing your local repository for stacked diff workflow.
+func createMigrateCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:   "migrate",
+		Short: "Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.",
+		Long: `Migrates work-in-progress branches to main, preparing your local repository for stacked diff workflow.
 
 This command is useful when first adopting sd in an existing repository with feature branches.
 It will help you move commits from feature branches onto your main branch so they can be
@@ -31,19 +28,15 @@ managed as a stack.
 Examples:
   sd migrate
   sd migrate --help`,
-		Usage:         "sd migrate",
-		SkipRepoCheck: false,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 0 {
-				commandError(appConfig, flagSet, "unexpected arguments", command.Usage)
-			}
-			executeMigrate(appConfig, flagSet, command)
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			executeMigrate(appConfig)
 		},
 	}
 }
 
 // executeMigrate implements the migration workflow for moving feature branches to main
-func executeMigrate(appConfig util.AppConfig, flagSet *flag.FlagSet, command Command) {
+func executeMigrate(appConfig util.AppConfig) {
 	// Step 1: Find all local branches where the current user has made commits
 	slog.Debug("Step 1: Finding user branches...")
 	userBranches := findUserBranches()
