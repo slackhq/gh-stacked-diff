@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,26 +8,25 @@ import (
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 
 	"github.com/hairyhenderson/go-codeowners"
 )
 
-func createCodeOwnersCommand() Command {
-	flagSet := flag.NewFlagSet("code-owners", flag.ContinueOnError)
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Outputs code owners for all of the changes in branch",
-		Description: "Outputs code owners for each file that has been modified\n" +
+func createCodeOwnersCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:   "code-owners",
+		Short: "Outputs code owners for all of the changes in branch",
+		Long: "Outputs code owners for each file that has been modified\n" +
 			"in the current local branch when compared to the remote main branch",
-		Usage:           "sd " + flagSet.Name(),
-		DefaultLogLevel: slog.LevelError,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() != 0 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
+		Args: cobra.NoArgs,
+		Annotations: map[string]string{
+			"defaultLogLevel": "error",
+		},
+		Run: func(cmd *cobra.Command, args []string) {
 			util.Fprint(appConfig.Io.Out, changedFilesOwnersString())
-		}}
+		},
+	}
 }
 
 // Returns changed files and their owners.

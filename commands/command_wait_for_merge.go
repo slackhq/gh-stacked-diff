@@ -1,39 +1,35 @@
 package commands
 
 import (
-	"flag"
 	"log/slog"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createWaitForMergeCommand() Command {
-	flagSet := flag.NewFlagSet("wait-for-merge", flag.ContinueOnError)
-
-	indicatorTypeString := addIndicatorFlag(flagSet)
-	silent := addSilentFlag(flagSet, "")
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Waits for a pull request to be merged",
-		Description: "Waits for a pull request to be merged. Polls PR every 30 seconds.\n" +
+func createWaitForMergeCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "wait-for-merge [commitIndicator]",
+		Short: "Waits for a pull request to be merged",
+		Long: "Waits for a pull request to be merged. Polls PR every 30 seconds.\n" +
 			"\n" +
 			"Useful for your own custom scripting.",
-		Usage: "sd " + flagSet.Name() + " [flags] <commit hash or pull request number>",
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 1 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
-			selectCommitOptions := interactive.CommitSelectionOptions{
-				Prompt:      "What PR do you want to wait for to be merged?",
-				CommitType:  interactive.CommitTypePr,
-				MultiSelect: false,
-			}
-			targetCommit := getTargetCommits(appConfig, command, []string{flagSet.Arg(0)}, indicatorTypeString, selectCommitOptions)
-			waitForMerge(targetCommit[0], *silent)
-		}}
+		Args: cobra.MaximumNArgs(1),
+	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+	silent := addSilentFlag(cmd, "")
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		selectCommitOptions := interactive.CommitSelectionOptions{
+			Prompt:      "What PR do you want to wait for to be merged?",
+			CommitType:  interactive.CommitTypePr,
+			MultiSelect: false,
+		}
+		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		waitForMerge(targetCommit[0], *silent)
+	}
+	return cmd
 }
 
 // Waits for a pull request to be merged.

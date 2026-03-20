@@ -1,9 +1,6 @@
 package commands
 
 import (
-	"flag"
-	"log/slog"
-
 	"fmt"
 	"slices"
 	"strings"
@@ -12,15 +9,14 @@ import (
 
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createLogCommand() Command {
-	flagSet := flag.NewFlagSet("log", flag.ContinueOnError)
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Displays git log of your changes",
-		Description: "Displays summary of the git commits on current branch that are not\n" +
+func createLogCommand(appConfig util.AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:   "log",
+		Short: "Displays git log of your changes",
+		Long: "Displays summary of the git commits on current branch that are not\n" +
 			"in the remote branch.\n" +
 			"\n" +
 			"Useful to view list indexes, or copy commit hashes, to use for the\n" +
@@ -31,12 +27,11 @@ func createLogCommand() Command {
 			"using this workflow). If there is more than one commit on the\n" +
 			"associated branch, those commits are also listed (indented under the\n" +
 			"their associated commit summary).",
-		Usage:           "sd " + flagSet.Name(),
-		DefaultLogLevel: slog.LevelError,
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() != 0 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
+		Args: cobra.NoArgs,
+		Annotations: map[string]string{
+			"defaultLogLevel": "error",
+		},
+		Run: func(cmd *cobra.Command, args []string) {
 			printGitLog(appConfig.Io)
 		},
 	}

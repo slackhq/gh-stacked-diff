@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,24 +9,23 @@ import (
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createReplaceConflictsCommand() Command {
-	flagSet := flag.NewFlagSet("replace-conflicts", flag.ContinueOnError)
-	confirmed := flagSet.Bool("confirm", false, "Whether to automatically confirm to do this rather than ask for y/n input")
-	return Command{
-		FlagSet: flagSet,
-		Summary: "For failed rebase: replace changes with its associated branch",
-		Description: "During a rebase that failed because of merge conflicts, replace the\n" +
+func createReplaceConflictsCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "replace-conflicts",
+		Short: "For failed rebase: replace changes with its associated branch",
+		Long: "During a rebase that failed because of merge conflicts, replace the\n" +
 			"current uncommitted changes (merge conflicts), with the contents\n" +
 			"(diff between origin/" + util.GetMainBranchForHelp() + " and HEAD) of its associated branch.",
-		Usage: "sd " + flagSet.Name(),
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 0 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
-			replaceConflicts(appConfig, *confirmed)
-		}}
+		Args: cobra.NoArgs,
+	}
+	confirmed := cmd.Flags().BoolP("confirm", "c", false, "Whether to automatically confirm to do this rather than ask for y/n input")
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		replaceConflicts(appConfig, *confirmed)
+	}
+	return cmd
 }
 
 // For failed rebase: replace changes with its associated branch.

@@ -35,7 +35,7 @@ gh extensions install slackhq/gh-stacked-diff
 # For example if using zsh (note: must be a function and not an alias for shell completions to work):
 echo 'sd() { gh stacked-diff "$@"; }' >> ~/.zshrc
 # Enable shell completions for zsh:
-echo 'eval "$(sd completion --shell zsh)"' >> ~/.zshrc
+echo 'eval "$(sd completion zsh)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
@@ -53,7 +53,7 @@ source ~/.zshrc
       # For example if using Git Bash:
       echo 'sd() { gh stacked-diff "$@"; }' >> ~/.bashrc
       # Enable shell completions for bash:
-      echo 'eval "$(sd completion --shell bash)"' >> ~/.bashrc
+      echo 'eval "$(sd completion bash)"' >> ~/.bashrc
       source ~/.bashrc
       ```
 

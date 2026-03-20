@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -12,36 +11,19 @@ import (
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"github.com/spf13/cobra"
 )
 
-func createNewCommand() Command {
-	flagSet := flag.NewFlagSet("new", flag.ContinueOnError)
-
-	draft := flagSet.Bool("draft", true, "Whether to create the PR as draft")
-	featureFlag := flagSet.String("feature-flag", "", "Value for FEATURE_FLAG in PR description")
-	baseBranch := flagSet.String("base", "", "Base branch for Pull Request. Default is "+util.GetMainBranchForHelp())
-
-	reviewers, silent, minChecks, merge := addReviewersFlags(flagSet)
-
-	indicatorTypeString := addIndicatorFlag(flagSet)
-
-	return Command{
-		FlagSet: flagSet,
-		Summary: "Create a new pull request from a commit on main",
-		Description: "Create a new PR with a cherry-pick of the given commit indicator.\n" +
+func createNewCommand(appConfig util.AppConfig) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "new [commitIndicator]",
+		Short: "Create a new pull request from a commit on main",
+		Long: "Create a new PR with a cherry-pick of the given commit indicator.\n" +
 			"\n" +
 			"This command first creates an associated branch, (with a name based\n" +
 			"on the commit summary), and then uses Github CLI to create a PR.\n" +
 			"\n" +
-			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
-		Usage: "sd new [flags] [commitIndicator]\n" +
-			"\n" +
-			"If commitIndicator is missing then you will be prompted to select commit:\n" +
-			"\n" +
-			"   [enter]    confirms selection\n" +
-			"   [up,k]     moves cursor up\n" +
-			"   [down,j]   moves cursor down\n" +
-			"   [q,esc]    cancels\n" +
+			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.\n" +
 			"\n" +
 			color.HiWhiteString("Ticket Number:") + "\n" +
 			"\n" +
@@ -79,34 +61,47 @@ func createNewCommand() Command {
 			"   TicketNumber                 Jira ticket as parsed from the commit summary\n" +
 			"   Username                     Name as parsed from git config email.\n" +
 			"   UsernameCleaned              Username with dots (.) converted to dashes (-).\n",
-		OnSelected: func(appConfig util.AppConfig, command Command) {
-			if flagSet.NArg() > 1 {
-				commandError(appConfig, flagSet, "too many arguments", command.Usage)
-			}
-			util.RequireMainBranch()
-			selectCommitOptions := interactive.CommitSelectionOptions{
-				Prompt:      "What commit do you want to create a PR from?",
-				CommitType:  interactive.CommitTypeNoPr,
-				MultiSelect: false,
-			}
-			targetCommits := getTargetCommits(appConfig, command, flagSet.Args(), indicatorTypeString, selectCommitOptions)
-			// Note: set the default here rather than via flags to avoid GetMainBranchOrDie being called before OnSelected.
-			if *baseBranch == "" {
-				*baseBranch = util.GetMainBranchOrDie()
-			}
-			markReady := promptForReviewers(appConfig, reviewers, flagSet.NArg() == 0 && *draft)
-			createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
-			if *reviewers != "" || markReady {
-				addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
-					WhenChecksPass: true,
-					Silent:         *silent,
-					MinChecks:      *minChecks,
-					Reviewers:      *reviewers,
-					PollFrequency:  DefaultPollFrequency,
-					AutoMerge:      *merge,
-				})
-			}
-		}}
+		Args: cobra.MaximumNArgs(1),
+	}
+
+	draft := cmd.Flags().BoolP("draft", "d", true, "Whether to create the PR as draft")
+	featureFlag := cmd.Flags().StringP("feature-flag", "f", "", "Value for FEATURE_FLAG in PR description")
+	baseBranch := cmd.Flags().StringP("base", "b", "", "Base branch for Pull Request. Default is "+util.GetMainBranchForHelp())
+	_ = cmd.RegisterFlagCompletionFunc("base", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		branches := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--format=%(refname:short)"))
+		return branches, cobra.ShellCompDirectiveNoFileComp
+	})
+
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
+	indicatorTypeString := addIndicatorFlag(cmd)
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		util.RequireMainBranch()
+		selectCommitOptions := interactive.CommitSelectionOptions{
+			Prompt:      "What commit do you want to create a PR from?",
+			CommitType:  interactive.CommitTypeNoPr,
+			MultiSelect: false,
+		}
+		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		// Note: set the default here rather than via flags to avoid GetMainBranchOrDie being called before Run.
+		if *baseBranch == "" {
+			*baseBranch = util.GetMainBranchOrDie()
+		}
+		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft)
+		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
+		if *reviewers != "" || markReady {
+			addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
+				WhenChecksPass: true,
+				Silent:         *silent,
+				MinChecks:      *minChecks,
+				Reviewers:      *reviewers,
+				PollFrequency:  DefaultPollFrequency,
+				AutoMerge:      *merge,
+			})
+		}
+	}
+
+	return cmd
 }
 
 // Creates a new pull request via Github CLI.
