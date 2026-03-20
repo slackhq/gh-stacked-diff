@@ -67,8 +67,12 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 	draft := cmd.Flags().BoolP("draft", "d", true, "Whether to create the PR as draft")
 	featureFlag := cmd.Flags().StringP("feature-flag", "f", "", "Value for FEATURE_FLAG in PR description")
 	baseBranch := cmd.Flags().StringP("base", "b", "", "Base branch for Pull Request. Default is "+util.GetMainBranchForHelp())
+	_ = cmd.RegisterFlagCompletionFunc("base", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		branches := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--format=%(refname:short)"))
+		return branches, cobra.ShellCompDirectiveNoFileComp
+	})
 
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
 	indicatorTypeString := addIndicatorFlag(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {

@@ -20,7 +20,7 @@ func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		util.RequireMainBranch()
 		destCommit := getDestCommit(appConfig, args, indicatorTypeString)

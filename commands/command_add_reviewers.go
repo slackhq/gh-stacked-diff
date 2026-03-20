@@ -29,7 +29,7 @@ func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
 	whenChecksPass := cmd.Flags().BoolP("when-checks-pass", "w", true, "Poll until all checks pass before adding reviewers")
 	pollFrequency := cmd.Flags().DurationP("poll-frequency", "p", DefaultPollFrequency,
 		"Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration")
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		selectPrsOptions := interactive.CommitSelectionOptions{

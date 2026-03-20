@@ -63,6 +63,10 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 			"Default is info, except on commands that are for output purposes,\n"+
 			"(namely branch-name and log), which have a default of error.")
 
+	_ = rootCmd.RegisterFlagCompletionFunc("log-level", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"debug", "info", "warn", "error"}, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// If --log-level flag was set, it was already applied in ExecuteCommand.
 		// Otherwise, use command annotation default, falling back to info.

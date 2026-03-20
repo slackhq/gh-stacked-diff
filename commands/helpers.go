@@ -36,10 +36,13 @@ func checkIndicatorFlag(indicatorTypeString *string) templates.IndicatorType {
 	return indicatorType
 }
 
-func addReviewersFlags(cmd *cobra.Command) (*string, *bool, *int, *bool) {
+func addReviewersFlags(cmd *cobra.Command, appConfig util.AppConfig) (*string, *bool, *int, *bool) {
 	reviewers := cmd.Flags().StringP("reviewers", "r", "",
 		"Comma-separated list of Github usernames to add as reviewers once\n"+
 			"checks have passed.")
+	_ = cmd.RegisterFlagCompletionFunc("reviewers", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return interactive.ReviewersHistory.ReadHistory(appConfig), cobra.ShellCompDirectiveNoFileComp
+	})
 	silent := addSilentFlag(cmd, "reviewers have been added")
 	minChecks := cmd.Flags().Int("min-checks", -1,
 		"Minimum number of checks to wait for before verifying that checks\n"+
