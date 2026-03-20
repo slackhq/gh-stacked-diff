@@ -34,6 +34,9 @@ func createReplaceCommitCommand(appConfig util.AppConfig) *cobra.Command {
 	indicatorTypeString := addIndicatorFlag(cmd)
 	onCherryPickError := cmd.Flags().String("on-cherry-pick-error", onCherryPickErrorPrompt,
 		"Action when cherry-pick fails: prompt, rollback, or exit")
+	_ = cmd.RegisterFlagCompletionFunc("on-cherry-pick-error", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{onCherryPickErrorPrompt, onCherryPickErrorRollback, onCherryPickErrorExit}, cobra.ShellCompDirectiveDefault
+	})
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		selectCommitOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What commit do you want to replace with the contents of its associated branch?",
