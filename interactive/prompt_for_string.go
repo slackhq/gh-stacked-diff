@@ -48,7 +48,8 @@ func (m stringModel) View() string {
 		"   esc       quit\n"
 }
 
-func PromptForString(appConfig util.AppConfig, prompt string, suggestions []string) string {
+func PromptForString(prompt string, suggestions []string) string {
+	appConfig := util.GetAppConfig()
 	input := textinput.New()
 	input.Focus()
 	input.Width = 30
@@ -66,10 +67,10 @@ func PromptForString(appConfig util.AppConfig, prompt string, suggestions []stri
 	}
 }
 
-func PromptForStringOrDie(appConfig util.AppConfig, prompt string, suggestions []string) string {
-	result := PromptForString(appConfig, prompt, suggestions)
+func PromptForStringOrDie(prompt string, suggestions []string) string {
+	result := PromptForString(prompt, suggestions)
 	if result == "" {
-		appConfig.Exit(0)
+		util.GetAppConfig().Exit(0)
 	}
 	return result
 }

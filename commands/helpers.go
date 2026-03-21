@@ -45,12 +45,12 @@ func checkIndicatorFlag(indicatorTypeString *string) templates.IndicatorType {
 	return indicatorType
 }
 
-func addReviewersFlags(cmd *cobra.Command, appConfig util.AppConfig) (*string, *bool, *int, *bool) {
+func addReviewersFlags(cmd *cobra.Command) (*string, *bool, *int, *bool) {
 	reviewers := cmd.Flags().StringP("reviewers", "r", "",
 		"Comma-separated list of Github usernames to add as reviewers once\n"+
 			"checks have passed.")
 	_ = cmd.RegisterFlagCompletionFunc("reviewers", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return interactive.ReviewersHistory.ReadHistory(appConfig), cobra.ShellCompDirectiveNoFileComp
+		return interactive.ReviewersHistory.ReadHistory(), cobra.ShellCompDirectiveNoFileComp
 	})
 	silent := addSilentFlag(cmd, "reviewers have been added")
 	minChecks := cmd.Flags().Int("min-checks", -1,
@@ -76,19 +76,19 @@ func addSilentFlag(cmd *cobra.Command, usageUseCase string) *bool {
 
 // maybeAddReviewers merges flag reviewers with interactively selected reviewers and
 // calls addReviewersToPr if there are reviewers to add or the PR should be marked ready.
-func maybeAddReviewers(appConfig util.AppConfig, flagReviewers string, selectedReviewers string, markReady bool, targetCommits []templates.GitLog, opts AddReviewersOptions) {
+func maybeAddReviewers(flagReviewers string, selectedReviewers string, markReady bool, targetCommits []templates.GitLog, opts AddReviewersOptions) {
 	allReviewers := flagReviewers
 	if allReviewers == "" {
 		allReviewers = selectedReviewers
 	}
 	if allReviewers != "" || markReady {
 		opts.Reviewers = allReviewers
-		addReviewersToPr(appConfig, targetCommits, opts)
+		addReviewersToPr(targetCommits, opts)
 	}
 }
 
 // promptForReviewers prompts the user to mark a PR as ready for review and select reviewers.
-func promptForReviewers(appConfig util.AppConfig, shouldPrompt bool, userConfig util.UserConfig) (selectedReviewers string, markReady bool) {
+func promptForReviewers(shouldPrompt bool, userConfig util.UserConfig) (selectedReviewers string, markReady bool) {
 	if !shouldPrompt {
 		return "", false
 	}
@@ -96,12 +96,12 @@ func promptForReviewers(appConfig util.AppConfig, shouldPrompt bool, userConfig 
 	case util.PromptForReviewNever:
 		return "", false
 	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
-		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
+		markReady = interactive.Confirm("Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
 	default:
 		panic("unknown promptForReview value: " + string(userConfig.PromptForReview))
 	}
 	if markReady {
-		selectedReviewers = interactive.UserSelection(appConfig)
+		selectedReviewers = interactive.UserSelection()
 		if selectedReviewers != "" {
 			slog.Info("Using reviewers " + selectedReviewers)
 		}
@@ -111,7 +111,8 @@ func promptForReviewers(appConfig util.AppConfig, shouldPrompt bool, userConfig 
 
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string
 // that invokes the app executable with the given subcommand and arguments.
-func sequenceEditorEnvVar(appConfig util.AppConfig, subcommand string, args ...string) string {
+func sequenceEditorEnvVar(subcommand string, args ...string) string {
+	appConfig := util.GetAppConfig()
 	parts := []string{appConfig.AppExecutable, subcommand}
 	parts = append(parts, args...)
 	return "GIT_SEQUENCE_EDITOR=" + strings.Join(parts, " ")

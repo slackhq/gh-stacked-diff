@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
+func createUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [PR commitIndicator [fixup commitIndicator...]]",
 		Short: "Add commits from " + util.GetMainBranchForHelp() + " to an existing PR",
@@ -20,15 +20,15 @@ func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		util.RequireMainBranch()
 		userConfig := getUserConfig(cmd)
-		destCommit := getDestCommit(appConfig, args, indicatorTypeString)
-		commitsToCherryPick := getCommitsToCherryPick(appConfig, args, indicatorTypeString)
-		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) < 2 && *reviewers == "", userConfig)
-		updatePr(appConfig, destCommit, commitsToCherryPick)
-		maybeAddReviewers(appConfig, *reviewers, selectedReviewers, markReady, []templates.GitLog{destCommit}, AddReviewersOptions{
+		destCommit := getDestCommit(args, indicatorTypeString)
+		commitsToCherryPick := getCommitsToCherryPick(args, indicatorTypeString)
+		selectedReviewers, markReady := promptForReviewers(len(args) < 2 && *reviewers == "", userConfig)
+		updatePr(destCommit, commitsToCherryPick)
+		maybeAddReviewers(*reviewers, selectedReviewers, markReady, []templates.GitLog{destCommit}, AddReviewersOptions{
 			WhenChecksPass: true,
 			Silent:         *silent,
 			MinChecks:      *minChecks,
@@ -39,17 +39,17 @@ func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
 	return cmd
 }
 
-func getDestCommit(appConfig util.AppConfig, args []string, indicatorTypeString *string) templates.GitLog {
+func getDestCommit(args []string, indicatorTypeString *string) templates.GitLog {
 	selectPrOptions := interactive.CommitSelectionOptions{
 		Prompt:      "What PR do you want to update?",
 		CommitType:  interactive.CommitTypePr,
 		MultiSelect: false,
 	}
-	targetCommits := getTargetCommits(appConfig, args[:min(len(args), 1)], indicatorTypeString, selectPrOptions)
+	targetCommits := getTargetCommits(args[:min(len(args), 1)], indicatorTypeString, selectPrOptions)
 	return targetCommits[0]
 }
 
-func getCommitsToCherryPick(appConfig util.AppConfig, args []string, indicatorTypeString *string) []templates.GitLog {
+func getCommitsToCherryPick(args []string, indicatorTypeString *string) []templates.GitLog {
 	selectCommitsOptions := interactive.CommitSelectionOptions{
 		Prompt:      "What commits do you want to add?",
 		CommitType:  interactive.CommitTypeNoPr,
@@ -59,13 +59,14 @@ func getCommitsToCherryPick(appConfig util.AppConfig, args []string, indicatorTy
 	if len(args) > 1 {
 		commitsFromCommandLine = args[1:]
 	}
-	return getTargetCommits(appConfig, commitsFromCommandLine, indicatorTypeString, selectCommitsOptions)
+	return getTargetCommits(commitsFromCommandLine, indicatorTypeString, selectCommitsOptions)
 }
 
 // Add commits from main to an existing PR.
-func updatePr(appConfig util.AppConfig, destCommit templates.GitLog, commitsToCherryPick []templates.GitLog) {
+func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLog) {
+	appConfig := util.GetAppConfig()
 	templates.RequireCommitOnMain(destCommit.Commit)
-	checkNotMerged(appConfig, destCommit.Branch)
+	checkNotMerged(destCommit.Branch)
 	util.WithStashAndRollback("before update-pr "+destCommit.Commit+" "+destCommit.Subject, func(rollbackManager *util.GitRollbackManager) {
 		util.GitSwitch(destCommit.Branch)
 		rollbackManager.SaveState() // Save state again for associated branch.
@@ -104,7 +105,7 @@ func updatePr(appConfig util.AppConfig, destCommit templates.GitLog, commitsToCh
 			return commit.Commit
 		})
 		environmentVariables := []string{
-			sequenceEditorEnvVar(appConfig, "sequence-editor-mark-as-fixup", append([]string{destCommit.Commit}, commitHashes...)...),
+			sequenceEditorEnvVar("sequence-editor-mark-as-fixup", append([]string{destCommit.Commit}, commitHashes...)...),
 		}
 		slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
 		options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: appConfig.Io}
@@ -145,10 +146,10 @@ func earliestCommit(destCommit templates.GitLog, commitsToCherryPick []templates
 	return earliest
 }
 
-func checkNotMerged(appConfig util.AppConfig, branchName string) {
+func checkNotMerged(branchName string) {
 	slog.Info("Checking if PR was already merged...")
 	mergedBranches := getMergedBranches()
 	if slices.Contains(mergedBranches, branchName) {
-		interactive.ConfirmOrDie(appConfig, "It looks like this PR was already merged. Try running \"sd rebase-main\". Are you sure you want to update this PR?", false)
+		interactive.ConfirmOrDie("It looks like this PR was already merged. Try running \"sd rebase-main\". Are you sure you want to update this PR?", false)
 	}
 }

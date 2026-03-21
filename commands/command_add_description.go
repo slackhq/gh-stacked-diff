@@ -19,7 +19,7 @@ import (
 const GENERATED_CLAUDE_SUMMARY_BEGIN = "\n<details>\n<summary>Claude Generated Summary (click me)</summary>\n\n"
 const GENERATED_CLAUDE_SUMMARY_END = "\n\n</details>\n"
 
-func createAddDescriptionCommand(appConfig util.AppConfig) *cobra.Command {
+func createAddDescriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "add-description [commitIndicator...]",
 		Short:  "Adds a Claude generated summary to a PR description",
@@ -34,38 +34,40 @@ func createAddDescriptionCommand(appConfig util.AppConfig) *cobra.Command {
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: true,
 		}
-		aiCommand := ai.GetAiCommandInteractive(appConfig)
+		aiCommand := ai.GetAiCommandInteractive()
 		slog.Info(fmt.Sprint("commands", aiCommand))
-		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectPrsOptions)
-		executeAddDescription(appConfig, targetCommits)
+		targetCommits := getTargetCommits(args, indicatorTypeString, selectPrsOptions)
+		executeAddDescription(targetCommits)
 	}
 	return cmd
 }
 
-func executeAddDescription(appConfig util.AppConfig, targetCommits []templates.GitLog) {
+func executeAddDescription(targetCommits []templates.GitLog) {
 	for _, targetCommit := range targetCommits {
 		// Note: while possible to parallize, the output is less confusing to do serially.
-		addDescriptionForBranch(appConfig, targetCommit.Branch)
+		addDescriptionForBranch(targetCommit.Branch)
 	}
 }
 
-func addDescriptionForBranch(appConfig util.AppConfig, branch string) {
+func addDescriptionForBranch(branch string) {
+	appConfig := util.GetAppConfig()
 	slog.Info("Getting PR info for branch " + branch)
 	pr := util.GetUnmergedPR(branch)
 	if pr == nil {
 		panic("No open PR found for branch " + branch)
 	}
 	slog.Info("Asking Claude to generate PR description")
-	description := createAiDescription(appConfig, *pr)
+	description := createAiDescription(*pr)
 	newBody := getNewPrBody(*pr, description)
 	slog.Info("Adding comment to PR description")
-	setPrBody(appConfig, *pr, newBody)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "gh", "pr", "edit", pr.Number, "--body", newBody)
 }
-func createAiDescription(appConfig util.AppConfig, pr util.PrInfo) string {
-	// tmpFile := filepath.Join("/tmp", "gh-stacked-diff-pr-description-"+pr.Number+".md")
+
+func createAiDescription(pr util.PrInfo) string {
+	appConfig := util.GetAppConfig()
 	prompt := ai.GetPromptPrDescription(pr.Number)
 	outWriter := util.NewWriteRecorder(appConfig.Io.Out)
-	aiCommand := ai.GetAiCommandInteractive(appConfig)
+	aiCommand := ai.GetAiCommandInteractive()
 	var allArgs = append(aiCommand[1:], "-p", prompt)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: util.StdIo{Out: outWriter, Err: appConfig.Io.Err, In: appConfig.Io.In}}, aiCommand[0], allArgs...)
 	out := outWriter.String()
@@ -120,8 +122,4 @@ func getNewPrBody(pr util.PrInfo, description string) string {
 		newBody = bodyWithoutComment + bodyComment
 	}
 	return newBody
-}
-
-func setPrBody(appConfig util.AppConfig, pr util.PrInfo, newBody string) {
-	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "gh", "pr", "edit", pr.Number, "--body", newBody)
 }

@@ -51,9 +51,9 @@ func (s PullRequestChecksStatus) Total() int {
 /*
  * Logic copied from https://github.com/cli/cli/blob/57fbe4f317ca7d0849eeeedb16c1abc21a81913b/api/queries_pr.go#L258-L274
  */
-func GetChecksStatus(appConfig AppConfig, branchName string, minChecks int) PullRequestChecksStatus {
+func GetChecksStatus(branchName string, minChecks int) PullRequestChecksStatus {
 	if minChecks == -1 {
-		minChecks = getMinChecks(appConfig)
+		minChecks = getMinChecks()
 	}
 	summary := PullRequestChecksStatus{MinChecks: minChecks}
 	stateString := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
@@ -89,10 +89,10 @@ func updatePullRequestChecksStatus(checks *PullRequestChecksStatus, status strin
 	}
 }
 
-func getMinChecks(appConfig AppConfig) int {
+func getMinChecks() int {
 	if cachedMinChecks == -1 {
 		cachedMinChecksOnce.Do(func() {
-			minChecksFromHistory := getMinChecksFromHistory(appConfig)
+			minChecksFromHistory := getMinChecksFromHistory()
 			if minChecksFromHistory != -1 {
 				cachedMinChecks = minChecksFromHistory
 				return
@@ -122,14 +122,14 @@ func getMinChecks(appConfig AppConfig) int {
 			minChecks := slices.Min(allNumChecks)
 			slog.Debug(fmt.Sprint("Checks from PRs are ", allNumChecks, " min is ", minChecks))
 			cachedMinChecks = min(minChecks, MaxChecks)
-			setMinChecksToHistory(appConfig, cachedMinChecks)
+			setMinChecksToHistory(cachedMinChecks)
 		})
 	}
 	return cachedMinChecks
 }
 
-func getMinChecksFromHistory(appConfig AppConfig) int {
-	history := minChecksHistory.ReadHistory(appConfig)
+func getMinChecksFromHistory() int {
+	history := minChecksHistory.ReadHistory()
 	if len(history) == 2 {
 		when, timePaseErr := time.Parse(time.RFC3339, history[0])
 		if timePaseErr == nil {
@@ -144,9 +144,8 @@ func getMinChecksFromHistory(appConfig AppConfig) int {
 	return -1
 }
 
-func setMinChecksToHistory(appConfig AppConfig, minChecks int) {
+func setMinChecksToHistory(minChecks int) {
 	minChecksHistory.SetHistory(
-		appConfig,
 		[]string{time.Now().Format(time.RFC3339), fmt.Sprint(cachedMinChecks)},
 	)
 }

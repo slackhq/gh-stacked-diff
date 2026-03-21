@@ -12,11 +12,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
 
-func createDropAlreadyMergedCommand(appConfig util.AppConfig) *cobra.Command {
+func createDropAlreadyMergedCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:    "sequence-editor-drop-already-merged [dropCommit...] rebaseFilename",
 		Short:  "Sequence editor for git rebase used by rebase-main",

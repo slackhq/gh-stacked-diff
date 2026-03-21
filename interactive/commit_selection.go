@@ -30,7 +30,8 @@ type CommitSelectionOptions struct {
 }
 
 // Returns an empty array if user cancelled.
-func GetCommitSelection(stdIo util.StdIo, options CommitSelectionOptions) ([]templates.GitLog, error) {
+func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, error) {
+	appConfig := util.GetAppConfig()
 	columns := []string{"Index", "Commit", "Summary"}
 	newCommits := templates.GetNewCommits("HEAD")
 	gitBranchArgs := make([]string, 0, len(newCommits)+2)
@@ -80,12 +81,12 @@ func GetCommitSelection(stdIo util.StdIo, options CommitSelectionOptions) ([]tem
 	}
 
 	commitSelector := NewCommitSelector(options.Prompt, columns, rows, options.MultiSelect, rowEnabled)
-	program := newProgram(commitSelector, stdIo)
+	program := newProgram(commitSelector, appConfig.Io)
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go updateRowBranches(ctx, program, newCommits, prBranches, &wg)
-	finalModel := runProgram(stdIo, program)
+	finalModel := runProgram(appConfig.Io, program)
 	cancel()
 	wg.Wait()
 	selected := finalModel.(CommitSelector).SelectedRows
@@ -132,15 +133,16 @@ func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []t
 
 // GetBranchSelection displays an interactive selector for branches.
 // Returns an empty array if user cancelled.
-func GetBranchSelection(stdIo util.StdIo, branches []string, prompt string) ([]string, error) {
-	return GetBranchSelectionWithFilter(stdIo, branches, prompt, nil)
+func GetBranchSelection(branches []string, prompt string) ([]string, error) {
+	return GetBranchSelectionWithFilter(branches, prompt, nil)
 }
 
 // GetBranchSelectionWithFilter displays an interactive selector for branches with optional filtering.
 // The rowEnabled function can be used to disable certain rows (branches) from selection.
 // If rowEnabled is nil, all rows are enabled.
 // Returns an empty array if user cancelled.
-func GetBranchSelectionWithFilter(stdIo util.StdIo, branches []string, prompt string, rowEnabled func(row int) bool) ([]string, error) {
+func GetBranchSelectionWithFilter(branches []string, prompt string, rowEnabled func(row int) bool) ([]string, error) {
+	appConfig := util.GetAppConfig()
 	if len(branches) == 0 {
 		return []string{}, errors.New("no branches to select from")
 	}
@@ -160,8 +162,8 @@ func GetBranchSelectionWithFilter(stdIo util.StdIo, branches []string, prompt st
 	}
 
 	branchSelector := NewCommitSelector(prompt, columns, rows, true, rowEnabled)
-	program := newProgram(branchSelector, stdIo)
-	finalModel := runProgram(stdIo, program)
+	program := newProgram(branchSelector, appConfig.Io)
+	finalModel := runProgram(appConfig.Io, program)
 	selected := finalModel.(CommitSelector).SelectedRows
 
 	if len(selected) == 0 {

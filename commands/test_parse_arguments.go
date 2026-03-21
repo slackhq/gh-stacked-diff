@@ -61,6 +61,7 @@ func testParseArgumentsWithOut(out io.Writer, commandLineArgs ...string) {
 		AppExecutable: appExecutable,
 		Exit:          panicOnExit,
 		UserCacheDir:  getTestAppCacheDir(),
+		ConfigHome:    getTestConfigHome(),
 		DemoMode:      false,
 	}
 	ExecuteCommand(appConfig, commandLineArgs)
@@ -75,6 +76,18 @@ func lowestSupportedLogLevel() slog.Level {
 		}
 	}
 	return slog.LevelError
+}
+
+func getTestConfigHome() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("cannot get wd: " + err.Error())
+	}
+	parentDir, _ := filepath.Split(wd)
+	configHome := filepath.Join(parentDir, ".gh-stacked-diff")
+	// nolint:errcheck
+	os.Mkdir(configHome, os.ModePerm)
+	return configHome
 }
 
 func getTestAppCacheDir() string {

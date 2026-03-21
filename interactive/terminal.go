@@ -5,7 +5,8 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-func InteractiveEnabled(appConfig util.AppConfig) bool {
+func InteractiveEnabled() bool {
+	appConfig := util.GetAppConfig()
 	inFile, isInFile := appConfig.Io.In.(term.File)
 	var isInTerminal bool
 	if !isInFile {

@@ -486,17 +486,19 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 	// Record current branch before processing
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
 
-	// Create appConfig for the test
+	// Set appConfig for the test
 	out := &strings.Builder{}
 	stdin := strings.NewReader("")
-	appConfig := util.AppConfig{
+	util.SetAppConfig(util.AppConfig{
 		Io:            util.StdIo{Out: out, Err: out, In: stdin},
 		AppExecutable: "sd",
 		Exit:          func(code int) {},
-	}
+		ConfigHome:    getTestConfigHome(),
+		UserCacheDir:  getTestAppCacheDir(),
+	})
 
 	// Process the branch
-	processBranch(appConfig, "feature-1", mostRecentMainCommit)
+	processBranch("feature-1", mostRecentMainCommit)
 
 	// Verify we're still on the original branch (not checked out to feature-1)
 	finalBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -538,17 +540,19 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 	// Get the base commit for the feature branch
 	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
 
-	// Create appConfig with stdin that provides the PR name
+	// Set appConfig with stdin that provides the PR name
 	out := &strings.Builder{}
 	stdin := strings.NewReader("My Feature PR\n\n") // PR name, then empty string for prefix (press enter to skip)
-	appConfig := util.AppConfig{
+	util.SetAppConfig(util.AppConfig{
 		Io:            util.StdIo{Out: out, Err: out, In: stdin},
 		AppExecutable: "sd",
 		Exit:          func(code int) {},
-	}
+		ConfigHome:    getTestConfigHome(),
+		UserCacheDir:  getTestAppCacheDir(),
+	})
 
 	// Process the branch without PR - this should skip the duplicate commits
-	result := processBranch(appConfig, "feature-branch", mostRecentMainCommit)
+	result := processBranch("feature-branch", mostRecentMainCommit)
 
 	// Verify the migration was successful
 	assert.True(result.success, "Migration should succeed")

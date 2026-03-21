@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createMigrateCommand(appConfig util.AppConfig) *cobra.Command {
+func createMigrateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "migrate",
 		Short: "Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.",
@@ -30,13 +30,14 @@ Examples:
   sd migrate --help`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			executeMigrate(appConfig)
+			executeMigrate()
 		},
 	}
 }
 
 // executeMigrate implements the migration workflow for moving feature branches to main
-func executeMigrate(appConfig util.AppConfig) {
+func executeMigrate() {
+	appConfig := util.GetAppConfig()
 	// Step 1: Find all local branches where the current user has made commits
 	slog.Debug("Step 1: Finding user branches...")
 	userBranches := findUserBranches()
@@ -49,7 +50,7 @@ func executeMigrate(appConfig util.AppConfig) {
 
 	// Step 2: Display branches to user for selection
 	slog.Debug("Step 2: Selecting branches to migrate...")
-	selectedBranches := selectBranchesToMigrate(appConfig, userBranches)
+	selectedBranches := selectBranchesToMigrate(userBranches)
 	slog.Debug(fmt.Sprintf("Step 2 complete: Selected %d branches", len(selectedBranches)))
 
 	if len(selectedBranches) == 0 {
@@ -66,7 +67,7 @@ func executeMigrate(appConfig util.AppConfig) {
 	// Step 4: Process each selected branch
 	var results []migrationResult
 	for _, branch := range slices.Backward(selectedBranches) {
-		result := processBranch(appConfig, branch, mostRecentMainCommit)
+		result := processBranch(branch, mostRecentMainCommit)
 		results = append(results, result)
 	}
 
@@ -76,11 +77,11 @@ func executeMigrate(appConfig util.AppConfig) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	// Step 5: Report summary of migrated branches
-	reportMigrationSummary(appConfig, results)
+	reportMigrationSummary(results)
 }
 
 // processBranch handles the migration of a single branch
-func processBranch(appConfig util.AppConfig, branch string, baseCommit string) migrationResult {
+func processBranch(branch string, baseCommit string) migrationResult {
 	slog.Info(fmt.Sprintf("Processing branch: %s", branch))
 
 	// Step 4f: Check if branch has a PR - skip if so
@@ -97,7 +98,7 @@ func processBranch(appConfig util.AppConfig, branch string, baseCommit string) m
 
 	// Checkout and rebase the branch
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", branch)
-	rebaseBranch(appConfig, branch, baseCommit)
+	rebaseBranch(branch, baseCommit)
 
 	// Get commits ahead of base
 	commitsAhead := getCommitsAhead(baseCommit, "HEAD")
@@ -131,12 +132,13 @@ func processBranch(appConfig util.AppConfig, branch string, baseCommit string) m
 		}
 	} else {
 		// Step 4e: Handle branch without PR
-		return handleBranchWithoutPR(appConfig, branch, baseCommit, commitsAhead)
+		return handleBranchWithoutPR(branch, baseCommit, commitsAhead)
 	}
 }
 
 // rebaseBranch rebases the current branch onto baseCommit, handling errors appropriately
-func rebaseBranch(appConfig util.AppConfig, branch string, baseCommit string) {
+func rebaseBranch(branch string, baseCommit string) {
+	appConfig := util.GetAppConfig()
 	slog.Info("Rebasing branch " + branch + " onto most recent main commit " + baseCommit)
 	util.RebaseAndSkipAllEmptyOrDie(
 		util.ExecuteOptions{Io: util.StdIo{Out: appConfig.Io.Out, In: nil, Err: appConfig.Io.Err}},
@@ -235,8 +237,9 @@ func filterBranchesWithUserCommits(allBranches []string, mainBranch string, user
 // selectBranchesToMigrate displays an interactive selector for the user to choose which branches to migrate.
 // Returns the selected branch names, or an empty array if user cancelled.
 // Branches that already have their commits on main are displayed as disabled.
-func selectBranchesToMigrate(appConfig util.AppConfig, branches []string) []string {
-	if !interactive.InteractiveEnabled(appConfig) {
+func selectBranchesToMigrate(branches []string) []string {
+	appConfig := util.GetAppConfig()
+	if !interactive.InteractiveEnabled() {
 		slog.Warn("Interactive mode not available, migrating all branches")
 		return branches
 	}
@@ -258,7 +261,6 @@ func selectBranchesToMigrate(appConfig util.AppConfig, branches []string) []stri
 
 	slog.Info("Starting interactive branch selection...")
 	selectedBranches, err := interactive.GetBranchSelectionWithFilter(
-		appConfig.Io,
 		branches,
 		"Select branches to migrate (use space to select/deselect, enter to confirm):",
 		rowEnabled,
@@ -365,7 +367,8 @@ func getCommitsAhead(baseCommit string, toRef string) []string {
 }
 
 // promptForInput prompts the user for text input and returns their response.
-func promptForInput(appConfig util.AppConfig, prompt string) string {
+func promptForInput(prompt string) string {
+	appConfig := util.GetAppConfig()
 	util.Fprint(appConfig.Io.Out, prompt+": ")
 	scanner := bufio.NewScanner(appConfig.Io.In)
 	if scanner.Scan() {
@@ -378,11 +381,11 @@ func promptForInput(appConfig util.AppConfig, prompt string) string {
 }
 
 // handleBranchWithoutPR handles step 4e: migration of a branch that doesn't have a PR.
-func handleBranchWithoutPR(appConfig util.AppConfig, branch string, baseCommit string, commitsAhead []string) migrationResult {
+func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []string) migrationResult {
 	slog.Info(fmt.Sprintf("Branch %s does not have an unmerged PR", branch))
 
 	// Prompt user for the eventual PR name
-	prName := promptForInput(appConfig, "What should the PR be named when it is eventually created")
+	prName := promptForInput("What should the PR be named when it is eventually created")
 	if prName == "" {
 		slog.Info(fmt.Sprintf("No PR name provided, skipping branch %s", branch))
 		return migrationResult{
@@ -396,7 +399,7 @@ func handleBranchWithoutPR(appConfig util.AppConfig, branch string, baseCommit s
 	var commitPrefix string
 	if len(commitsAhead) > 1 {
 		// Prompt for prefix if there's more than one commit
-		commitPrefix = promptForInput(appConfig, "Enter a short prefix to add to the other commits (or press enter to skip)")
+		commitPrefix = promptForInput("Enter a short prefix to add to the other commits (or press enter to skip)")
 	}
 
 	// Rename the first commit to match the eventual PR title
@@ -511,7 +514,8 @@ func getCommitSubject(commitHash string) string {
 }
 
 // reportMigrationSummary reports the results of the migration process.
-func reportMigrationSummary(appConfig util.AppConfig, results []migrationResult) {
+func reportMigrationSummary(results []migrationResult) {
+	appConfig := util.GetAppConfig()
 	util.Fprintln(appConfig.Io.Out, "")
 	util.Fprintln(appConfig.Io.Out, "Migration Summary:")
 	util.Fprintln(appConfig.Io.Out, strings.Repeat("=", 50))

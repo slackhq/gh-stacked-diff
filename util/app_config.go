@@ -18,5 +18,18 @@ type AppConfig struct {
 	AppExecutable string         // Path of this executable.
 	Exit          func(code int) // Call os.Exit with the given code, or panic during unit tests.
 	UserCacheDir  string         // os.UserCacheDir or a dir specific for each test in unit tests.
+	ConfigHome    string         // Path to ~/.gh-stacked-diff/ or a test-specific dir in unit tests.
 	DemoMode      bool
+}
+
+var globalAppConfig AppConfig
+
+// SetAppConfig sets the global AppConfig. Must be called once at startup (main or test setup).
+func SetAppConfig(config AppConfig) {
+	globalAppConfig = config
+}
+
+// GetAppConfig returns the global AppConfig.
+func GetAppConfig() AppConfig {
+	return globalAppConfig
 }

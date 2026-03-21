@@ -35,7 +35,7 @@ type YamlConfig struct {
 	PromptForReview PromptForReviewType `yaml:"promptForReview"`
 }
 
-// LoadUserConfigFile reads ~/.gh-stacked-diff/config.yaml if it exists.
+// LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
 func LoadUserConfigFile() YamlConfig {
 	configFile := GetConfigFile("config.yaml")
 	if configFile == "" {

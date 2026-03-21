@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createWaitForMergeCommand(appConfig util.AppConfig) *cobra.Command {
+func createWaitForMergeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait-for-merge [commitIndicator]",
 		Short: "Waits for a pull request to be merged",
@@ -26,7 +26,7 @@ func createWaitForMergeCommand(appConfig util.AppConfig) *cobra.Command {
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: false,
 		}
-		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		waitForMerge(targetCommit[0], *silent)
 	}
 	return cmd

@@ -43,7 +43,8 @@ func (m confirmModel) View() string {
 	return promptStyle.Render(m.prompt) + " (y/" + promptStyle.Render("N") + "): "
 }
 
-func Confirm(appConfig util.AppConfig, prompt string, defaultYes bool) bool {
+func Confirm(prompt string, defaultYes bool) bool {
+	appConfig := util.GetAppConfig()
 	initialModel := confirmModel{prompt: prompt, defaultYes: defaultYes}
 	finalModel := runProgram(appConfig.Io, newProgram(initialModel, appConfig.Io))
 	if finalModel.(confirmModel).cancelled {
@@ -52,8 +53,8 @@ func Confirm(appConfig util.AppConfig, prompt string, defaultYes bool) bool {
 	return finalModel.(confirmModel).confirmed
 }
 
-func ConfirmOrDie(appConfig util.AppConfig, prompt string, defaultYes bool) {
-	if !Confirm(appConfig, prompt, defaultYes) {
-		appConfig.Exit(0)
+func ConfirmOrDie(prompt string, defaultYes bool) {
+	if !Confirm(prompt, defaultYes) {
+		util.GetAppConfig().Exit(0)
 	}
 }

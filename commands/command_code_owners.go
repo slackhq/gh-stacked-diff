@@ -13,7 +13,7 @@ import (
 	"github.com/hairyhenderson/go-codeowners"
 )
 
-func createCodeOwnersCommand(appConfig util.AppConfig) *cobra.Command {
+func createCodeOwnersCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "code-owners",
 		Short: "Outputs code owners for all of the changes in branch",
@@ -24,7 +24,7 @@ func createCodeOwnersCommand(appConfig util.AppConfig) *cobra.Command {
 			"defaultLogLevel": "error",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			util.Fprint(appConfig.Io.Out, changedFilesOwnersString())
+			util.Fprint(util.GetAppConfig().Io.Out, changedFilesOwnersString())
 		},
 	}
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createLogCommand(appConfig util.AppConfig) *cobra.Command {
+func createLogCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "log",
 		Short: "Displays git log of your changes",
@@ -32,13 +32,14 @@ func createLogCommand(appConfig util.AppConfig) *cobra.Command {
 			"defaultLogLevel": "error",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			printGitLog(appConfig.Io)
+			printGitLog()
 		},
 	}
 }
 
 // Prints changes in the current branch compared to the main branch to out.
-func printGitLog(stdIo util.StdIo) {
+func printGitLog() {
+	stdIo := util.GetAppConfig().Io
 	if util.GetCurrentBranchName() != util.GetMainBranchOrDie() {
 		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit"}
 		if util.RemoteHasBranch(util.GetMainBranchOrDie()) {
