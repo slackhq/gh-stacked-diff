@@ -170,10 +170,10 @@ func RunTemplate(configFilename string, defaultTemplateText string, data any) st
 	configFile := util.GetConfigFile(configFilename)
 	var parsed *template.Template
 	var err error
-	if configFile != nil {
-		parsed, err = template.ParseFiles(*configFile)
+	if configFile != "" {
+		parsed, err = template.ParseFiles(configFile)
 		if err != nil {
-			panic(fmt.Sprint("Could not parse ", *configFile, err))
+			panic(fmt.Sprint("Could not parse ", configFile, err))
 		}
 	} else {
 		parsed, err = template.New("").Parse(defaultTemplateText)
