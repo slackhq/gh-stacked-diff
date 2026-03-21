@@ -76,10 +76,8 @@ func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPromp
 	switch userConfig.PromptForReview() {
 	case util.PromptForReviewNever:
 		return false
-	case util.PromptForReviewPromptY:
-		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", true)
-	case util.PromptForReviewPromptN:
-		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", false)
+	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
+		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview() == util.PromptForReviewPromptY)
 	}
 	if markReady {
 		*reviewers = interactive.UserSelection(appConfig, true)
