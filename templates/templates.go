@@ -22,8 +22,6 @@ var prTitleTemplateText string
 //go:embed config/pr_description.template
 var prDescriptionTemplateText string
 
-// Replace with GitLog
-
 type PullRequestText struct {
 	Title       string
 	Description string

@@ -222,9 +222,6 @@ func UserSelection(appConfig util.AppConfig) string {
 		appConfig.Exit(0)
 	}
 	selected := finalSelectionModel.textInput.Value()
-	if selected != "" {
-		ReviewersHistory.AddToHistory(appConfig, selected)
-	}
 	return normalizeReviewers(selected)
 }
 
