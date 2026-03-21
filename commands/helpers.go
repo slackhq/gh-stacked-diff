@@ -74,7 +74,7 @@ func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPromp
 	}
 	markReady := interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", true)
 	if markReady {
-		*reviewers = interactive.UserSelection(appConfig, true)
+		*reviewers = interactive.UserSelection(appConfig)
 		if *reviewers != "" {
 			slog.Info("Using reviewers " + *reviewers)
 		}

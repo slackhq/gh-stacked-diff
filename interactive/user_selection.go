@@ -15,14 +15,14 @@ var ReviewersHistory = util.NewHistoricalData("reviewers.history", 30)
 var allCollaboratorsHistory = util.NewHistoricalData("all-collaborators.cache", -1)
 
 type userSelectionModel struct {
-	textInput                 textinput.Model
-	history                   []string
-	suggestions               []string
-	breakingChars             []rune
-	historyIndex              int
-	confirmed                 bool
-	windowWidth               int
-	allowNone                 bool
+	textInput     textinput.Model
+	history       []string
+	suggestions   []string
+	breakingChars []rune
+	historyIndex  int
+	confirmed     bool
+	windowWidth   int
+
 	loadedSuggestions         bool
 	loadingSuggestionsSpinner spinner.Model
 	error                     any
@@ -46,10 +46,8 @@ func (m userSelectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			if m.textInput.Value() != "" || m.allowNone {
-				m.confirmed = true
-				return m, tea.Quit
-			}
+			m.confirmed = true
+			return m, tea.Quit
 		case tea.KeyUp:
 			m.onKeyUp()
 			return m, nil
@@ -196,25 +194,23 @@ type setSuggestionsMsg struct {
 var _ tea.Model = userSelectionModel{}
 var _ tea.Msg = setSuggestionsMsg{}
 
-func UserSelection(appConfig util.AppConfig, allowNone bool) string {
+func UserSelection(appConfig util.AppConfig) string {
 	input := textinput.New()
 	input.Focus()
 	input.Width = 100
-	if allowNone {
-		input.Placeholder = "None"
-	}
+	input.Placeholder = "None (only mark PR as ready for review)"
 	input.ShowSuggestions = true
 	history := ReviewersHistory.ReadHistory(appConfig)
 	suggestions := allCollaboratorsHistory.ReadHistory(appConfig)
 	input.SetSuggestions(suggestions)
 	initialModel := userSelectionModel{
-		history:                   history,
-		historyIndex:              -1,
-		textInput:                 input,
-		confirmed:                 false,
-		suggestions:               suggestions,
-		breakingChars:             []rune{',', ' '},
-		allowNone:                 allowNone,
+		history:       history,
+		historyIndex:  -1,
+		textInput:     input,
+		confirmed:     false,
+		suggestions:   suggestions,
+		breakingChars: []rune{',', ' '},
+
 		loadedSuggestions:         false,
 		loadingSuggestionsSpinner: spinner.New(),
 	}
