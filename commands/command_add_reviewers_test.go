@@ -224,6 +224,25 @@ func TestSdAddReviewers_UserChoosesHistoryFromTyped_ChoosesSameReviewers(t *test
 	}))
 }
 
+func TestSdAddReviewers_WhenNoReviewersSelected_DoesNotAddReviewers(t *testing.T) {
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	// Select PR, then enter empty reviewers.
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "1")
+
+	assertGhSubcommandCalled(t, testExecutor.Responses, false, "pr", "edit")
+	assertGhSubcommandCalled(t, testExecutor.Responses, true, "pr", "ready")
+}
+
 func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {
 	assert := assert.New(t)
 

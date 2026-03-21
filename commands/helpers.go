@@ -11,6 +11,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func getUserConfig(cmd *cobra.Command) util.UserConfig {
+	configValues, err := cmd.Flags().GetStringToString("config")
+	if err != nil {
+		panic(err.Error())
+	}
+	fileConfig := util.LoadUserConfigFile()
+	return util.NewUserConfig(fileConfig, configValues)
+}
+
 func addIndicatorFlag(cmd *cobra.Command) *string {
 	usage := "Indicator type to use to interpret commitIndicator:\n" +
 		"   commit   a commit hash, can be abbreviated,\n" +
@@ -65,36 +74,39 @@ func addSilentFlag(cmd *cobra.Command, usageUseCase string) *bool {
 	}
 }
 
-// promptForReviewers handles the common pattern of optionally prompting the user
-// to mark a PR as ready for review and select reviewers. Returns whether the user
-// chose to mark the PR as ready.
-func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPrompt bool, userConfig UserConfig) bool {
-	if *reviewers != "" || !shouldPrompt {
-		return false
+// maybeAddReviewers merges flag reviewers with interactively selected reviewers and
+// calls addReviewersToPr if there are reviewers to add or the PR should be marked ready.
+func maybeAddReviewers(appConfig util.AppConfig, flagReviewers string, selectedReviewers string, markReady bool, targetCommits []templates.GitLog, opts AddReviewersOptions) {
+	allReviewers := flagReviewers
+	if allReviewers == "" {
+		allReviewers = selectedReviewers
 	}
-	var markReady bool
-	switch userConfig.PromptForReview() {
-	case util.PromptForReviewNever:
-		return false
-	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
-		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview() == util.PromptForReviewPromptY)
+	if allReviewers != "" || markReady {
+		opts.Reviewers = allReviewers
+		addReviewersToPr(appConfig, targetCommits, opts)
 	}
-	if markReady {
-		*reviewers = interactive.UserSelection(appConfig)
-		if *reviewers != "" {
-			slog.Info("Using reviewers " + *reviewers)
-		}
-	}
-	return markReady
 }
 
-func getUserConfig(cmd *cobra.Command) UserConfig {
-	configValues, err := cmd.Flags().GetStringArray("config")
-	if err != nil {
-		panic(err.Error())
+// promptForReviewers prompts the user to mark a PR as ready for review and select reviewers.
+func promptForReviewers(appConfig util.AppConfig, shouldPrompt bool, userConfig util.UserConfig) (selectedReviewers string, markReady bool) {
+	if !shouldPrompt {
+		return "", false
 	}
-	fileConfig := loadUserConfigFile()
-	return NewUserConfig(fileConfig, configValues)
+	switch userConfig.PromptForReview {
+	case util.PromptForReviewNever:
+		return "", false
+	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
+		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
+	default:
+		panic("unknown promptForReview value: " + string(userConfig.PromptForReview))
+	}
+	if markReady {
+		selectedReviewers = interactive.UserSelection(appConfig)
+		if selectedReviewers != "" {
+			slog.Info("Using reviewers " + selectedReviewers)
+		}
+	}
+	return selectedReviewers, markReady
 }
 
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string

@@ -8,44 +8,38 @@ import (
 )
 
 func TestNewUserConfig_Default(t *testing.T) {
-	config := NewUserConfig(yamlConfig{}, nil)
-	assert.Equal(t, util.PromptForReviewPromptN, config.PromptForReview())
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, util.PromptForReviewPromptN, config.PromptForReview)
 }
 
 func TestNewUserConfig_ValidValues(t *testing.T) {
 	for _, value := range []string{"never", "promptY", "promptN"} {
-		config := NewUserConfig(yamlConfig{}, []string{"promptForReview=" + value})
-		assert.Equal(t, util.PromptForReviewType(value), config.PromptForReview())
+		config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"promptForReview": value})
+		assert.Equal(t, util.PromptForReviewType(value), config.PromptForReview)
 	}
 }
 
 func TestNewUserConfig_InvalidValue(t *testing.T) {
 	assert.PanicsWithValue(t, "invalid promptForReview value: invalid", func() {
-		NewUserConfig(yamlConfig{}, []string{"promptForReview=invalid"})
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"promptForReview": "invalid"})
 	})
 }
 
 func TestNewUserConfig_UnknownKey(t *testing.T) {
 	assert.PanicsWithValue(t, "unknown --config key: foo", func() {
-		NewUserConfig(yamlConfig{}, []string{"foo=bar"})
-	})
-}
-
-func TestNewUserConfig_MissingEquals(t *testing.T) {
-	assert.PanicsWithValue(t, "invalid --config entry, expected key=value: noequals", func() {
-		NewUserConfig(yamlConfig{}, []string{"noequals"})
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"foo": "bar"})
 	})
 }
 
 func TestNewUserConfig_FileConfig(t *testing.T) {
-	config := NewUserConfig(yamlConfig{PromptForReview: util.PromptForReviewNever}, nil)
-	assert.Equal(t, util.PromptForReviewNever, config.PromptForReview())
+	config := util.NewUserConfig(util.YamlConfig{PromptForReview: util.PromptForReviewNever}, nil)
+	assert.Equal(t, util.PromptForReviewNever, config.PromptForReview)
 }
 
 func TestNewUserConfig_FlagOverridesFile(t *testing.T) {
-	config := NewUserConfig(
-		yamlConfig{PromptForReview: util.PromptForReviewNever},
-		[]string{"promptForReview=promptY"},
+	config := util.NewUserConfig(
+		util.YamlConfig{PromptForReview: util.PromptForReviewNever},
+		map[string]string{"promptForReview": "promptY"},
 	)
-	assert.Equal(t, util.PromptForReviewPromptY, config.PromptForReview())
+	assert.Equal(t, util.PromptForReviewPromptY, config.PromptForReview)
 }

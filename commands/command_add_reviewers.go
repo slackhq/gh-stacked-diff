@@ -45,7 +45,6 @@ func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
 		}
 		if *reviewers != "" {
 			slog.Info("Using reviewers " + *reviewers)
-			interactive.ReviewersHistory.AddToHistory(appConfig, *reviewers)
 		}
 		addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
 			WhenChecksPass: *whenChecksPass,
@@ -70,8 +69,11 @@ type AddReviewersOptions struct {
 
 // Adds reviewers to a PR once checks have passed via Github CLI.
 func addReviewersToPr(appConfig util.AppConfig, targetCommits []templates.GitLog, opts AddReviewersOptions) {
+	if opts.Reviewers != "" {
+		interactive.ReviewersHistory.AddToHistory(appConfig, opts.Reviewers)
+	}
 	progressIndicatorMessages := util.MapSlice(targetCommits, func(next templates.GitLog) string {
-		return next.Commit + " " + next.Subject
+		return next.String()
 	})
 	progressIndicator := interactive.NewProgressIndicator(appConfig.Io, progressIndicatorMessages)
 	var wg sync.WaitGroup

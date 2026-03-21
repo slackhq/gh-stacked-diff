@@ -22,8 +22,6 @@ var prTitleTemplateText string
 //go:embed config/pr_description.template
 var prDescriptionTemplateText string
 
-// Replace with GitLog
-
 type PullRequestText struct {
 	Title       string
 	Description string
@@ -173,12 +171,12 @@ func RunTemplate(configFilename string, defaultTemplateText string, data any) st
 	if configFile != "" {
 		parsed, err = template.ParseFiles(configFile)
 		if err != nil {
-			panic(fmt.Sprint("Could not parse ", configFile, err))
+			panic(fmt.Sprint("Could not parse ", configFile, ": ", err))
 		}
 	} else {
 		parsed, err = template.New("").Parse(defaultTemplateText)
 		if err != nil {
-			panic(fmt.Sprint("Could not parse ", defaultTemplateText, err))
+			panic(fmt.Sprint("Could not parse ", defaultTemplateText, ": ", err))
 		}
 	}
 	var output bytes.Buffer

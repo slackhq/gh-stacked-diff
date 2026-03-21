@@ -21,7 +21,7 @@ func (g GitLog) String() string {
 	return g.Commit + " " + g.Subject
 }
 
-// Delimter for git log format when a space cannot be used.
+// Delimiter for git log format when a space cannot be used.
 const formatDelimiter = "|stackeddiff-delim|"
 
 // Format sent to "git log" for use by [newGitLogs].

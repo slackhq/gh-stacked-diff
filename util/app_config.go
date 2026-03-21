@@ -4,23 +4,6 @@ import (
 	"io"
 )
 
-// PromptForReviewType controls whether and how the user is prompted to mark a PR as ready for review.
-type PromptForReviewType string
-
-const (
-	PromptForReviewNever   PromptForReviewType = "never"
-	PromptForReviewPromptY PromptForReviewType = "promptY"
-	PromptForReviewPromptN PromptForReviewType = "promptN"
-)
-
-func (t PromptForReviewType) IsValid() bool {
-	switch t {
-	case PromptForReviewNever, PromptForReviewPromptY, PromptForReviewPromptN:
-		return true
-	}
-	return false
-}
-
 // Allows unit testing the use of standard i/o.
 type StdIo struct {
 	Out io.Writer
