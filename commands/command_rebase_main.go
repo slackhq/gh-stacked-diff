@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createRebaseMainCommand(appConfig util.AppConfig) *cobra.Command {
+func createRebaseMainCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rebase-main",
 		Short: "Bring your main branch up to date with remote",
@@ -28,13 +28,14 @@ func createRebaseMainCommand(appConfig util.AppConfig) *cobra.Command {
 			"change was made with the Github Web UI.",
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			rebaseMain(appConfig)
+			rebaseMain()
 		},
 	}
 }
 
 // Bring local main branch up to date with remote
-func rebaseMain(appConfig util.AppConfig) {
+func rebaseMain() {
+	appConfig := util.GetAppConfig()
 	util.RequireMainBranch()
 	shouldPopStash := util.Stash("rebase-main")
 
@@ -60,7 +61,7 @@ func rebaseMain(appConfig util.AppConfig) {
 		for _, closedCommit := range closedCommits {
 			slog.Info(fmt.Sprintf("  - %s: %s", closedCommit.Branch, closedCommit.Subject))
 		}
-		if interactive.Confirm(appConfig, "Do you want to drop these closed PR commits and delete their local branches?", false) {
+		if interactive.Confirm("Do you want to drop these closed PR commits and delete their local branches?", false) {
 			confirmedClosedCommits = closedCommits
 		} else {
 			slog.Info("Skipping closed PR commits")
@@ -77,7 +78,7 @@ func rebaseMain(appConfig util.AppConfig) {
 			return gitLog.Commit
 		})
 		environmentVariables := []string{
-			sequenceEditorEnvVar(appConfig, "sequence-editor-drop-already-merged", commitHashes...),
+			sequenceEditorEnvVar("sequence-editor-drop-already-merged", commitHashes...),
 		}
 		options := util.ExecuteOptions{
 			EnvironmentVariables: environmentVariables,

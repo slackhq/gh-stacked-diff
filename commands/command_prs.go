@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createPrsCommand(appConfig util.AppConfig) *cobra.Command {
+func createPrsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "prs",
 		Short: "Lists all Pull Requests you have open.",
@@ -17,7 +17,7 @@ func createPrsCommand(appConfig util.AppConfig) *cobra.Command {
 			"defaultLogLevel": "error",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io, Retries: util.GhRetries},
+			util.ExecuteOrDie(util.ExecuteOptions{Io: util.GetAppConfig().Io, Retries: util.GhRetries},
 				"gh", "pr", "list", "--author", "@me")
 		},
 	}

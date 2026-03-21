@@ -11,21 +11,21 @@ import (
 
 // Guaranteed to return at least one value (or else appConfig.Exit will be called).
 func getTargetCommits(
-	appConfig util.AppConfig,
 	// Note: empty values are ignored for convienience to allow use of args.
 	commitsFromCommandLine []string,
 	indicatorTypeString *string,
 	options interactive.CommitSelectionOptions,
 ) []templates.GitLog {
+	appConfig := util.GetAppConfig()
 	commitsFromCommandLine = util.FilterSlice(commitsFromCommandLine, func(commit string) bool {
 		return commit != ""
 	})
 	if len(commitsFromCommandLine) == 0 {
 		messageCannotAskPrefix := "Target commit not specified and cannot ask interactively because "
-		if !interactive.InteractiveEnabled(appConfig) {
+		if !interactive.InteractiveEnabled() {
 			panic(messageCannotAskPrefix + "not a terminal")
 		}
-		selectedCommits, err := interactive.GetCommitSelection(appConfig.Io, options)
+		selectedCommits, err := interactive.GetCommitSelection(options)
 		if err != nil {
 			panic(messageCannotAskPrefix + err.Error())
 		}

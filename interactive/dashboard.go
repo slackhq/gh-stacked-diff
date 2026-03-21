@@ -100,7 +100,8 @@ type updateDashboardRowMsg struct {
 var _ tea.Model = dashboardModel{}
 var _ tea.Msg = updateDashboardRowMsg{}
 
-func ShowDashboard(appConfig util.AppConfig, minChecks int) {
+func ShowDashboard(minChecks int) {
+	appConfig := util.GetAppConfig()
 
 	columns := []string{"Index", "PR", "Checks", "Approved", "Commit", "Summary"}
 	newCommits := templates.GetNewCommits("HEAD")
@@ -138,18 +139,15 @@ func ShowDashboard(appConfig util.AppConfig, minChecks int) {
 	}
 	initialModel.spinner.Spinner = spinner.Dot
 	program := newProgram(initialModel, appConfig.Io)
-	go updateDashboardData(appConfig, program, rows, minChecks)
+	go updateDashboardData(program, rows, minChecks)
 	runProgram(appConfig.Io, program)
-	// finalModel := runProgram(appConfig.Io, program)
-	// finalDashboardModel := finalModel.(dashboardModel)
-	// println("finalDashboardModel", fmt.Sprint(finalDashboardModel))
 }
 
-func updateDashboardData(appConfig util.AppConfig, program *tea.Program, rows []dashboardRow, minChecks int) {
+func updateDashboardData(program *tea.Program, rows []dashboardRow, minChecks int) {
 	defer SendErrorOnPanic(program)
 	for i, row := range rows {
 		if row.pr {
-			status := util.GetPullRequestStatus(appConfig, row.log.Branch, minChecks)
+			status := util.GetPullRequestStatus(row.log.Branch, minChecks)
 			row.status = &status
 			program.Send(updateDashboardRowMsg{index: i, row: row})
 		}

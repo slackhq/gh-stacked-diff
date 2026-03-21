@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/commands"
@@ -22,12 +23,17 @@ func main() {
 	if err != nil {
 		panic("Cannot find user cache dir: " + err.Error())
 	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic("Cannot find home dir: " + err.Error())
+	}
 	demoModeEnv, _ := os.LookupEnv("GH_STACKED_DIFF_DEMO_MODE")
 	appConfig := util.AppConfig{
 		Io:            util.StdIo{Out: os.Stdout, Err: os.Stderr, In: os.Stdin},
 		AppExecutable: getAppExecutable(),
 		Exit:          os.Exit,
 		UserCacheDir:  userCacheDir,
+		ConfigHome:    filepath.Join(homeDir, ".gh-stacked-diff"),
 		DemoMode:      strings.ToLower(demoModeEnv) == "true",
 	}
 	commands.ExecuteCommand(appConfig, os.Args[1:])

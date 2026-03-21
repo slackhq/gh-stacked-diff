@@ -21,14 +21,14 @@ var aiPromptPrDescription string
 //go:embed templates/ai_prompt_pr_review.template
 var aiPromptPrReview string
 
-func GetAiCommandInteractive(appConfig util.AppConfig) []string {
-	commandAndArgs := aiCommandHistory.ReadHistory(appConfig)
+func GetAiCommandInteractive() []string {
+	commandAndArgs := aiCommandHistory.ReadHistory()
 	if len(commandAndArgs) == 0 {
 		const commandInteractivePrompt string = "What is the command to use to launch your AI CLI?"
 		commandInteractiveSuggestions := []string{"claude", "slack claude"}
-		prompt := interactive.PromptForStringOrDie(appConfig, commandInteractivePrompt, commandInteractiveSuggestions)
+		prompt := interactive.PromptForStringOrDie(commandInteractivePrompt, commandInteractiveSuggestions)
 		commandAndArgs = strings.Fields(prompt)
-		aiCommandHistory.SetHistory(appConfig, commandAndArgs)
+		aiCommandHistory.SetHistory(commandAndArgs)
 	}
 	return commandAndArgs
 }

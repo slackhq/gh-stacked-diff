@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createVersionCommand(appConfig util.AppConfig) *cobra.Command {
+func createVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Outputs version number",
@@ -24,7 +24,7 @@ func createVersionCommand(appConfig util.AppConfig) *cobra.Command {
 			} else {
 				stableSuffix = " (preview)"
 			}
-			util.Fprintln(appConfig.Io.Out, "Version "+util.CurrentVersion+stableSuffix)
+			util.Fprintln(util.GetAppConfig().Io.Out, "Version "+util.CurrentVersion+stableSuffix)
 		},
 	}
 }

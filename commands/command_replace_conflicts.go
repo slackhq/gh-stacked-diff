@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createReplaceConflictsCommand(appConfig util.AppConfig) *cobra.Command {
+func createReplaceConflictsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace-conflicts",
 		Short: "For failed rebase: replace changes with its associated branch",
@@ -23,16 +23,16 @@ func createReplaceConflictsCommand(appConfig util.AppConfig) *cobra.Command {
 	}
 	confirmed := cmd.Flags().BoolP("confirm", "c", false, "Whether to automatically confirm to do this rather than ask for y/n input")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		replaceConflicts(appConfig, *confirmed)
+		replaceConflicts(*confirmed)
 	}
 	return cmd
 }
 
 // For failed rebase: replace changes with its associated branch.
-func replaceConflicts(appConfig util.AppConfig, confirmed bool) {
+func replaceConflicts(confirmed bool) {
 	commitWithConflicts := getCommitWithConflicts()
 	gitLog := templates.GetBranchInfo(commitWithConflicts, templates.IndicatorTypeCommit)
-	checkConfirmed(appConfig, confirmed)
+	checkConfirmed(confirmed)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", "HEAD")
 	slog.Info(fmt.Sprint("Replacing changes (merge conflicts) for failed rebase of commit ", commitWithConflicts, ", with changes from associated branch, ", gitLog.Branch))
 	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", "origin/"+util.GetMainBranchOrDie(), gitLog.Branch)
@@ -69,9 +69,9 @@ func getCommitWithConflicts() string {
 	return strings.Fields(statusLines[lastCommandDoneLine])[1]
 }
 
-func checkConfirmed(appConfig util.AppConfig, confirmed bool) {
+func checkConfirmed(confirmed bool) {
 	if confirmed {
 		return
 	}
-	interactive.ConfirmOrDie(appConfig, "This will clear any uncommitted changes, are you sure (y/n)?", false)
+	interactive.ConfirmOrDie("This will clear any uncommitted changes, are you sure (y/n)?", false)
 }

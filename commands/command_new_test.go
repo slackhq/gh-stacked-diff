@@ -108,14 +108,15 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	appConfig := util.AppConfig{UserCacheDir: getTestAppCacheDir()}
+	// Set AppConfig so ReadHistory() can find the correct history file before testParseArguments runs.
+	util.SetAppConfig(util.AppConfig{UserCacheDir: getTestAppCacheDir(), ConfigHome: getTestConfigHome()})
 
 	// Verify no history before running.
-	assert.Empty(interactive.ReviewersHistory.ReadHistory(appConfig))
+	assert.Empty(interactive.ReviewersHistory.ReadHistory())
 
 	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "--reviewers=mybestie", "1")
 
-	history := interactive.ReviewersHistory.ReadHistory(appConfig)
+	history := interactive.ReviewersHistory.ReadHistory()
 	assert.Contains(history, "mybestie", "reviewers passed via --reviewers flag should be saved to history")
 }
 

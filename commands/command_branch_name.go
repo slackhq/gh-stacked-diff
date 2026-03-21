@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createBranchNameCommand(appConfig util.AppConfig) *cobra.Command {
+func createBranchNameCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "branch-name [commitIndicator]",
 		Short: "Outputs branch name of commit",
@@ -24,8 +24,8 @@ func createBranchNameCommand(appConfig util.AppConfig) *cobra.Command {
 			CommitType:  interactive.CommitTypeBoth,
 			MultiSelect: false,
 		}
-		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
-		util.Fprint(appConfig.Io.Out, targetCommit[0].Branch)
+		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
+		util.Fprint(util.GetAppConfig().Io.Out, targetCommit[0].Branch)
 	}
 	return cmd
 }

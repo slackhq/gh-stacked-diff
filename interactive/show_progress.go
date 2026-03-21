@@ -95,7 +95,8 @@ var _ tea.Model = progressIndicatorModel{}
 var _ tea.Msg = setProgressMsg{}
 
 // Blocks until Quit is called.
-func (p *ProgressIndicator) Show(appConfig util.AppConfig) {
+func (p *ProgressIndicator) Show() {
+	appConfig := util.GetAppConfig()
 	finalModel := runProgram(appConfig.Io, p.program)
 	if finalModel.(progressIndicatorModel).cancelled {
 		appConfig.Exit(0)
@@ -121,7 +122,8 @@ func (p *ProgressIndicator) SendErrorOnPanic() {
 /*
  * Creates one progress bar for each message.
  */
-func NewProgressIndicator(stdIo util.StdIo, titles []string) *ProgressIndicator {
+func NewProgressIndicator(titles []string) *ProgressIndicator {
+	appConfig := util.GetAppConfig()
 	initialModel := progressIndicatorModel{
 		titles: titles,
 		progressBars: util.MapSlice(titles, func(_ string) progress.Model {
@@ -131,6 +133,6 @@ func NewProgressIndicator(stdIo util.StdIo, titles []string) *ProgressIndicator 
 		cancelled: false,
 	}
 	return &ProgressIndicator{
-		program: newProgram(initialModel, stdIo),
+		program: newProgram(initialModel, appConfig.Io),
 	}
 }

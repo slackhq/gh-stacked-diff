@@ -14,6 +14,8 @@ import (
 )
 
 func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
+	util.SetAppConfig(appConfig)
+
 	// Unset any color in case a previous terminal command set colors and then was
 	// terminated before it could reset the colors.
 	color.Unset()
@@ -35,7 +37,7 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 	slog.Debug("App executable: " + appConfig.AppExecutable)
 	slog.Debug("User cache dir: " + appConfig.UserCacheDir)
 
-	rootCmd := buildRootCommand(appConfig)
+	rootCmd := buildRootCommand()
 	rootCmd.SetArgs(commandLineArgs)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -43,7 +45,8 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 	}
 }
 
-func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
+func buildRootCommand() *cobra.Command {
+	appConfig := util.GetAppConfig()
 	var stableSuffix string
 	if strings.TrimSpace(util.CurrentVersion) == strings.TrimSpace(util.StableVersion) {
 		stableSuffix = " (stable)"
@@ -100,23 +103,23 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 	}
 
 	rootCmd.AddCommand(
-		createAddDescriptionCommand(appConfig),
-		createAddReviewersCommand(appConfig),
-		createBranchNameCommand(appConfig),
-		createCheckoutCommand(appConfig),
-		createCodeOwnersCommand(appConfig),
-		createDropAlreadyMergedCommand(appConfig),
-		createLogCommand(appConfig),
-		createMarkAsFixupCommand(appConfig),
-		createMigrateCommand(appConfig),
-		createNewCommand(appConfig),
-		createPrsCommand(appConfig),
-		createRebaseMainCommand(appConfig),
-		createReplaceCommitCommand(appConfig),
-		createReplaceConflictsCommand(appConfig),
-		createUpdateCommand(appConfig),
-		createVersionCommand(appConfig),
-		createWaitForMergeCommand(appConfig),
+		createAddDescriptionCommand(),
+		createAddReviewersCommand(),
+		createBranchNameCommand(),
+		createCheckoutCommand(),
+		createCodeOwnersCommand(),
+		createDropAlreadyMergedCommand(),
+		createLogCommand(),
+		createMarkAsFixupCommand(),
+		createMigrateCommand(),
+		createNewCommand(),
+		createPrsCommand(),
+		createRebaseMainCommand(),
+		createReplaceCommitCommand(),
+		createReplaceConflictsCommand(),
+		createUpdateCommand(),
+		createVersionCommand(),
+		createWaitForMergeCommand(),
 	)
 
 	return rootCmd

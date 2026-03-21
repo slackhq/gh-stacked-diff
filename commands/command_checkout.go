@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createCheckoutCommand(appConfig util.AppConfig) *cobra.Command {
+func createCheckoutCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checkout [commitIndicator]",
 		Short: "Checks out branch associated with commit indicator",
@@ -21,12 +21,13 @@ func createCheckoutCommand(appConfig util.AppConfig) *cobra.Command {
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	cmd.Run = func(cmd *cobra.Command, args []string) {
+		appConfig := util.GetAppConfig()
 		selectCommitOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What commit do you want to checkout the associated branch for?",
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: false,
 		}
-		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		util.ExecuteOrDie(
 			util.ExecuteOptions{Io: appConfig.Io},
 			"git", "checkout", targetCommit[0].Branch,

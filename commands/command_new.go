@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createNewCommand(appConfig util.AppConfig) *cobra.Command {
+func createNewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new [commitIndicator]",
 		Short: "Create a new pull request from a commit on main",
@@ -72,7 +72,7 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 		return branches, cobra.ShellCompDirectiveNoFileComp
 	})
 
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 	indicatorTypeString := addIndicatorFlag(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
@@ -83,14 +83,14 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 			MultiSelect: false,
 		}
 		userConfig := getUserConfig(cmd)
-		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
+		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetMainBranchOrDie being called before Run.
 		if *baseBranch == "" {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
-		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) == 0 && *draft && *reviewers == "", userConfig)
+		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
-		maybeAddReviewers(appConfig, *reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
+		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
 			WhenChecksPass: true,
 			Silent:         *silent,
 			MinChecks:      *minChecks,

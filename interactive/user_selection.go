@@ -194,14 +194,15 @@ type setSuggestionsMsg struct {
 var _ tea.Model = userSelectionModel{}
 var _ tea.Msg = setSuggestionsMsg{}
 
-func UserSelection(appConfig util.AppConfig) string {
+func UserSelection() string {
+	appConfig := util.GetAppConfig()
 	input := textinput.New()
 	input.Focus()
 	input.Width = 100
 	input.Placeholder = "None (mark ready only)"
 	input.ShowSuggestions = true
-	history := ReviewersHistory.ReadHistory(appConfig)
-	suggestions := allCollaboratorsHistory.ReadHistory(appConfig)
+	history := ReviewersHistory.ReadHistory()
+	suggestions := allCollaboratorsHistory.ReadHistory()
 	input.SetSuggestions(suggestions)
 	initialModel := userSelectionModel{
 		history:       history,
@@ -215,7 +216,7 @@ func UserSelection(appConfig util.AppConfig) string {
 		loadingSuggestionsSpinner: spinner.New(),
 	}
 	program := newProgram(initialModel, appConfig.Io)
-	go updateSuggestions(appConfig, program, suggestions)
+	go updateSuggestions(program, suggestions)
 	finalModel := runProgram(appConfig.Io, program)
 	finalSelectionModel := finalModel.(userSelectionModel)
 	if !finalSelectionModel.confirmed {
@@ -234,14 +235,15 @@ func normalizeReviewers(selected string) string {
 }
 
 // Updates suggestions with results from API collaborators call.
-func updateSuggestions(appConfig util.AppConfig, program *tea.Program, originalSuggestions []string) {
+func updateSuggestions(program *tea.Program, originalSuggestions []string) {
 	defer SendErrorOnPanic(program)
+	appConfig := util.GetAppConfig()
 	allCollaborators := getAllCollaborators()
 	if appConfig.DemoMode {
 		program.Send(setSuggestionsMsg{suggestions: originalSuggestions})
 	} else {
 		// Do not set if in demo mode, instead write the cache file manually.
 		program.Send(setSuggestionsMsg{suggestions: allCollaborators})
-		allCollaboratorsHistory.SetHistory(appConfig, allCollaborators)
+		allCollaboratorsHistory.SetHistory(allCollaborators)
 	}
 }

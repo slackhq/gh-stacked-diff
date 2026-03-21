@@ -16,7 +16,7 @@ import (
 
 const DefaultPollFrequency = 30 * time.Second
 
-func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
+func createAddReviewersCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-reviewers [commitIndicator...]",
 		Short: "Add reviewers to Pull Request on Github once its checks have passed",
@@ -29,7 +29,7 @@ func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
 	whenChecksPass := cmd.Flags().BoolP("when-checks-pass", "w", true, "Poll until all checks pass before adding reviewers")
 	pollFrequency := cmd.Flags().DurationP("poll-frequency", "p", DefaultPollFrequency,
 		"Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration")
-	reviewers, silent, minChecks, merge := addReviewersFlags(cmd, appConfig)
+	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		selectPrsOptions := interactive.CommitSelectionOptions{
@@ -37,16 +37,16 @@ func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: true,
 		}
-		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectPrsOptions)
+		targetCommits := getTargetCommits(args, indicatorTypeString, selectPrsOptions)
 		// Reverse the order as getTargetCommits returns cherry-pick order and we want to display in log order.
 		slices.Reverse(targetCommits)
 		if *reviewers == "" {
-			*reviewers = interactive.UserSelection(appConfig)
+			*reviewers = interactive.UserSelection()
 		}
 		if *reviewers != "" {
 			slog.Info("Using reviewers " + *reviewers)
 		}
-		addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
+		addReviewersToPr(targetCommits, AddReviewersOptions{
 			WhenChecksPass: *whenChecksPass,
 			Silent:         *silent,
 			MinChecks:      *minChecks,
@@ -68,34 +68,35 @@ type AddReviewersOptions struct {
 }
 
 // Adds reviewers to a PR once checks have passed via Github CLI.
-func addReviewersToPr(appConfig util.AppConfig, targetCommits []templates.GitLog, opts AddReviewersOptions) {
+func addReviewersToPr(targetCommits []templates.GitLog, opts AddReviewersOptions) {
 	if opts.Reviewers != "" {
-		interactive.ReviewersHistory.AddToHistory(appConfig, opts.Reviewers)
+		interactive.ReviewersHistory.AddToHistory(opts.Reviewers)
 	}
 	progressIndicatorMessages := util.MapSlice(targetCommits, func(next templates.GitLog) string {
 		return next.String()
 	})
-	progressIndicator := interactive.NewProgressIndicator(appConfig.Io, progressIndicatorMessages)
+	progressIndicator := interactive.NewProgressIndicator(progressIndicatorMessages)
 	var wg sync.WaitGroup
 	for i, targetCommit := range targetCommits {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			checkBranch(appConfig, targetCommit, opts, progressIndicator, i)
+			checkBranch(targetCommit, opts, progressIndicator, i)
 		}()
 	}
 	go func() {
 		wg.Wait()
 		progressIndicator.Quit()
 	}()
-	progressIndicator.Show(appConfig)
+	progressIndicator.Show()
 }
 
-func checkBranch(appConfig util.AppConfig, targetCommit templates.GitLog, opts AddReviewersOptions, progressIndicator *interactive.ProgressIndicator, index int) {
+func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progressIndicator *interactive.ProgressIndicator, index int) {
+	appConfig := util.GetAppConfig()
 	defer progressIndicator.SendErrorOnPanic()
 	if opts.WhenChecksPass {
 		for {
-			summary := util.GetChecksStatus(appConfig, targetCommit.Branch, opts.MinChecks)
+			summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
 			progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
 			if summary.IsFailing() {
 				if !opts.Silent {

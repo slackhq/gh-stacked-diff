@@ -127,7 +127,7 @@ $ gh pr view 73 --json "reviews,statusCheckRollup" --jq "pick(.reviews[].author.
 	  ]
 	}
 */
-func GetPullRequestStatus(appConfig AppConfig, branchName string, minChecks int) PullRequestStatus {
+func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	/*
 		Turn each type into a CSV with initial key field.
 		gh pr view 73 --json "state,reviews,statusCheckRollup" --jq '(.reviews[] | select(.state == "APPROVED") | "approver," + .author.login + "," + .state+","+.commit.oid),(.statusCheckRollup[] | "check," + .status + ","+.conclusion+","+.state),("state," + .state)'
@@ -136,7 +136,7 @@ func GetPullRequestStatus(appConfig AppConfig, branchName string, minChecks int)
 		state,OPEN
 	*/
 	if minChecks == -1 {
-		minChecks = getMinChecks(appConfig)
+		minChecks = getMinChecks()
 	}
 	lastCommit := GetBranchLatestCommit(branchName)
 	jq := "(.reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | \"approver,\" + .author.login)," +

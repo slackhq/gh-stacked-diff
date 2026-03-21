@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
 
-func createMarkAsFixupCommand(appConfig util.AppConfig) *cobra.Command {
+func createMarkAsFixupCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:    "sequence-editor-mark-as-fixup targetCommit fixupCommit [fixupCommit...] rebaseFilename",
 		Short:  "Sequence editor for git rebase used by update",

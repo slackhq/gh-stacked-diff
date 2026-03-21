@@ -15,24 +15,26 @@ func TestGetMinChecksFromHistory_WhenHistorySet_ReturnsCachedValue(t *testing.T)
 	oldRepoName := repoName
 	oldCachedMinChecks := cachedMinChecks
 	oldExecutor := globalExecutor
+	oldAppConfig := GetAppConfig()
 	defer func() {
 		repoName = oldRepoName
 		cachedMinChecks = oldCachedMinChecks
 		globalExecutor = oldExecutor
+		SetAppConfig(oldAppConfig)
 	}()
 
 	globalExecutor = DefaultExecutor{}
 	repoName = "test-repo"
 
-	appConfig := AppConfig{
+	SetAppConfig(AppConfig{
 		UserCacheDir: tmpDir,
-	}
+	})
 
 	// Write min checks = 3 to history via setMinChecksToHistory.
 	cachedMinChecks = 3
-	setMinChecksToHistory(appConfig, 3)
+	setMinChecksToHistory(3)
 
-	result := getMinChecksFromHistory(appConfig)
+	result := getMinChecksFromHistory()
 	assert.Equal(3, result,
 		"getMinChecksFromHistory should return the cached value")
 }

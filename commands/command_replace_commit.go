@@ -19,7 +19,7 @@ const (
 	onCherryPickErrorExit     = "exit"
 )
 
-func createReplaceCommitCommand(appConfig util.AppConfig) *cobra.Command {
+func createReplaceCommitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace-commit [commitIndicator]",
 		Short: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with its associated branch",
@@ -44,23 +44,24 @@ func createReplaceCommitCommand(appConfig util.AppConfig) *cobra.Command {
 			MultiSelect: false,
 		}
 		util.RequireMainBranch()
-		targetCommit := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
-		replaceCommit(appConfig, *onCherryPickError, targetCommit[0])
+		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
+		replaceCommit(*onCherryPickError, targetCommit[0])
 	}
 	return cmd
 }
 
 // Replaces a commit on main branch with its associated branch.
-func replaceCommit(appConfig util.AppConfig, onCherryPickError string, targetCommit templates.GitLog) {
+func replaceCommit(onCherryPickError string, targetCommit templates.GitLog) {
 	templates.RequireCommitOnMain(targetCommit.Commit)
 	util.WithStashAndRollback("replace-commit "+targetCommit.Commit+" "+targetCommit.Subject, func(rollbackManager *util.GitRollbackManager) {
-		replaceCommitOfBranchInfo(appConfig, rollbackManager, onCherryPickError, targetCommit)
+		replaceCommitOfBranchInfo(rollbackManager, onCherryPickError, targetCommit)
 		rollbackManager.Clear()
 	})
 }
 
 // Replaces commit gitLog.Commit with the contents of branch gitLog.Branch.
-func replaceCommitOfBranchInfo(appConfig util.AppConfig, rollbackManager *util.GitRollbackManager, onCherryPickError string, gitLog templates.GitLog) {
+func replaceCommitOfBranchInfo(rollbackManager *util.GitRollbackManager, onCherryPickError string, gitLog templates.GitLog) {
+	appConfig := util.GetAppConfig()
 	rollbackCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H")
 	commitsAfter := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "log", gitLog.Commit+"..HEAD", "--pretty=format:%h"))
 	slices.Reverse(commitsAfter)
@@ -86,7 +87,7 @@ func replaceCommitOfBranchInfo(appConfig util.AppConfig, rollbackManager *util.G
 		if cherryPickErr != nil {
 			util.Fprintln(appConfig.Io.Out, fmt.Sprint("Cherry-pick failed: ", cherryPickErr))
 			shouldRollback := onCherryPickError == onCherryPickErrorRollback ||
-				(onCherryPickError == onCherryPickErrorPrompt && interactive.Confirm(appConfig, "Rollback all changes?", true))
+				(onCherryPickError == onCherryPickErrorPrompt && interactive.Confirm("Rollback all changes?", true))
 			if shouldRollback {
 				panic(cherryPickErr)
 			}
