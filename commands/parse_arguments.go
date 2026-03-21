@@ -44,9 +44,16 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 }
 
 func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
+	var stableSuffix string
+	if strings.TrimSpace(util.CurrentVersion) == strings.TrimSpace(util.StableVersion) {
+		stableSuffix = " (stable)"
+	} else {
+		stableSuffix = " (preview)"
+	}
 	rootCmd := &cobra.Command{
 		Use:           "sd [flags] <command> [args]",
 		Short:         "Stacked Diff Workflow",
+		Version:       strings.TrimSpace(util.CurrentVersion) + stableSuffix,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
