@@ -11,6 +11,7 @@ require (
 	github.com/hairyhenderson/go-codeowners v0.3.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.8.4
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace github.com/charmbracelet/bubbles => github.com/joshallenit/bubbles v0.20.3
@@ -43,5 +44,4 @@ require (
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

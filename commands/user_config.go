@@ -1,20 +1,52 @@
 package commands
 
 import (
+	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
+	"gopkg.in/yaml.v3"
 )
 
-// UserConfig holds runtime configuration from --config flag key=value entries.
+// UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
 	promptForReview util.PromptForReviewType
 }
 
-// NewUserConfig parses --config key=value entries and returns a UserConfig.
-func NewUserConfig(configValues []string) UserConfig {
+type yamlConfig struct {
+	PromptForReview util.PromptForReviewType `yaml:"promptForReview"`
+}
+
+// loadUserConfigFile reads ~/.gh-stacked-diff/config.yaml if it exists.
+func loadUserConfigFile() yamlConfig {
+	configFile := util.GetConfigFile("config.yaml")
+	if configFile == nil {
+		return yamlConfig{}
+	}
+	slog.Debug(fmt.Sprint("Loading config file: ", *configFile))
+	data, err := os.ReadFile(*configFile)
+	if err != nil {
+		panic(fmt.Sprint("Could not read config file: ", err))
+	}
+	var cfg yamlConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		panic(fmt.Sprint("Could not parse config file: ", err))
+	}
+	if cfg.PromptForReview != "" && !cfg.PromptForReview.IsValid() {
+		panic("invalid promptForReview value in config file: " + string(cfg.PromptForReview))
+	}
+	return cfg
+}
+
+// NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
+func NewUserConfig(fileConfig yamlConfig, flagValues []string) UserConfig {
 	config := UserConfig{promptForReview: util.PromptForReviewPromptN}
-	for _, entry := range configValues {
+	if fileConfig.PromptForReview != "" {
+		config.promptForReview = fileConfig.PromptForReview
+	}
+	for _, entry := range flagValues {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
 			panic("invalid --config entry, expected key=value: " + entry)

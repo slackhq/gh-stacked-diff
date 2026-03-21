@@ -93,7 +93,8 @@ func getUserConfig(cmd *cobra.Command) UserConfig {
 	if err != nil {
 		panic(err.Error())
 	}
-	return NewUserConfig(configValues)
+	fileConfig := loadUserConfigFile()
+	return NewUserConfig(fileConfig, configValues)
 }
 
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string
