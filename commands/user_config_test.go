@@ -9,13 +9,13 @@ import (
 
 func TestNewUserConfig_Default(t *testing.T) {
 	config := util.NewUserConfig(util.YamlConfig{}, nil)
-	assert.Equal(t, util.PromptForReviewPromptN, config.PromptForReview())
+	assert.Equal(t, util.PromptForReviewPromptN, config.PromptForReview)
 }
 
 func TestNewUserConfig_ValidValues(t *testing.T) {
 	for _, value := range []string{"never", "promptY", "promptN"} {
 		config := util.NewUserConfig(util.YamlConfig{}, []string{"promptForReview=" + value})
-		assert.Equal(t, util.PromptForReviewType(value), config.PromptForReview())
+		assert.Equal(t, util.PromptForReviewType(value), config.PromptForReview)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestNewUserConfig_MissingEquals(t *testing.T) {
 
 func TestNewUserConfig_FileConfig(t *testing.T) {
 	config := util.NewUserConfig(util.YamlConfig{PromptForReview: util.PromptForReviewNever}, nil)
-	assert.Equal(t, util.PromptForReviewNever, config.PromptForReview())
+	assert.Equal(t, util.PromptForReviewNever, config.PromptForReview)
 }
 
 func TestNewUserConfig_FlagOverridesFile(t *testing.T) {
@@ -47,5 +47,5 @@ func TestNewUserConfig_FlagOverridesFile(t *testing.T) {
 		util.YamlConfig{PromptForReview: util.PromptForReviewNever},
 		[]string{"promptForReview=promptY"},
 	)
-	assert.Equal(t, util.PromptForReviewPromptY, config.PromptForReview())
+	assert.Equal(t, util.PromptForReviewPromptY, config.PromptForReview)
 }

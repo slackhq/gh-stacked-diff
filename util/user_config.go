@@ -28,12 +28,7 @@ func (t PromptForReviewType) IsValid() bool {
 
 // UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
-	promptForReview PromptForReviewType
-}
-
-// PromptForReview returns the configured prompt-for-review behavior.
-func (c UserConfig) PromptForReview() PromptForReviewType {
-	return c.promptForReview
+	PromptForReview PromptForReviewType
 }
 
 type YamlConfig struct {
@@ -63,9 +58,9 @@ func LoadUserConfigFile() YamlConfig {
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
 func NewUserConfig(fileConfig YamlConfig, flagValues []string) UserConfig {
-	config := UserConfig{promptForReview: PromptForReviewPromptN}
+	config := UserConfig{PromptForReview: PromptForReviewPromptN}
 	if fileConfig.PromptForReview != "" {
-		config.promptForReview = fileConfig.PromptForReview
+		config.PromptForReview = fileConfig.PromptForReview
 	}
 	for _, entry := range flagValues {
 		key, value, found := strings.Cut(entry, "=")
@@ -78,7 +73,7 @@ func NewUserConfig(fileConfig YamlConfig, flagValues []string) UserConfig {
 			if !v.IsValid() {
 				panic("invalid promptForReview value: " + value)
 			}
-			config.promptForReview = v
+			config.PromptForReview = v
 		default:
 			panic("unknown --config key: " + key)
 		}

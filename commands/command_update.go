@@ -25,23 +25,15 @@ func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
 		util.RequireMainBranch()
 		destCommit := getDestCommit(appConfig, args, indicatorTypeString)
 		commitsToCherryPick := getCommitsToCherryPick(appConfig, args, indicatorTypeString)
-		userConfig := getUserConfig(cmd)
-		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) < 2 && *reviewers == "", userConfig)
+		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) < 2 && *reviewers == "", getUserConfig(cmd))
 		updatePr(appConfig, destCommit, commitsToCherryPick)
-		allReviewers := *reviewers
-		if allReviewers == "" {
-			allReviewers = selectedReviewers
-		}
-		if allReviewers != "" || markReady {
-			addReviewersToPr(appConfig, []templates.GitLog{destCommit}, AddReviewersOptions{
-				WhenChecksPass: true,
-				Silent:         *silent,
-				MinChecks:      *minChecks,
-				Reviewers:      allReviewers,
-				PollFrequency:  DefaultPollFrequency,
-				AutoMerge:      *merge,
-			})
-		}
+		maybeAddReviewers(appConfig, *reviewers, selectedReviewers, markReady, []templates.GitLog{destCommit}, AddReviewersOptions{
+			WhenChecksPass: true,
+			Silent:         *silent,
+			MinChecks:      *minChecks,
+			PollFrequency:  DefaultPollFrequency,
+			AutoMerge:      *merge,
+		})
 	}
 	return cmd
 }

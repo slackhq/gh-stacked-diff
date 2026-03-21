@@ -65,19 +65,31 @@ func addSilentFlag(cmd *cobra.Command, usageUseCase string) *bool {
 	}
 }
 
-// promptForReviewers handles the common pattern of optionally prompting the user
-// to mark a PR as ready for review and select reviewers.
+// maybeAddReviewers merges flag reviewers with interactively selected reviewers and
+// calls addReviewersToPr if there are reviewers to add or the PR should be marked ready.
+func maybeAddReviewers(appConfig util.AppConfig, flagReviewers string, selectedReviewers string, markReady bool, targetCommits []templates.GitLog, opts AddReviewersOptions) {
+	allReviewers := flagReviewers
+	if allReviewers == "" {
+		allReviewers = selectedReviewers
+	}
+	if allReviewers != "" || markReady {
+		opts.Reviewers = allReviewers
+		addReviewersToPr(appConfig, targetCommits, opts)
+	}
+}
+
+// promptForReviewers prompts the user to mark a PR as ready for review and select reviewers.
 func promptForReviewers(appConfig util.AppConfig, shouldPrompt bool, userConfig util.UserConfig) (selectedReviewers string, markReady bool) {
 	if !shouldPrompt {
 		return "", false
 	}
-	switch userConfig.PromptForReview() {
+	switch userConfig.PromptForReview {
 	case util.PromptForReviewNever:
 		return "", false
 	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
-		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview() == util.PromptForReviewPromptY)
+		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
 	default:
-		panic("unknown promptForReview value: " + string(userConfig.PromptForReview()))
+		panic("unknown promptForReview value: " + string(userConfig.PromptForReview))
 	}
 	if markReady {
 		selectedReviewers = interactive.UserSelection(appConfig)

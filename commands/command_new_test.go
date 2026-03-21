@@ -97,6 +97,30 @@ func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
 	}))
 }
 
+func TestSdNew_WithReviewersFlag_DoesNotSaveToHistory(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testExecutor.SetResponse(
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	appConfig := util.AppConfig{UserCacheDir: getTestAppCacheDir()}
+
+	// Verify no history before running.
+	assert.Empty(interactive.ReviewersHistory.ReadHistory(appConfig))
+
+	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "--reviewers=mybestie", "1")
+
+	// Bug: reviewers passed via --reviewers flag on "new" are not saved to history,
+	// unlike "add-reviewers" which does save them.
+	history := interactive.ReviewersHistory.ReadHistory(appConfig)
+	assert.Contains(history, "mybestie", "reviewers passed via --reviewers flag should be saved to history")
+}
+
 func TestSdNew_WhenUsingListIndex_UsesCorrectList(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
