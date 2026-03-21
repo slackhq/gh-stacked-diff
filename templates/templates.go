@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -168,7 +167,7 @@ func GetPullRequestText(commitHash string, featureFlag string) PullRequestText {
 }
 
 func RunTemplate(configFilename string, defaultTemplateText string, data any) string {
-	configFile := getConfigFile(configFilename)
+	configFile := util.GetConfigFile(configFilename)
 	var parsed *template.Template
 	var err error
 	if configFile != nil {
@@ -214,18 +213,5 @@ func getBranchTemplateData(sanitizedSummary string) branchTemplateData {
 	return branchTemplateData{
 		UsernameCleaned:      username,
 		CommitSummaryCleaned: sanitizedSummary,
-	}
-}
-
-func getConfigFile(filenameWithoutPath string) *string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(fmt.Sprint("Could not get home dir", err))
-	}
-	fullPath := home + "/.gh-stacked-diff/" + filenameWithoutPath
-	if _, err := os.Stat(fullPath); err == nil {
-		return &fullPath
-	} else {
-		return nil
 	}
 }

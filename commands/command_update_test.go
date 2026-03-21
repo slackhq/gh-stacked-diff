@@ -490,6 +490,62 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 	assert.False(containsReviewer)
 }
 
+func TestSdUpdate_ConfigPromptForReview(t *testing.T) {
+	tests := []struct {
+		name          string
+		configValue   string
+		expectPrompt  bool
+		expectPrReady bool
+	}{
+		{"Never_NoPromptShown", "never", false, false},
+		{"PromptN_DefaultsToNo", "promptN", true, false},
+		{"PromptY_DefaultsToYes", "promptY", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			testExecutor := testutil.InitTest(t, slog.LevelError)
+			testutil.AddCommit("first", "")
+			testParseArguments("new", "1")
+			testutil.AddCommit("second", "")
+
+			if tt.expectPrReady {
+				testExecutor.SetResponse(
+					strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+					nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+			}
+
+			programIndex := 0
+			// What commits do you want to add?
+			interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+			programIndex++
+			if tt.expectPrompt {
+				// Mark PR as ready for review when checks pass?
+				interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+				programIndex++
+			}
+			if tt.expectPrReady {
+				// Reviewers to add when checks pass?
+				interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+			}
+
+			args := []string{"--config", "promptForReview=" + tt.configValue, "update", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "2"}
+			if !tt.expectPrReady {
+				args = []string{"--config", "promptForReview=" + tt.configValue, "update", "2"}
+			}
+			testParseArguments(args...)
+
+			containsPrReady := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+				return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+					next.Args[0] == "pr" && next.Args[1] == "ready"
+			})
+			assert.Equal(tt.expectPrReady, containsPrReady, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+				return next.ProgramName == "gh"
+			}))
+		})
+	}
+}
+
 func TestSdUpdate_WhenNoReviewers_DeclineReady_PrStaysDraft(t *testing.T) {
 	assert := assert.New(t)
 

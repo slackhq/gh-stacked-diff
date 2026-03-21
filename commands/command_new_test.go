@@ -462,7 +462,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 		// Reviewers to add when checks pass?
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
-	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+	testParseArguments("--config", "promptForReview=promptY", "new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
 
 	allCommits := templates.GetAllCommits()
 
@@ -499,6 +499,60 @@ func TestSdNew_WhenNoReviewersAndDraft_DeclineReady_PrStaysDraft(t *testing.T) {
 			next.Args[0] == "pr" && next.Args[1] == "ready"
 	})
 	assert.False(contains)
+}
+
+func TestSdNew_ConfigPromptForReview(t *testing.T) {
+	tests := []struct {
+		name          string
+		configValue   string
+		expectPrompt  bool
+		expectPrReady bool
+	}{
+		{"Never_NoPromptShown", "never", false, false},
+		{"PromptN_DefaultsToNo", "promptN", true, false},
+		{"PromptY_DefaultsToYes", "promptY", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			testExecutor := testutil.InitTest(t, slog.LevelError)
+			testutil.AddCommit("first", "")
+
+			if tt.expectPrReady {
+				testExecutor.SetResponse(
+					strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+					nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+			}
+
+			programIndex := 0
+			// What commit do you want to create a PR from?
+			interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+			programIndex++
+			if tt.expectPrompt {
+				// Mark PR as ready for review when checks pass?
+				interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+				programIndex++
+			}
+			if tt.expectPrReady {
+				// Reviewers to add when checks pass?
+				interactive.SendToProgram(programIndex, interactive.NewMessageKey(tea.KeyEnter))
+			}
+
+			args := []string{"--config", "promptForReview=" + tt.configValue, "new"}
+			if tt.expectPrReady {
+				args = append(args, "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+			}
+			testParseArguments(args...)
+
+			containsPrReady := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+				return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+					next.Args[0] == "pr" && next.Args[1] == "ready"
+			})
+			assert.Equal(tt.expectPrReady, containsPrReady, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+				return next.ProgramName == "gh"
+			}))
+		})
+	}
 }
 
 func TestSdNew_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePush(t *testing.T) {

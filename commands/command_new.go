@@ -87,7 +87,8 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 		if *baseBranch == "" {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
-		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft)
+		userConfig := getUserConfig(cmd)
+		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft, userConfig)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
 		if *reviewers != "" || markReady {
 			addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
