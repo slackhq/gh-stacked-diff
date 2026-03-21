@@ -68,7 +68,7 @@ func addSilentFlag(cmd *cobra.Command, usageUseCase string) *bool {
 // promptForReviewers handles the common pattern of optionally prompting the user
 // to mark a PR as ready for review and select reviewers. Returns whether the user
 // chose to mark the PR as ready.
-func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPrompt bool, userConfig UserConfig) bool {
+func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPrompt bool, userConfig util.UserConfig) bool {
 	if *reviewers != "" || !shouldPrompt {
 		return false
 	}
@@ -88,15 +88,6 @@ func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPromp
 		}
 	}
 	return markReady
-}
-
-func getUserConfig(cmd *cobra.Command) UserConfig {
-	configValues, err := cmd.Flags().GetStringArray("config")
-	if err != nil {
-		panic(err.Error())
-	}
-	fileConfig := loadUserConfigFile()
-	return NewUserConfig(fileConfig, configValues)
 }
 
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string

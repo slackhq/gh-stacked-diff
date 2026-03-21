@@ -78,7 +78,9 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 		"Set a config value as name=value. Overrides values from\n"+
 			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
-			"Can be specified multiple times for different keys.")
+			"Can be specified multiple times for different keys.\n"+
+			"Example config.yaml:\n"+
+			"   promptForReview: promptY")
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// If --log-level flag was set, it was already applied in ExecuteCommand.
