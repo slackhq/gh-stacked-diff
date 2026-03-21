@@ -41,12 +41,10 @@ func createAddReviewersCommand(appConfig util.AppConfig) *cobra.Command {
 		// Reverse the order as getTargetCommits returns cherry-pick order and we want to display in log order.
 		slices.Reverse(targetCommits)
 		if *reviewers == "" {
-			*reviewers = interactive.UserSelection(appConfig, false)
-			if *reviewers == "" {
-				panic("reviewers not specified.")
-			}
+			*reviewers = interactive.UserSelection(appConfig)
+		}
+		if *reviewers != "" {
 			slog.Info("Using reviewers " + *reviewers)
-		} else {
 			interactive.ReviewersHistory.AddToHistory(appConfig, *reviewers)
 		}
 		addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
