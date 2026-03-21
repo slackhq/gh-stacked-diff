@@ -78,6 +78,8 @@ func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPromp
 		return false
 	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
 		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", userConfig.PromptForReview() == util.PromptForReviewPromptY)
+	default:
+		panic("unknown promptForReview value: " + string(userConfig.PromptForReview()))
 	}
 	if markReady {
 		*reviewers = interactive.UserSelection(appConfig)

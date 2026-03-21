@@ -71,7 +71,7 @@ type AddReviewersOptions struct {
 // Adds reviewers to a PR once checks have passed via Github CLI.
 func addReviewersToPr(appConfig util.AppConfig, targetCommits []templates.GitLog, opts AddReviewersOptions) {
 	progressIndicatorMessages := util.MapSlice(targetCommits, func(next templates.GitLog) string {
-		return next.Commit + " " + next.Subject
+		return next.String()
 	})
 	progressIndicator := interactive.NewProgressIndicator(appConfig.Io, progressIndicatorMessages)
 	var wg sync.WaitGroup

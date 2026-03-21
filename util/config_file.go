@@ -13,7 +13,7 @@ import (
 func GetConfigFile(filenameWithoutPath string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic(fmt.Sprint("Could not get home dir", err))
+		panic(fmt.Sprint("Could not get home dir: ", err))
 	}
 	fullPath := filepath.Join(home, ".gh-stacked-diff", filenameWithoutPath)
 	_, err = os.Stat(fullPath)

@@ -198,7 +198,7 @@ func UserSelection(appConfig util.AppConfig) string {
 	input := textinput.New()
 	input.Focus()
 	input.Width = 100
-	input.Placeholder = "None (only mark PR as ready for review)"
+	input.Placeholder = "None (mark ready only)"
 	input.ShowSuggestions = true
 	history := ReviewersHistory.ReadHistory(appConfig)
 	suggestions := allCollaboratorsHistory.ReadHistory(appConfig)
