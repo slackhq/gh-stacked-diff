@@ -22,11 +22,11 @@ type yamlConfig struct {
 // loadUserConfigFile reads ~/.gh-stacked-diff/config.yaml if it exists.
 func loadUserConfigFile() yamlConfig {
 	configFile := util.GetConfigFile("config.yaml")
-	if configFile == nil {
+	if configFile == "" {
 		return yamlConfig{}
 	}
-	slog.Debug(fmt.Sprint("Loading config file: ", *configFile))
-	data, err := os.ReadFile(*configFile)
+	slog.Debug(fmt.Sprint("Loading config file: ", configFile))
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		panic(fmt.Sprint("Could not read config file: ", err))
 	}

@@ -77,7 +77,7 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 	rootCmd.PersistentFlags().StringArray("config", nil,
 		"Set a config value as name=value. Overrides values from\n"+
 			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
-			"   promptForReview=never|promptY|promptN\n"+
+			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
 			"Can be specified multiple times for different keys.")
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
