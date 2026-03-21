@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,7 +47,9 @@ func LoadUserConfigFile() YamlConfig {
 		panic(fmt.Sprint("Could not read config file: ", err))
 	}
 	var cfg YamlConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&cfg); err != nil {
 		panic(fmt.Sprint("Could not parse config file: ", err))
 	}
 	if cfg.PromptForReview != "" && !cfg.PromptForReview.IsValid() {

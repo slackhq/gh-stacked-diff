@@ -79,7 +79,8 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
 			"Can be specified multiple times for different keys.\n"+
-			"Example config.yaml:\n"+
+			"\n"+
+			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY")
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
