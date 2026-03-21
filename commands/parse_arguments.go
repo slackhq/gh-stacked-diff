@@ -44,6 +44,8 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 }
 
 func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
+	var userConfig UserConfig
+
 	rootCmd := &cobra.Command{
 		Use:           "sd [flags] <command> [args]",
 		Short:         "Stacked Diff Workflow",
@@ -67,6 +69,11 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 		return []string{"debug", "info", "warn", "error"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
+	rootCmd.PersistentFlags().StringArray("config", nil,
+		"Set a config value as name=value. Supported keys:\n"+
+			"   promptForReview=never|promptY|promptN\n"+
+			"Can be specified multiple times for different keys.")
+
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// If --log-level flag was set, it was already applied in ExecuteCommand.
 		// Otherwise, use command annotation default, falling back to info.
@@ -81,6 +88,11 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 			// Note: call GetMainBranchOrDie early as it has useful error messages.
 			slog.Debug("Using main branch " + util.GetMainBranchOrDie())
 		}
+		configValues, err := cmd.Flags().GetStringArray("config")
+		if err != nil {
+			panic(err.Error())
+		}
+		userConfig = NewUserConfig(configValues)
 	}
 
 	rootCmd.AddCommand(
@@ -93,12 +105,12 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 		createLogCommand(appConfig),
 		createMarkAsFixupCommand(appConfig),
 		createMigrateCommand(appConfig),
-		createNewCommand(appConfig),
+		createNewCommand(appConfig, &userConfig),
 		createPrsCommand(appConfig),
 		createRebaseMainCommand(appConfig),
 		createReplaceCommitCommand(appConfig),
 		createReplaceConflictsCommand(appConfig),
-		createUpdateCommand(appConfig),
+		createUpdateCommand(appConfig, &userConfig),
 		createVersionCommand(appConfig),
 		createWaitForMergeCommand(appConfig),
 	)

@@ -68,11 +68,19 @@ func addSilentFlag(cmd *cobra.Command, usageUseCase string) *bool {
 // promptForReviewers handles the common pattern of optionally prompting the user
 // to mark a PR as ready for review and select reviewers. Returns whether the user
 // chose to mark the PR as ready.
-func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPrompt bool) bool {
+func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPrompt bool, userConfig UserConfig) bool {
 	if *reviewers != "" || !shouldPrompt {
 		return false
 	}
-	markReady := interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", true)
+	var markReady bool
+	switch userConfig.PromptForReview() {
+	case util.PromptForReviewNever:
+		return false
+	case util.PromptForReviewPromptY:
+		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", true)
+	case util.PromptForReviewPromptN:
+		markReady = interactive.Confirm(appConfig, "Mark PR as ready for review when checks pass?", false)
+	}
 	if markReady {
 		*reviewers = interactive.UserSelection(appConfig, true)
 		if *reviewers != "" {

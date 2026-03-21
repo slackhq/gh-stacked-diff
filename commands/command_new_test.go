@@ -462,7 +462,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 		// Reviewers to add when checks pass?
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
-	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+	testParseArguments("--config", "promptForReview=promptY", "new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
 
 	allCommits := templates.GetAllCommits()
 
