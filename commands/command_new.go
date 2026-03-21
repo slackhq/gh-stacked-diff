@@ -88,14 +88,18 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
 		userConfig := getUserConfig(cmd)
-		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft, userConfig)
+		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) == 0 && *draft && *reviewers == "", userConfig)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
-		if *reviewers != "" || markReady {
+		allReviewers := *reviewers
+		if allReviewers == "" {
+			allReviewers = selectedReviewers
+		}
+		if allReviewers != "" || markReady {
 			addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{
 				WhenChecksPass: true,
 				Silent:         *silent,
 				MinChecks:      *minChecks,
-				Reviewers:      *reviewers,
+				Reviewers:      allReviewers,
 				PollFrequency:  DefaultPollFrequency,
 				AutoMerge:      *merge,
 			})

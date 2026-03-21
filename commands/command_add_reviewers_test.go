@@ -225,8 +225,6 @@ func TestSdAddReviewers_UserChoosesHistoryFromTyped_ChoosesSameReviewers(t *test
 }
 
 func TestSdAddReviewers_WhenNoReviewersSelected_DoesNotAddReviewers(t *testing.T) {
-	assert := assert.New(t)
-
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
@@ -241,21 +239,8 @@ func TestSdAddReviewers_WhenNoReviewersSelected_DoesNotAddReviewers(t *testing.T
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "1")
 
-	containsAddReviewer := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
-			next.Args[0] == "pr" && next.Args[1] == "edit"
-	})
-	assert.False(containsAddReviewer, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh"
-	}))
-
-	containsPrReady := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
-			next.Args[0] == "pr" && next.Args[1] == "ready"
-	})
-	assert.True(containsPrReady, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh"
-	}))
+	assertGhSubcommandCalled(t, testExecutor.Responses, false, "pr", "edit")
+	assertGhSubcommandCalled(t, testExecutor.Responses, true, "pr", "ready")
 }
 
 func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {

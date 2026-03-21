@@ -448,8 +448,6 @@ func TestSdUpdate_WhenBranchAlreadyMergedAndUserConfirms_Updates(t *testing.T) {
 }
 
 func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
-	assert := assert.New(t)
-
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
@@ -474,20 +472,10 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 
 	// Verify gh pr ready was called
-	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 3 &&
-			next.Args[0] == "pr" && next.Args[1] == "ready" && next.Args[2] == allCommits[0].Branch
-	})
-	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh"
-	}))
+	assertGhSubcommandCalled(t, testExecutor.Responses, true, "pr", "ready", allCommits[0].Branch)
 
 	// Verify no reviewers were added (no gh pr edit --add-reviewer)
-	containsReviewer := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
-			next.Args[0] == "pr" && next.Args[1] == "edit"
-	})
-	assert.False(containsReviewer)
+	assertGhSubcommandCalled(t, testExecutor.Responses, false, "pr", "edit")
 }
 
 func TestSdUpdate_ConfigPromptForReview(t *testing.T) {
@@ -504,8 +492,6 @@ func TestSdUpdate_ConfigPromptForReview(t *testing.T) {
 }
 
 func TestSdUpdate_WhenNoReviewers_DeclineReady_PrStaysDraft(t *testing.T) {
-	assert := assert.New(t)
-
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
@@ -521,9 +507,5 @@ func TestSdUpdate_WhenNoReviewers_DeclineReady_PrStaysDraft(t *testing.T) {
 	testParseArguments("update", "2")
 
 	// Verify gh pr ready was NOT called
-	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
-			next.Args[0] == "pr" && next.Args[1] == "ready"
-	})
-	assert.False(contains)
+	assertGhSubcommandCalled(t, testExecutor.Responses, false, "pr", "ready")
 }

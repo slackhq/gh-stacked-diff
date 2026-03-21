@@ -33,7 +33,6 @@ var promptForReviewTestCases = []promptForReviewTestCase{
 // return the command args (without --config) to execute.
 func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommits func(testExecutor *util.TestExecutor) []string) {
 	t.Helper()
-	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	commandArgs := setupCommits(testExecutor)
@@ -65,11 +64,18 @@ func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommi
 	}
 	testParseArguments(args...)
 
-	containsPrReady := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
-			next.Args[0] == "pr" && next.Args[1] == "ready"
+	assertGhSubcommandCalled(t, testExecutor.Responses, tt.expectPrReady, "pr", "ready")
+}
+
+// assertGhSubcommandCalled asserts that a gh command with the given arg prefix
+// was (or was not) called.
+func assertGhSubcommandCalled(t *testing.T, responses []util.ExecutedResponse, expected bool, args ...string) {
+	t.Helper()
+	called := slices.ContainsFunc(responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= len(args) &&
+			slices.Equal(next.Args[:len(args)], args)
 	})
-	assert.Equal(tt.expectPrReady, containsPrReady, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+	assert.Equal(t, expected, called, util.FilterSlice(responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
 	}))
 }
