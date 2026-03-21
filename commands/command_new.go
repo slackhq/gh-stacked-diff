@@ -82,12 +82,13 @@ func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 			CommitType:  interactive.CommitTypeNoPr,
 			MultiSelect: false,
 		}
+		userConfig := getUserConfig(cmd)
 		targetCommits := getTargetCommits(appConfig, args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetMainBranchOrDie being called before Run.
 		if *baseBranch == "" {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
-		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) == 0 && *draft && *reviewers == "", getUserConfig(cmd))
+		selectedReviewers, markReady := promptForReviewers(appConfig, len(args) == 0 && *draft && *reviewers == "", userConfig)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
 		maybeAddReviewers(appConfig, *reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
 			WhenChecksPass: true,

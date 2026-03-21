@@ -14,26 +14,20 @@ func TestNewUserConfig_Default(t *testing.T) {
 
 func TestNewUserConfig_ValidValues(t *testing.T) {
 	for _, value := range []string{"never", "promptY", "promptN"} {
-		config := util.NewUserConfig(util.YamlConfig{}, []string{"promptForReview=" + value})
+		config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"promptForReview": value})
 		assert.Equal(t, util.PromptForReviewType(value), config.PromptForReview)
 	}
 }
 
 func TestNewUserConfig_InvalidValue(t *testing.T) {
 	assert.PanicsWithValue(t, "invalid promptForReview value: invalid", func() {
-		util.NewUserConfig(util.YamlConfig{}, []string{"promptForReview=invalid"})
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"promptForReview": "invalid"})
 	})
 }
 
 func TestNewUserConfig_UnknownKey(t *testing.T) {
 	assert.PanicsWithValue(t, "unknown --config key: foo", func() {
-		util.NewUserConfig(util.YamlConfig{}, []string{"foo=bar"})
-	})
-}
-
-func TestNewUserConfig_MissingEquals(t *testing.T) {
-	assert.PanicsWithValue(t, "invalid --config entry, expected key=value: noequals", func() {
-		util.NewUserConfig(util.YamlConfig{}, []string{"noequals"})
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"foo": "bar"})
 	})
 }
 
@@ -45,7 +39,7 @@ func TestNewUserConfig_FileConfig(t *testing.T) {
 func TestNewUserConfig_FlagOverridesFile(t *testing.T) {
 	config := util.NewUserConfig(
 		util.YamlConfig{PromptForReview: util.PromptForReviewNever},
-		[]string{"promptForReview=promptY"},
+		map[string]string{"promptForReview": "promptY"},
 	)
 	assert.Equal(t, util.PromptForReviewPromptY, config.PromptForReview)
 }

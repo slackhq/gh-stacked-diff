@@ -75,7 +75,8 @@ func assertGhSubcommandCalled(t *testing.T, responses []util.ExecutedResponse, e
 		return next.ProgramName == "gh" && len(next.Args) >= len(args) &&
 			slices.Equal(next.Args[:len(args)], args)
 	})
-	assert.Equal(t, expected, called, util.FilterSlice(responses, func(next util.ExecutedResponse) bool {
-		return next.ProgramName == "gh"
-	}))
+	assert.Equal(t, expected, called, "gh %s: %v", strings.Join(args, " "),
+		util.FilterSlice(responses, func(next util.ExecutedResponse) bool {
+			return next.ProgramName == "gh"
+		}))
 }

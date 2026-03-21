@@ -6,7 +6,7 @@ import (
 )
 
 func getUserConfig(cmd *cobra.Command) util.UserConfig {
-	configValues, err := cmd.Flags().GetStringArray("config")
+	configValues, err := cmd.Flags().GetStringToString("config")
 	if err != nil {
 		panic(err.Error())
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -57,16 +56,12 @@ func LoadUserConfigFile() YamlConfig {
 }
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
-func NewUserConfig(fileConfig YamlConfig, flagValues []string) UserConfig {
+func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
 	config := UserConfig{PromptForReview: PromptForReviewPromptN}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
 	}
-	for _, entry := range flagValues {
-		key, value, found := strings.Cut(entry, "=")
-		if !found {
-			panic("invalid --config entry, expected key=value: " + entry)
-		}
+	for key, value := range flagValues {
 		switch key {
 		case "promptForReview":
 			v := PromptForReviewType(value)
