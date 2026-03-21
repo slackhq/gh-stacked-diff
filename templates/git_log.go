@@ -17,6 +17,10 @@ type GitLog struct {
 	Branch string
 }
 
+func (g GitLog) String() string {
+	return g.Commit + " " + g.Subject
+}
+
 // Delimter for git log format when a space cannot be used.
 const formatDelimiter = "|stackeddiff-delim|"
 
