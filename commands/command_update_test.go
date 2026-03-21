@@ -490,6 +490,90 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 	assert.False(containsReviewer)
 }
 
+func TestSdUpdate_WhenConfigPromptForReviewNever_NoPromptShown(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	testutil.AddCommit("second", "")
+
+	// What commits do you want to add?
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+	// No "Mark PR as ready" prompt because promptForReview=never
+	testParseArguments("--config", "promptForReview=never", "update", "2")
+
+	// Verify gh pr ready was NOT called
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready"
+	})
+	assert.False(contains)
+}
+
+func TestSdUpdate_WhenConfigPromptForReviewPromptN_DefaultsToNo(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	testutil.AddCommit("second", "")
+
+	// What commits do you want to add?
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+	// Mark PR as ready for review when checks pass? (y/N) - Enter defaults to no
+	interactive.SendToProgram(1, interactive.NewMessageKey(tea.KeyEnter))
+	testParseArguments("--config", "promptForReview=promptN", "update", "2")
+
+	// Verify gh pr ready was NOT called (default was no)
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready"
+	})
+	assert.False(contains)
+}
+
+func TestSdUpdate_WhenConfigPromptForReviewPromptY_DefaultsToYes(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	testutil.AddCommit("second", "")
+
+	testExecutor.SetResponse(
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	// What commits do you want to add?
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+	// Mark PR as ready for review when checks pass? (Y/n) - Enter defaults to yes
+	interactive.SendToProgram(1, interactive.NewMessageKey(tea.KeyEnter))
+	// Reviewers to add when checks pass?
+	interactive.SendToProgram(2, interactive.NewMessageKey(tea.KeyEnter))
+	testParseArguments("--config", "promptForReview=promptY", "update", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "2")
+
+	allCommits := templates.GetAllCommits()
+
+	// Verify gh pr ready was called
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 3 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready" && next.Args[2] == allCommits[0].Branch
+	})
+	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh"
+	}))
+}
+
 func TestSdUpdate_WhenNoReviewers_DeclineReady_PrStaysDraft(t *testing.T) {
 	assert := assert.New(t)
 

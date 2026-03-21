@@ -88,6 +88,14 @@ func promptForReviewers(appConfig util.AppConfig, reviewers *string, shouldPromp
 	return markReady
 }
 
+func getUserConfig(cmd *cobra.Command) UserConfig {
+	configValues, err := cmd.Flags().GetStringArray("config")
+	if err != nil {
+		panic(err.Error())
+	}
+	return NewUserConfig(configValues)
+}
+
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string
 // that invokes the app executable with the given subcommand and arguments.
 func sequenceEditorEnvVar(appConfig util.AppConfig, subcommand string, args ...string) string {

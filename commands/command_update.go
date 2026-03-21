@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createUpdateCommand(appConfig util.AppConfig, userConfig *UserConfig) *cobra.Command {
+func createUpdateCommand(appConfig util.AppConfig) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [PR commitIndicator [fixup commitIndicator...]]",
 		Short: "Add commits from " + util.GetMainBranchForHelp() + " to an existing PR",
@@ -25,7 +25,8 @@ func createUpdateCommand(appConfig util.AppConfig, userConfig *UserConfig) *cobr
 		util.RequireMainBranch()
 		destCommit := getDestCommit(appConfig, args, indicatorTypeString)
 		commitsToCherryPick := getCommitsToCherryPick(appConfig, args, indicatorTypeString)
-		markReady := promptForReviewers(appConfig, reviewers, len(args) < 2, *userConfig)
+		userConfig := getUserConfig(cmd)
+		markReady := promptForReviewers(appConfig, reviewers, len(args) < 2, userConfig)
 		updatePr(appConfig, destCommit, commitsToCherryPick)
 		if *reviewers != "" || markReady {
 			addReviewersToPr(appConfig, []templates.GitLog{destCommit}, AddReviewersOptions{

@@ -44,8 +44,6 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 }
 
 func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
-	var userConfig UserConfig
-
 	rootCmd := &cobra.Command{
 		Use:           "sd [flags] <command> [args]",
 		Short:         "Stacked Diff Workflow",
@@ -88,11 +86,6 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 			// Note: call GetMainBranchOrDie early as it has useful error messages.
 			slog.Debug("Using main branch " + util.GetMainBranchOrDie())
 		}
-		configValues, err := cmd.Flags().GetStringArray("config")
-		if err != nil {
-			panic(err.Error())
-		}
-		userConfig = NewUserConfig(configValues)
 	}
 
 	rootCmd.AddCommand(
@@ -105,12 +98,12 @@ func buildRootCommand(appConfig util.AppConfig) *cobra.Command {
 		createLogCommand(appConfig),
 		createMarkAsFixupCommand(appConfig),
 		createMigrateCommand(appConfig),
-		createNewCommand(appConfig, &userConfig),
+		createNewCommand(appConfig),
 		createPrsCommand(appConfig),
 		createRebaseMainCommand(appConfig),
 		createReplaceCommitCommand(appConfig),
 		createReplaceConflictsCommand(appConfig),
-		createUpdateCommand(appConfig, &userConfig),
+		createUpdateCommand(appConfig),
 		createVersionCommand(appConfig),
 		createWaitForMergeCommand(appConfig),
 	)

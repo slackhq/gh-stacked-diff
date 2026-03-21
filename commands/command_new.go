@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createNewCommand(appConfig util.AppConfig, userConfig *UserConfig) *cobra.Command {
+func createNewCommand(appConfig util.AppConfig) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new [commitIndicator]",
 		Short: "Create a new pull request from a commit on main",
@@ -87,7 +87,8 @@ func createNewCommand(appConfig util.AppConfig, userConfig *UserConfig) *cobra.C
 		if *baseBranch == "" {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
-		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft, *userConfig)
+		userConfig := getUserConfig(cmd)
+		markReady := promptForReviewers(appConfig, reviewers, len(args) == 0 && *draft, userConfig)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
 		if *reviewers != "" || markReady {
 			addReviewersToPr(appConfig, targetCommits, AddReviewersOptions{

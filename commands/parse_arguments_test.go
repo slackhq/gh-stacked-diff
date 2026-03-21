@@ -39,20 +39,6 @@ func TestFindLogLevelArg_WithInvalidLevel(t *testing.T) {
 	assert.Equal(t, slog.LevelInfo, level)
 }
 
-func TestConfigFlag_ValidValue(t *testing.T) {
-	testutil.InitTest(t, slog.LevelError)
-	// Should not panic with a valid config value.
-	testParseArguments("--config", "promptForReview=never", "version")
-}
-
-func TestConfigFlag_InvalidValue(t *testing.T) {
-	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelError)
-	assert.PanicsWithValue("Panicking instead of exiting with code 1", func() {
-		testParseArguments("--config", "promptForReview=invalid", "version")
-	})
-}
-
 func TestEarlyLogLevel_DebugOutputVisibleDuringSetup(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)

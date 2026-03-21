@@ -501,6 +501,90 @@ func TestSdNew_WhenNoReviewersAndDraft_DeclineReady_PrStaysDraft(t *testing.T) {
 	assert.False(contains)
 }
 
+func TestSdNew_WhenConfigPromptForReviewNever_NoPromptShown(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	interactive.SendToProgram(0,
+		// What commit do you want to create a PR from?
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	// No "Mark PR as ready" prompt because promptForReview=never
+	testParseArguments("--config", "promptForReview=never", "new")
+
+	// Verify gh pr ready was NOT called
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready"
+	})
+	assert.False(contains)
+}
+
+func TestSdNew_WhenConfigPromptForReviewPromptN_DefaultsToNo(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	interactive.SendToProgram(0,
+		// What commit do you want to create a PR from?
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	interactive.SendToProgram(1,
+		// Mark PR as ready for review when checks pass? (y/N) - Enter defaults to no
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	testParseArguments("--config", "promptForReview=promptN", "new")
+
+	// Verify gh pr ready was NOT called (default was no)
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 2 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready"
+	})
+	assert.False(contains)
+}
+
+func TestSdNew_WhenConfigPromptForReviewPromptY_DefaultsToYes(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testExecutor.SetResponse(
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	interactive.SendToProgram(0,
+		// What commit do you want to create a PR from?
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	interactive.SendToProgram(1,
+		// Mark PR as ready for review when checks pass? (Y/n) - Enter defaults to yes
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	interactive.SendToProgram(2,
+		// Reviewers to add when checks pass?
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+	testParseArguments("--config", "promptForReview=promptY", "new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+
+	allCommits := templates.GetAllCommits()
+
+	// Verify gh pr ready was called
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh" && len(next.Args) >= 3 &&
+			next.Args[0] == "pr" && next.Args[1] == "ready" && next.Args[2] == allCommits[0].Branch
+	})
+	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh"
+	}))
+}
+
 func TestSdNew_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePush(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
