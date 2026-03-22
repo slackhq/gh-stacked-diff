@@ -2,7 +2,18 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.1.0) - 2026-03-22
+## [2.1.0](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.12...v2.1.0) - 2026-03-23
+
+### Added
+
+- `log` now has "--status" and "--poll" flags that displays Github PR status. 
+
+### Changed
+
+- `update` now waits 10 seconds before checking status
+- All poll intervals now use the --config pollInterval value
+
+## [2.0.12](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.0.12) - 2026-03-22
 
 ### Added
 
