@@ -2,7 +2,7 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.12](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.0.12) - 2026-03-21
+## [2.1.0](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.1.0) - 2026-03-22
 
 ### Added
 
@@ -15,7 +15,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- Migrated to Cobra library for options so now global options can be specified before or after command name.
+- Migrated to Cobra library for options so now global options can be specified before or after command name. This also means that the long names of the flags now require two dashes "--log-level" vs. "-log-level".
+- /dev/null is used for no-hooks directory instead of non-exisitent directory.
 
 ## [2.0.11](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.10...v2.0.11) - 2026-03-12
 

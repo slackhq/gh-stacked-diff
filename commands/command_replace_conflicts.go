@@ -21,7 +21,7 @@ func createReplaceConflictsCommand() *cobra.Command {
 			"(diff between origin/" + util.GetMainBranchForHelp() + " and HEAD) of its associated branch.",
 		Args: cobra.NoArgs,
 	}
-	confirmed := cmd.Flags().BoolP("confirm", "c", false, "Whether to automatically confirm to do this rather than ask for y/n input")
+	confirmed := cmd.Flags().BoolP("confirm", "y", false, "Whether to automatically confirm to do this rather than ask for y/n input")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		replaceConflicts(*confirmed)
 	}

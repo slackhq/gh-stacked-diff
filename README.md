@@ -90,7 +90,7 @@ Available Commands:
   wait-for-merge      Waits for a pull request to be merged
 
 Flags:
-      --config stringToString   Set a config value as key=value. Overrides values from
+  -c, --config stringToString   Set a config value as key=value. Overrides values from
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
                                 Can be specified multiple times for different keys.
@@ -363,7 +363,7 @@ usage: sd replace-conflicts [flags]
 
 flags:
 
-  -c, --confirm   Whether to automatically confirm to do this rather than ask for y/n input
+  -y, --confirm   Whether to automatically confirm to do this rather than ask for y/n input
 ```
 
 ### Commands for Custom Scripting
@@ -466,7 +466,7 @@ usage: sd version
 The following flags are available on all commands:
 
 ```
-      --config stringToString   Set a config value as key=value. Overrides values from
+  -c, --config stringToString   Set a config value as key=value. Overrides values from
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
                                 Can be specified multiple times for different keys.
