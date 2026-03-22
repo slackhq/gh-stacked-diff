@@ -91,9 +91,9 @@ The tool supports three ways to reference commits (via the `--indicator`/`-i` fl
 
 ### Testing Strategy
 - Each command has corresponding `*_test.go` file
-- Tests use `testutil.InitTest()` to create isolated git environments
+- Tests use `testutil.InitTest()` to create isolated git environments with real git commands (not mocked) — these are integration tests, not unit tests
 - Set log level to `slog.LevelDebug` in tests for detailed output
-- Use `TestExecutor.SetResponse()` to fake git/gh CLI responses
+- Use `TestExecutor.SetResponse()` to fake only gh responses that can't run locally (e.g., `gh pr create`)
 - Helper: `testParseArguments()` simulates command execution via `buildRootCommand()` + `rootCmd.Execute()`
 
 ## Creating New Commands
