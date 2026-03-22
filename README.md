@@ -1,6 +1,6 @@
 <p align="center">
-  <img 
-    src="docs/README-sd-preview.png" 
+  <img
+    src="docs/README-sd-preview.png"
     alt="Stacked Diff Workflow. Stay on main, skip the branches. Put up pull requests in slices.">
 </p>
 
@@ -62,43 +62,52 @@ source ~/.zshrc
 The code can also be used as a go library within your own go application. See the [Developer Guide](DEVELOPER_GUIDE.md#usage-as-a-golang-library) for more info.
 
 ```bash
-go get github.com/slackhq/gh-stacked-diff/v2@v2.0.11
+go get github.com/slackhq/gh-stacked-diff/v2@v2.0.12
 ```
 
 ## Command Line Interface
 
-```bash
-usage: sd [top-level-flags] <command> [<args>]
+```
+Usage:
+  sd [command]
 
-Possible commands are:
+Available Commands:
+  add-reviewers       Add reviewers to Pull Request on Github once its checks have passed
+  branch-name         Outputs branch name of commit
+  checkout            Checks out branch associated with commit indicator
+  code-owners         Outputs code owners for all of the changes in branch
+  completion          Generate the autocompletion script for the specified shell
+  help                Help about any command
+  log                 Displays git log of your changes
+  migrate             Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.
+  new                 Create a new pull request from a commit on main
+  prs                 Lists all Pull Requests you have open.
+  rebase-main         Bring your main branch up to date with remote
+  replace-commit      Replaces a commit on main branch with its associated branch
+  replace-conflicts   For failed rebase: replace changes with its associated branch
+  update              Add commits from main to an existing PR
+  version             Outputs version number
+  wait-for-merge      Waits for a pull request to be merged
 
-   add-reviewers       Add reviewers to Pull Request on Github once its checks have passed
-   branch-name         Outputs branch name of commit
-   checkout            Checks out branch associated with commit indicator
-   code-owners         Outputs code owners for all of the changes in branch
-   log                 Displays git log of your changes
-   migrate             Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.
-   new                 Create a new pull request from a commit on main
-   prs                 Lists all Pull Requests you have open.
-   rebase-main         Bring your main branch up to date with remote
-   replace-commit      Replaces a commit on main branch with its associated branch
-   replace-conflicts   For failed rebase: replace changes with its associated branch
-   update              Add commits from main to an existing PR
-   version             Outputs version number
-   wait-for-merge      Waits for a pull request to be merged
+Flags:
+      --config stringToString   Set a config value as key=value. Overrides values from
+                                ~/.gh-stacked-diff/config.yaml. Supported keys:
+                                   promptForReview=never|promptY|promptN (default: promptN)
+                                Can be specified multiple times for different keys.
 
-To learn more about a command use: sd <command> --help
+                                Equivalent config.yaml:
+                                   promptForReview: promptY (default [])
+  -h, --help                    help for sd
+  -l, --log-level string        Possible log levels:
+                                   debug
+                                   info
+                                   warn
+                                   error
+                                Default is info, except on commands that are for output purposes,
+                                (namely branch-name and log), which have a default of error.
+  -v, --version                 version for sd
 
-flags:
-
-  -log-level string
-        Possible log levels:
-           debug
-           info
-           warn
-           error
-        Default is info, except on commands that are for output purposes,
-        (namely branch-name and log), which have a default of error.
+Use "sd [command] --help" for more information about a command.
 ```
 
 ### Basic Commands
@@ -128,7 +137,7 @@ Can also add reviewers once PR checks have passed, see "--reviewers" flag.
 <img width="663" alt="image" src="docs/README-sd-new.gif">
 
 ```
-usage: sd new [flags] [commitIndicator]
+usage: sd new [commitIndicator] [flags]
 
 If commitIndicator is missing then you will be prompted to select commit:
 
@@ -176,36 +185,28 @@ The possible values for the templates are:
 
 flags:
 
-  -base string
-        Base branch for Pull Request. Default is main
-  -draft
-        Whether to create the PR as draft (default true)
-  -feature-flag string
-        Value for FEATURE_FLAG in PR description
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
-  -merge
-        Enable auto-merge (squash) on the PR via Github CLI.
-  -min-checks int
-        Minimum number of checks to wait for before verifying that checks
-        have passed before adding reviewers. It takes some time for checks
-        to be added to a PR by Github, and if you add-reviewers too soon it
-        will think that they have all passed. Default of -1 means to use 4
-        or the average number of checks of merged PRs, whatever is less. (default -1)
-  -reviewers string
-        Comma-separated list of Github usernames to add as reviewers once
-        checks have passed.
-  -silent
-        Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
+  -b, --base string           Base branch for Pull Request. Default is main
+  -d, --draft                 Whether to create the PR as draft (default true)
+  -f, --feature-flag string   Value for FEATURE_FLAG in PR description
+  -i, --indicator string      Indicator type to use to interpret commitIndicator:
+                                 commit   a commit hash, can be abbreviated,
+                                 pr       a github Pull Request number,
+                                 list     the order of commit listed in the git log, as indicated
+                                          by "sd log"
+                                 guess    the command will guess the indicator type:
+                                    Number between 0 and 99:       list
+                                    Number between 100 and 999999: pr
+                                    Otherwise:                     commit
+                               (default "guess")
+  -m, --merge                 Enable auto-merge (squash) on the PR via Github CLI.
+      --min-checks int        Minimum number of checks to wait for before verifying that checks
+                              have passed before adding reviewers. It takes some time for checks
+                              to be added to a PR by Github, and if you add-reviewers too soon it
+                              will think that they have all passed. Default of -1 means to use 4
+                              or the average number of checks of merged PRs, whatever is less. (default -1)
+  -r, --reviewers string      Comma-separated list of Github usernames to add as reviewers once
+                              checks have passed.
+  -s, --silent                Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
 ```
 
 ###### Note on Commit Messages
@@ -223,7 +224,7 @@ Can also add reviewers once PR checks have passed, see "--reviewers" flag.
 <img width="663" alt="image" src="docs/README-sd-update.gif">
 
 ```
-usage: sd update [flags] [PR commitIndicator [fixup commitIndicator [fixup commitIndicator...]]]
+usage: sd update [PR commitIndicator [fixup commitIndicator...]] [flags]
 
 If commitIndicators are missing then you will be prompted to select commits:
 
@@ -235,30 +236,25 @@ If commitIndicators are missing then you will be prompted to select commits:
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
-  -merge
-        Enable auto-merge (squash) on the PR via Github CLI.
-  -min-checks int
-        Minimum number of checks to wait for before verifying that checks
-        have passed before adding reviewers. It takes some time for checks
-        to be added to a PR by Github, and if you add-reviewers too soon it
-        will think that they have all passed. Default of -1 means to use 4
-        or the average number of checks of merged PRs, whatever is less. (default -1)
-  -reviewers string
-        Comma-separated list of Github usernames to add as reviewers once
-        checks have passed.
-  -silent
-        Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
+  -m, --merge              Enable auto-merge (squash) on the PR via Github CLI.
+      --min-checks int     Minimum number of checks to wait for before verifying that checks
+                           have passed before adding reviewers. It takes some time for checks
+                           to be added to a PR by Github, and if you add-reviewers too soon it
+                           will think that they have all passed. Default of -1 means to use 4
+                           or the average number of checks of merged PRs, whatever is less. (default -1)
+  -r, --reviewers string   Comma-separated list of Github usernames to add as reviewers once
+                           checks have passed.
+  -s, --silent             Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
 ```
 
 #### add-reviewers
@@ -268,38 +264,31 @@ Add reviewers to Pull Request on Github once its checks have passed.
 If PR is marked as a Draft, it is first marked as "Ready for Review".
 
 ```
-usage: sd add-reviewers [flags] [commitIndicator [commitIndicator]...]
+usage: sd add-reviewers [commitIndicator...] [flags]
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
-  -merge
-        Enable auto-merge (squash) on the PR via Github CLI.
-  -min-checks int
-        Minimum number of checks to wait for before verifying that checks
-        have passed before adding reviewers. It takes some time for checks
-        to be added to a PR by Github, and if you add-reviewers too soon it
-        will think that they have all passed. Default of -1 means to use 4
-        or the average number of checks of merged PRs, whatever is less. (default -1)
-  -poll-frequency duration
-        Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration (default 30s)
-  -reviewers string
-        Comma-separated list of Github usernames to add as reviewers once
-        checks have passed.
-  -silent
-        Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
-  -when-checks-pass
-        Poll until all checks pass before adding reviewers (default true)
+  -i, --indicator string          Indicator type to use to interpret commitIndicator:
+                                     commit   a commit hash, can be abbreviated,
+                                     pr       a github Pull Request number,
+                                     list     the order of commit listed in the git log, as indicated
+                                              by "sd log"
+                                     guess    the command will guess the indicator type:
+                                        Number between 0 and 99:       list
+                                        Number between 100 and 999999: pr
+                                        Otherwise:                     commit
+                                   (default "guess")
+  -m, --merge                     Enable auto-merge (squash) on the PR via Github CLI.
+      --min-checks int            Minimum number of checks to wait for before verifying that checks
+                                  have passed before adding reviewers. It takes some time for checks
+                                  to be added to a PR by Github, and if you add-reviewers too soon it
+                                  will think that they have all passed. Default of -1 means to use 4
+                                  or the average number of checks of merged PRs, whatever is less. (default -1)
+  -p, --poll-frequency duration   Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration (default 30s)
+  -r, --reviewers string          Comma-separated list of Github usernames to add as reviewers once
+                                  checks have passed.
+  -s, --silent                    Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
+  -w, --when-checks-pass          Poll until all checks pass before adding reviewers (default true)
 ```
 
 ### Commands for Rebasing and Fixing Merge Conflicts
@@ -325,20 +314,20 @@ For when you want to merge only the branch with origin/main, rather than your en
 After modifying the branch you can use "sd replace-commit" to sync local main.
 
 ```
-usage: sd checkout [flags] <commitIndicator>
+usage: sd checkout [commitIndicator] [flags]
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
 ```
 
 #### replace-commit
@@ -348,23 +337,21 @@ Replaces a commit on main branch with the squashed contents of its associated br
 This is useful when you make changes within a branch, for example to fix a problem found on CI, and want to bring the changes over to your local main branch.
 
 ```
-usage: sd replace-commit [flags] <commitIndicator>
+usage: sd replace-commit [commitIndicator] [flags]
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
-  -on-cherry-pick-error string
-        Action when cherry-pick fails: prompt, rollback, or exit (default "prompt")
+  -i, --indicator string              Indicator type to use to interpret commitIndicator:
+                                         commit   a commit hash, can be abbreviated,
+                                         pr       a github Pull Request number,
+                                         list     the order of commit listed in the git log, as indicated
+                                                  by "sd log"
+                                         guess    the command will guess the indicator type:
+                                            Number between 0 and 99:       list
+                                            Number between 100 and 999999: pr
+                                            Otherwise:                     commit
+                                       (default "guess")
+      --on-cherry-pick-error string   Action when cherry-pick fails: prompt, rollback, or exit (default "prompt")
 ```
 
 #### replace-conflicts
@@ -372,12 +359,11 @@ flags:
 During a rebase that failed because of merge conflicts, replace the current uncommitted changes (merge conflicts), with the contents (diff between origin/main and HEAD) of its associated branch.
 
 ```
-usage: sd replace-conflicts
+usage: sd replace-conflicts [flags]
 
 flags:
 
-  -confirm
-        Whether to automatically confirm to do this rather than ask for y/n input
+  -c, --confirm   Whether to automatically confirm to do this rather than ask for y/n input
 ```
 
 ### Commands for Custom Scripting
@@ -387,21 +373,20 @@ flags:
 Outputs the branch name for a given commit indicator. Useful for your own custom scripting.
 
 ```
-usage: sd branch-name [flags] <commitIndicator>
+usage: sd branch-name [commitIndicator] [flags]
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
 ```
 
 #### wait-for-merge
@@ -411,23 +396,21 @@ Waits for a pull request to be merged. Polls PR every 30 seconds.
 Useful for your own custom scripting.
 
 ```
-usage: sd wait-for-merge [flags] <commit hash or pull request number>
+usage: sd wait-for-merge [commitIndicator] [flags]
 
 flags:
 
-  -indicator string
-        Indicator type to use to interpret commitIndicator:
-           commit   a commit hash, can be abbreviated,
-           pr       a github Pull Request number,
-           list     the order of commit listed in the git log, as indicated
-                    by "sd log"
-           guess    the command will guess the indicator type:
-              Number between 0 and 99:       list
-              Number between 100 and 999999: pr
-              Otherwise:                     commit
-         (default "guess")
-  -silent
-        Whether to use voice output (false) or be silent (true) to notify that .
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
+  -s, --silent             Whether to use voice output (false) or be silent (true) to notify that .
 ```
 
 ### Other Commands
@@ -460,12 +443,43 @@ This command is useful when first adopting sd in an existing repository with fea
 usage: sd migrate
 ```
 
+#### completion
+
+Generate the autocompletion script for the specified shell. Supports bash, zsh, fish, and powershell.
+
+See the [Installation](#installation-as-github-cli-plugin) section for how to enable shell completions.
+
+```
+usage: sd completion [bash|zsh|fish|powershell]
+```
+
 #### version
 
 Outputs the version number.
 
 ```
 usage: sd version
+```
+
+### Global Flags
+
+The following flags are available on all commands:
+
+```
+      --config stringToString   Set a config value as key=value. Overrides values from
+                                ~/.gh-stacked-diff/config.yaml. Supported keys:
+                                   promptForReview=never|promptY|promptN (default: promptN)
+                                Can be specified multiple times for different keys.
+
+                                Equivalent config.yaml:
+                                   promptForReview: promptY (default [])
+  -l, --log-level string        Possible log levels:
+                                   debug
+                                   info
+                                   warn
+                                   error
+                                Default is info, except on commands that are for output purposes,
+                                (namely branch-name and log), which have a default of error.
 ```
 
 ## Example Workflow

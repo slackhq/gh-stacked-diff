@@ -2,6 +2,21 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.12](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.0.12) - 2026-03-21
+
+### Added
+
+- Shell auto-completions. See entry in README for installation instructions.
+- One-character shortcuts for flags.
+- promptForReview config flag that determines if a prompt to mark PR as ready for review after `new` and `update` commands is shown. Possible values are:
+    - `never`: prompt is not shown
+    - `promptY`: prompt with a default of Yes
+    - `promptN`: prompt with a default of No
+
+### Changed
+
+- Migrated to Cobra library for options so now global options can be specified before or after command name.
+
 ## [2.0.11](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.10...v2.0.11) - 2026-03-12
 
 ### Fixed
