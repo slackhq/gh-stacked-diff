@@ -10,26 +10,26 @@ import (
 
 /*
 Example output of gh api collaborators:
-gh api repos/slackhq/gh-stacked-diff/collaborators
+gh api repos/{owner}/{repo}/collaborators
 [
 
 	{
 	  "login": "xxx",
-	  "id": 4293001,
-	  "node_id": "MDQ6VXNlcjQyOTMwMDE=",
-	  "avatar_url": "https://avatars.githubusercontent.com/u/4293001?v=4",
+	  "id": 1234567,
+	  "node_id": "XXX=",
+	  "avatar_url": "https://avatars.githubusercontent.com/u/1234567?v=4",
 	  "gravatar_id": "",
-	  "url": "https://api.github.com/users/slackhq",
-	  "html_url": "https://github.com/slackhq",
-	  "followers_url": "https://api.github.com/users/slackhq/followers",
-	  "following_url": "https://api.github.com/users/slackhq/following{/other_user}",
-	  "gists_url": "https://api.github.com/users/slackhq/gists{/gist_id}",
-	  "starred_url": "https://api.github.com/users/slackhq/starred{/owner}{/repo}",
-	  "subscriptions_url": "https://api.github.com/users/slackhq/subscriptions",
-	  "organizations_url": "https://api.github.com/users/slackhq/orgs",
-	  "repos_url": "https://api.github.com/users/slackhq/repos",
-	  "events_url": "https://api.github.com/users/slackhq/events{/privacy}",
-	  "received_events_url": "https://api.github.com/users/slackhq/received_events",
+	  "url": "https://api.github.com/users/user-one",
+	  "html_url": "https://github.com/user-one",
+	  "followers_url": "https://api.github.com/users/user-one/followers",
+	  "following_url": "https://api.github.com/users/user-one/following{/other_user}",
+	  "gists_url": "https://api.github.com/users/user-one/gists{/gist_id}",
+	  "starred_url": "https://api.github.com/users/user-one/starred{/owner}{/repo}",
+	  "subscriptions_url": "https://api.github.com/users/user-one/subscriptions",
+	  "organizations_url": "https://api.github.com/users/user-one/orgs",
+	  "repos_url": "https://api.github.com/users/user-one/repos",
+	  "events_url": "https://api.github.com/users/user-one/events{/privacy}",
+	  "received_events_url": "https://api.github.com/users/user-one/received_events",
 	  "type": "User",
 	  "user_view_type": "public",
 	  "site_admin": false,
@@ -44,21 +44,21 @@ gh api repos/slackhq/gh-stacked-diff/collaborators
 	},
 	{
 	  "login": "xxxx",
-	  "id": 79605685,
-	  "node_id": "MDQ6VXNlcjc5NjA1Njg1",
-	  "avatar_url": "https://avatars.githubusercontent.com/u/79605685?v=4",
+	  "id": 7654321,
+	  "node_id": "YYY=",
+	  "avatar_url": "https://avatars.githubusercontent.com/u/7654321?v=4",
 	  "gravatar_id": "",
-	  "url": "https://api.github.com/users/slack-jallen",
-	  "html_url": "https://github.com/slack-jallen",
-	  "followers_url": "https://api.github.com/users/slack-jallen/followers",
-	  "following_url": "https://api.github.com/users/slack-jallen/following{/other_user}",
-	  "gists_url": "https://api.github.com/users/slack-jallen/gists{/gist_id}",
-	  "starred_url": "https://api.github.com/users/slack-jallen/starred{/owner}{/repo}",
-	  "subscriptions_url": "https://api.github.com/users/slack-jallen/subscriptions",
-	  "organizations_url": "https://api.github.com/users/slack-jallen/orgs",
-	  "repos_url": "https://api.github.com/users/slack-jallen/repos",
-	  "events_url": "https://api.github.com/users/slack-jallen/events{/privacy}",
-	  "received_events_url": "https://api.github.com/users/slack-jallen/received_events",
+	  "url": "https://api.github.com/users/user-two",
+	  "html_url": "https://github.com/user-two",
+	  "followers_url": "https://api.github.com/users/user-two/followers",
+	  "following_url": "https://api.github.com/users/user-two/following{/other_user}",
+	  "gists_url": "https://api.github.com/users/user-two/gists{/gist_id}",
+	  "starred_url": "https://api.github.com/users/user-two/starred{/owner}{/repo}",
+	  "subscriptions_url": "https://api.github.com/users/user-two/subscriptions",
+	  "organizations_url": "https://api.github.com/users/user-two/orgs",
+	  "repos_url": "https://api.github.com/users/user-two/repos",
+	  "events_url": "https://api.github.com/users/user-two/events{/privacy}",
+	  "received_events_url": "https://api.github.com/users/user-two/received_events",
 	  "type": "User",
 	  "user_view_type": "public",
 	  "site_admin": false,
@@ -77,7 +77,7 @@ gh api repos/slackhq/gh-stacked-diff/collaborators
 Example output from: gh repo view --json nameWithOwner
 
 	{
-	  "nameWithOwner": "slackhq/gh-stacked-diff"
+	  "nameWithOwner": "{owner}/{repo}"
 	}
 */
 func getAllCollaborators() []string {

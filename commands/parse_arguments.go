@@ -77,7 +77,7 @@ func buildRootCommand() *cobra.Command {
 		return []string{"debug", "info", "warn", "error"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
-	rootCmd.PersistentFlags().StringToString("config", nil,
+	rootCmd.PersistentFlags().StringToStringP("config", "c", nil,
 		"Set a config value as key=value. Overrides values from\n"+
 			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
