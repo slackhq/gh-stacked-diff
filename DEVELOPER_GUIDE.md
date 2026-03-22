@@ -67,10 +67,6 @@ git status && sd log
 export RELEASE_VERSION=`cat util/stable_version.txt`
 git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
-# This `go list` command is only required for using the project as a go library.
-# It will not work while the repository is private.
-GOPROXY=proxy.golang.org go list -m \
-  github.com/slackhq/gh-stacked-diff/v2@v$RELEASE_VERSION
 # Update [util/current_version.txt]
 ```
 
@@ -100,7 +96,3 @@ GOPROXY=proxy.golang.org go list -m \
 
 Once a tag is created [.github/workflows/release.yml] kicks off and
 creates the binaries for the release.
-
-## Usage as a golang Library
-
-Look at [main.go] for example usage.

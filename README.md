@@ -57,14 +57,6 @@ source ~/.zshrc
       source ~/.bashrc
       ```
 
-### Usage as a golang Library
-
-The code can also be used as a go library within your own go application. See the [Developer Guide](DEVELOPER_GUIDE.md#usage-as-a-golang-library) for more info.
-
-```bash
-go get github.com/slackhq/gh-stacked-diff/v2@v2.0.12
-```
-
 ## Command Line Interface
 
 ```
