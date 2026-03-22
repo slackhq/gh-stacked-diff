@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"log/slog"
 	"testing"
 
@@ -156,4 +157,106 @@ func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
 
 	assert.Regexp("✅.*first", out)
 	assert.Regexp("✅.*second", out)
+}
+
+func TestSdLog_WhenPollFlagWithoutStatus_Panics(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		assert.NotNil(r)
+		assert.Contains(out.String(), "--poll requires --status")
+	}()
+	testParseArgumentsWithOut(out, "log", "--poll")
+	assert.Fail("did not panic")
+}
+
+func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		assert.NotNil(r)
+		assert.Contains(out.String(), "--status is only supported on the main branch")
+	}()
+	testParseArgumentsWithOut(out, "log", "--status")
+	assert.Fail("did not panic")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsStatusInfo(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"approver,someuser\ncheck,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4\nmergeStateStatus,CLEAN",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "first")
+	assert.Contains(out, "[open]")
+	assert.Contains(out, "[checks: passed")
+	assert.Contains(out, "[approved: 1/2]")
+	assert.Contains(out, "[can merge]")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0\nlatestReview,bob,APPROVED,50\nmergeStateStatus,BLOCKED",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[approved: 0/3]")
+	assert.Contains(out, "alice requested changes")
+	assert.Contains(out, "bob approved with comments")
+	assert.NotContains(out, "[can merge]")
+}
+
+func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "alice, bob requested changes")
+	assert.Contains(out, "carol, dave approved")
+	assert.NotContains(out, "alice requested changes\n")
+	assert.NotContains(out, "bob requested changes\n")
 }

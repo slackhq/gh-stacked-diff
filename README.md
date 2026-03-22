@@ -85,10 +85,12 @@ Flags:
   -c, --config stringToString   Set a config value as key=value. Overrides values from
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
+                                   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)
                                 Can be specified multiple times for different keys.
 
                                 Equivalent config.yaml:
-                                   promptForReview: promptY (default [])
+                                   promptForReview: promptY
+                                   pollInterval: 1m (default [])
   -h, --help                    help for sd
   -l, --log-level string        Possible log levels:
                                    debug
@@ -113,7 +115,14 @@ Useful to view list indexes, or copy commit hashes, to use for the commitIndicat
 A ✅ means that there is a PR associated with the commit (actually it means there is a branch, but having a branch means there is a PR when using this workflow). If there is more than one commit on the associated branch, those commits are also listed (indented under their associated commit summary).
 
 ```
-usage: sd log
+usage: sd log [flags]
+
+Flags:
+  -s, --status   Show PR status including checks, approvals, and state.
+                 Only supported on the main branch.
+  -p, --poll     Keep polling for status updates. Requires --status.
+                 Press Esc or Ctrl+C to exit.
+                 Poll interval is configurable via --config pollInterval=30s
 ```
 
 <img width="663" alt="image" src="docs/README-sd-log.png">
@@ -461,10 +470,12 @@ The following flags are available on all commands:
   -c, --config stringToString   Set a config value as key=value. Overrides values from
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
+                                   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)
                                 Can be specified multiple times for different keys.
 
                                 Equivalent config.yaml:
-                                   promptForReview: promptY (default [])
+                                   promptForReview: promptY
+                                   pollInterval: 1m (default [])
   -l, --log-level string        Possible log levels:
                                    debug
                                    info

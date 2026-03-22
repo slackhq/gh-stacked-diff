@@ -5,15 +5,18 @@ import (
 	"slices"
 	"strings"
 
+	"time"
+
 	"github.com/fatih/color"
 
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
 
 func createLogCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "log",
 		Short: "Displays git log of your changes",
 		Long: "Displays summary of the git commits on current branch that are not\n" +
@@ -31,10 +34,36 @@ func createLogCommand() *cobra.Command {
 		Annotations: map[string]string{
 			"defaultLogLevel": "error",
 		},
-		Run: func(cmd *cobra.Command, args []string) {
-			printGitLog()
-		},
 	}
+	status := cmd.Flags().BoolP("status", "s", false,
+		"Show PR status including checks, approvals, and state.\n"+
+			"Only supported on the main branch.")
+	poll := cmd.Flags().BoolP("poll", "p", false,
+		"Keep polling for status updates. Requires --status.\n"+
+			"Press Esc or Ctrl+C to exit.")
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		if *poll && !*status {
+			panic("--poll requires --status")
+		}
+		if *status {
+			printGitLogWithStatus(cmd, *poll)
+		} else {
+			printGitLog()
+		}
+	}
+	return cmd
+}
+
+func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
+	if util.GetCurrentBranchName() != util.GetMainBranchOrDie() {
+		panic("--status is only supported on the main branch")
+	}
+	logs, checkedBranches := getLogsAndBranches()
+	var pollInterval time.Duration
+	if poll {
+		pollInterval = getUserConfig(cmd).PollInterval
+	}
+	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranches)
 }
 
 // Prints changes in the current branch compared to the main branch to out.
@@ -49,13 +78,7 @@ func printGitLog() {
 		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs...)
 		return
 	}
-	logs := templates.GetNewCommits("HEAD")
-	gitBranchArgs := make([]string, 0, len(logs)+2)
-	gitBranchArgs = append(gitBranchArgs, "branch", "-l")
-	for _, log := range logs {
-		gitBranchArgs = append(gitBranchArgs, log.Branch)
-	}
-	checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
+	logs, checkedBranches := getLogsAndBranches()
 	for i, log := range logs {
 		numberPrefix := getNumberPrefix(i, len(logs))
 		if slices.Contains(checkedBranches, log.Branch) {
@@ -88,6 +111,17 @@ func printGitLog() {
 			}
 		}
 	}
+}
+
+func getLogsAndBranches() ([]templates.GitLog, []string) {
+	logs := templates.GetNewCommits("HEAD")
+	gitBranchArgs := make([]string, 0, len(logs)+2)
+	gitBranchArgs = append(gitBranchArgs, "branch", "-l")
+	for _, log := range logs {
+		gitBranchArgs = append(gitBranchArgs, log.Branch)
+	}
+	checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
+	return logs, checkedBranches
 }
 
 func getNumberPrefix(i int, numLogs int) string {

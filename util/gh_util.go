@@ -2,6 +2,7 @@ package util
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -15,10 +16,25 @@ const (
 	PullRequestStateClosed
 )
 
+type LatestReview struct {
+	Login        string
+	State        string
+	BodyLength   int
+	CommentCount int
+}
+
+func (r LatestReview) HasComments() bool {
+	return r.BodyLength > 10 || r.CommentCount > 0
+}
+
 type PullRequestStatus struct {
-	Checks    PullRequestChecksStatus
-	Approvers []string
-	State     PullRequestState
+	Checks         PullRequestChecksStatus
+	Approvers      []string
+	State          PullRequestState
+	TotalReviewers int
+	LatestReviews  []LatestReview
+	CanMerge       bool
+	IsDraft        bool
 }
 
 /*
@@ -130,10 +146,13 @@ $ gh pr view 73 --json "reviews,statusCheckRollup" --jq "pick(.reviews[].author.
 func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	/*
 		Turn each type into a CSV with initial key field.
-		gh pr view 73 --json "state,reviews,statusCheckRollup" --jq '(.reviews[] | select(.state == "APPROVED") | "approver," + .author.login + "," + .state+","+.commit.oid),(.statusCheckRollup[] | "check," + .status + ","+.conclusion+","+.state),("state," + .state)'
-		approved,jallentest1
+		gh pr view 73 --json "state,reviews,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus" --jq '...'
+		approver,jallentest1
 		check,COMPLETED,SUCCESS,SUCCESS
 		state,OPEN
+		reviewRequestCount,3
+		latestReview,someuser,APPROVED,4,0
+		mergeStateStatus,CLEAN
 	*/
 	if minChecks == -1 {
 		minChecks = getMinChecks()
@@ -141,9 +160,13 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	lastCommit := GetBranchLatestCommit(branchName)
 	jq := "(.reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | \"approver,\" + .author.login)," +
 		"(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
-		"(\"state,\" + .state)"
+		"(\"state,\" + .state)," +
+		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
+		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
+		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
+		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))"
 	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "state,reviews,statusCheckRollup", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "state,reviews,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, Approvers: []string{}, State: PullRequestStateClosed}
 	for _, line := range lines {
@@ -163,6 +186,28 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				default:
 					status.State = PullRequestStateClosed
 				}
+			case "reviewRequestCount":
+				count, err := strconv.Atoi(fields[1])
+				if err == nil {
+					status.TotalReviewers += count
+				}
+			case "latestReview":
+				status.TotalReviewers++
+				bodyLen, _ := strconv.Atoi(fields[3])
+				commentCount := 0
+				if len(fields) > 4 {
+					commentCount, _ = strconv.Atoi(fields[4])
+				}
+				status.LatestReviews = append(status.LatestReviews, LatestReview{
+					Login:        fields[1],
+					State:        fields[2],
+					BodyLength:   bodyLen,
+					CommentCount: commentCount,
+				})
+			case "mergeStateStatus":
+				status.CanMerge = fields[1] == "CLEAN"
+			case "isDraft":
+				status.IsDraft = fields[1] == "true"
 			default:
 				panic("Unexpected key " + fields[0])
 			}
