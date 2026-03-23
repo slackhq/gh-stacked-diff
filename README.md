@@ -78,7 +78,6 @@ Available Commands:
   replace-commit      Replaces a commit on main branch with its associated branch
   replace-conflicts   For failed rebase: replace changes with its associated branch
   update              Add commits from main to an existing PR
-  version             Outputs version number
   wait-for-merge      Waits for a pull request to be merged
 
 Flags:
@@ -454,14 +453,6 @@ See the [Installation](#installation-as-github-cli-plugin) section for how to en
 
 ```
 usage: sd completion [bash|zsh|fish|powershell]
-```
-
-#### version
-
-Outputs the version number.
-
-```
-usage: sd version
 ```
 
 ### Global Flags
