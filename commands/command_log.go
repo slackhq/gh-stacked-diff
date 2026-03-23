@@ -1,14 +1,11 @@
 package commands
 
 import (
-	"fmt"
 	"slices"
 	"strings"
-
 	"time"
 
 	"github.com/fatih/color"
-
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -80,7 +77,7 @@ func printGitLog() {
 	}
 	logs, checkedBranches := getLogsAndBranches()
 	for i, log := range logs {
-		numberPrefix := getNumberPrefix(i, len(logs))
+		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		if slices.Contains(checkedBranches, log.Branch) {
 			// Use color for ✅ otherwise in Git Bash on Windows it will appear as black and white.
 			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✅ "))
@@ -122,11 +119,4 @@ func getLogsAndBranches() ([]templates.GitLog, []string) {
 	}
 	checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
 	return logs, checkedBranches
-}
-
-func getNumberPrefix(i int, numLogs int) string {
-	maxIndex := fmt.Sprint(numLogs)
-	currentIndex := fmt.Sprint(i + 1)
-	padding := strings.Repeat(" ", len(maxIndex)-len(currentIndex))
-	return padding + currentIndex + ". "
 }

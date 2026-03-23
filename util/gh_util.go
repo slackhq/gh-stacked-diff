@@ -29,7 +29,6 @@ func (r LatestReview) HasComments() bool {
 
 type PullRequestStatus struct {
 	Checks         PullRequestChecksStatus
-	Approvers      []string
 	State          PullRequestState
 	TotalReviewers int
 	LatestReviews  []LatestReview
@@ -146,35 +145,31 @@ $ gh pr view 73 --json "reviews,statusCheckRollup" --jq "pick(.reviews[].author.
 func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	/*
 		Turn each type into a CSV with initial key field.
-		gh pr view 73 --json "state,reviews,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus" --jq '...'
-		approver,jallentest1
+		gh pr view 73 --json "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft" --jq '...'
 		check,COMPLETED,SUCCESS,SUCCESS
 		state,OPEN
 		reviewRequestCount,3
 		latestReview,someuser,APPROVED,4,0
 		mergeStateStatus,CLEAN
+		isDraft,false
 	*/
 	if minChecks == -1 {
 		minChecks = getMinChecks()
 	}
-	lastCommit := GetBranchLatestCommit(branchName)
-	jq := "(.reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | \"approver,\" + .author.login)," +
-		"(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
+	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
 		"(\"state,\" + .state)," +
 		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
 		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
 		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
 		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))"
 	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "state,reviews,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, Approvers: []string{}, State: PullRequestStateClosed}
+	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, State: PullRequestStateClosed}
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
 		if len(fields) > 0 {
 			switch fields[0] {
-			case "approver":
-				status.Approvers = append(status.Approvers, fields[1])
 			case "check":
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
 			case "state":
@@ -213,7 +208,5 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 			}
 		}
 	}
-	slices.Sort(status.Approvers)
-	status.Approvers = slices.Compact(status.Approvers)
 	return status
 }

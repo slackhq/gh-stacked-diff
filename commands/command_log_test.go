@@ -205,7 +205,7 @@ func TestSdLog_WhenStatusFlag_ShowsStatusInfo(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"approver,someuser\ncheck,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4\nmergeStateStatus,CLEAN",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -228,7 +228,7 @@ func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0\nlatestReview,bob,APPROVED,50\nmergeStateStatus,BLOCKED",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,APPROVED,50,0\nmergeStateStatus,BLOCKED\nisDraft,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -250,7 +250,7 @@ func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")

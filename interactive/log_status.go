@@ -13,6 +13,11 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+var (
+	grayColor   = color.New().AddRGB(128, 128, 128)
+	purpleColor = color.New().AddRGB(128, 0, 128)
+)
+
 type logStatusRow struct {
 	log           templates.GitLog
 	hasPR         bool
@@ -121,8 +126,8 @@ func (m logStatusModel) View() string {
 			out.WriteString(row.numberPrefix + "   ")
 		}
 		out.WriteString(color.YellowString(row.log.Commit) + " " + row.log.Subject + "\n")
+		padding := strings.Repeat(" ", len(row.numberPrefix))
 		if row.hasPR {
-			padding := strings.Repeat(" ", len(row.numberPrefix))
 			statusLine := padding + m.formatStatus(row.status)
 			if row.status != nil {
 				reviewInfo := getChangesRequestedParts(row.status)
@@ -137,7 +142,6 @@ func (m logStatusModel) View() string {
 			copy(branchCommits, row.branchCommits)
 			slices.Reverse(branchCommits)
 			branchCommits = branchCommits[1:]
-			padding := strings.Repeat(" ", len(row.numberPrefix))
 			if len(branchCommits) > 3 {
 				hidingColor := color.New(color.Italic).AddRGB(88, 88, 88)
 				hidingMessage := hidingColor.Sprint("   - [hiding ", (len(branchCommits) - 2), " previous...]")
@@ -168,8 +172,6 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	if status == nil {
 		return m.spinner.View()
 	}
-	grayColor := color.New().AddRGB(128, 128, 128)
-	purpleColor := color.New().AddRGB(128, 0, 128)
 	isMerged := status.State == util.PullRequestStateMerged
 	var parts []string
 	switch status.State {
@@ -292,7 +294,7 @@ func buildRows(logs []templates.GitLog, checkedBranches []string) []logStatusRow
 		rows[i] = logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
-			numberPrefix: getLogNumberPrefix(i, len(logs)),
+			numberPrefix: GetLogNumberPrefix(i, len(logs)),
 		}
 	}
 	return rows
@@ -326,7 +328,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 	}
 }
 
-func getLogNumberPrefix(i int, numLogs int) string {
+func GetLogNumberPrefix(i int, numLogs int) string {
 	maxIndex := fmt.Sprint(numLogs)
 	currentIndex := fmt.Sprint(i + 1)
 	padding := strings.Repeat(" ", len(maxIndex)-len(currentIndex))
