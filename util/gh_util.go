@@ -1,6 +1,8 @@
 package util
 
 import (
+	"fmt"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -189,7 +191,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		case "isDraft":
 			status.IsDraft = fields[1] == "true"
 		default:
-			panic("Unexpected key " + fields[0])
+			slog.Warn(fmt.Sprint("unexpected key in pr view output: ", fields[0]))
 		}
 	}
 	return status

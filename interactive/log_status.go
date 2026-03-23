@@ -26,6 +26,7 @@ type logStatusRow struct {
 	status        *util.PullRequestStatus
 	branchCommits []templates.GitLog
 	numberPrefix  string
+	padding       string
 }
 
 type logStatusModel struct {
@@ -128,9 +129,8 @@ func (m logStatusModel) View() string {
 			out.WriteString(row.numberPrefix + "   ")
 		}
 		out.WriteString(color.YellowString(row.log.Commit) + " " + row.log.Subject + "\n")
-		padding := strings.Repeat(" ", len(row.numberPrefix))
 		if row.hasPR {
-			statusLine := padding + m.formatStatus(row.status)
+			statusLine := row.padding + m.formatStatus(row.status)
 			if row.status != nil {
 				reviewInfo := formatReviewSummary(row.status)
 				if reviewInfo != "" {
@@ -140,7 +140,7 @@ func (m logStatusModel) View() string {
 			out.WriteString(statusLine + "\n")
 		}
 		if row.hasPR && len(row.branchCommits) > 1 {
-			out.WriteString(FormatBranchCommits(row.branchCommits, padding))
+			out.WriteString(FormatBranchCommits(row.branchCommits, row.padding))
 		}
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
@@ -278,10 +278,12 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 func buildRows(logs []templates.GitLog, checkedBranches []string) []logStatusRow {
 	rows := make([]logStatusRow, len(logs))
 	for i, log := range logs {
+		prefix := GetLogNumberPrefix(i, len(logs))
 		rows[i] = logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
-			numberPrefix: GetLogNumberPrefix(i, len(logs)),
+			numberPrefix: prefix,
+			padding:      strings.Repeat(" ", len(prefix)),
 		}
 	}
 	return rows
@@ -301,6 +303,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					defer func() { <-sem }()
 					branchCommits := templates.GetNewCommits(row.log.Branch)
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
+					// Use 1 as minChecks is ignored in this flow.
 					status := util.GetPullRequestStatus(row.log.Branch, 1)
 					program.Send(updateLogStatusRowMsg{index: i, status: status})
 				}()
@@ -324,6 +327,9 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 // It copies the slice, reverses to chronological order, skips the first (which
 // matches the main log entry), and truncates with a hiding message if needed.
 func FormatBranchCommits(branchCommits []templates.GitLog, padding string) string {
+	if len(branchCommits) <= 1 {
+		return ""
+	}
 	commits := make([]templates.GitLog, len(branchCommits))
 	copy(commits, branchCommits)
 	slices.Reverse(commits)
