@@ -199,3 +199,10 @@ Special thanks to the following contributors for contributing to this release!
 - Better usage documentation. Use -h flag in new-pr, update-pr, and add-reviewers to see
 - New scripts to support custom scripting: wait-for-merge and get-branch-name-for
 - Silent mode for builds that use say: Use silent flag (-s) for install-app, assemble-app
+
+### Contributors
+
+Special thanks to the following contributors for contributing to this release!
+
+- [Evan Isnor](https://github.com/evanisnor)
+- [Jimmy Halim](https://github.com/jhalim-slack)
