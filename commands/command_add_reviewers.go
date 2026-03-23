@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DefaultPollFrequency = 30 * time.Second
 const waitForOtherReviewersSeconds = 10
 
 func createAddReviewersCommand() *cobra.Command {
@@ -28,11 +27,10 @@ func createAddReviewersCommand() *cobra.Command {
 	indicatorTypeString := addIndicatorFlag(cmd)
 
 	whenChecksPass := cmd.Flags().BoolP("when-checks-pass", "w", true, "Poll until all checks pass before adding reviewers")
-	pollFrequency := cmd.Flags().DurationP("poll-frequency", "p", DefaultPollFrequency,
-		"Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration")
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
+		userConfig := getUserConfig(cmd)
 		selectPrsOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What PR do you want to add reviewers to?",
 			CommitType:  interactive.CommitTypePr,
@@ -52,7 +50,7 @@ func createAddReviewersCommand() *cobra.Command {
 			Silent:         *silent,
 			MinChecks:      *minChecks,
 			Reviewers:      *reviewers,
-			PollFrequency:  *pollFrequency,
+			PollFrequency:  userConfig.PollInterval,
 			AutoMerge:      *merge,
 		})
 	}

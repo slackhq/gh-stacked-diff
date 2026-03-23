@@ -94,7 +94,7 @@ func createNewCommand() *cobra.Command {
 			WhenChecksPass: true,
 			Silent:         *silent,
 			MinChecks:      *minChecks,
-			PollFrequency:  DefaultPollFrequency,
+			PollFrequency:  userConfig.PollInterval,
 			AutoMerge:      *merge,
 		})
 	}

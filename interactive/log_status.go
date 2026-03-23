@@ -335,6 +335,9 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 		gen := generation
 		var wg sync.WaitGroup
 		sem := make(chan struct{}, maxParallelAPICalls)
+		// Each goroutine captures i and row by value (Go 1.22+ loop semantics).
+		// rows is reassigned on the next poll cycle (line below), but that
+		// happens only after wg.Wait() returns, so there is no race.
 		for i, row := range rows {
 			if row.hasPR {
 				wg.Add(1)

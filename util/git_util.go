@@ -25,6 +25,7 @@ var mainBranch string
 var mainBranchOnce *sync.Once = new(sync.Once)
 
 // Returns name of main branch, or panics if cannot be determined.
+// The result is cached after the first call.
 func GetMainBranchOrDie() string {
 	if mainBranch == "" {
 		mainBranchOnce.Do(func() {

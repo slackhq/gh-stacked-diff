@@ -288,7 +288,6 @@ flags:
                                   to be added to a PR by Github, and if you add-reviewers too soon it
                                   will think that they have all passed. Default of -1 means to use 4
                                   or the average number of checks of merged PRs, whatever is less. (default -1)
-  -p, --poll-frequency duration   Frequency which to poll checks. For valid formats see https://pkg.go.dev/time#ParseDuration (default 30s)
   -r, --reviewers string          Comma-separated list of Github usernames to add as reviewers once
                                   checks have passed.
   -s, --silent                    Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
@@ -395,7 +394,7 @@ flags:
 
 #### wait-for-merge
 
-Waits for a pull request to be merged. Polls PR every 30 seconds.
+Waits for a pull request to be merged. Poll interval is configurable via `--config pollInterval`.
 
 Useful for your own custom scripting.
 
@@ -414,7 +413,7 @@ flags:
                                  Number between 100 and 999999: pr
                                  Otherwise:                     commit
                             (default "guess")
-  -s, --silent             Whether to use voice output (false) or be silent (true) to notify that .
+  -s, --silent             Whether to use voice output (false) or be silent (true) to notify that the PR has been merged.
 ```
 
 ### Other Commands

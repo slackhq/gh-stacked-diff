@@ -142,6 +142,16 @@ func WaitForOutput(t *testing.T, out fmt.Stringer, expected string) {
 	}
 }
 
+// WaitForDone waits for the channel to close, or fails the test after 10 seconds.
+func WaitForDone(t *testing.T, done <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for done")
+	}
+}
+
 func CommitFileChange(commitMessage string, filename string, fileContents string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", filename)
 	if writeErr := os.WriteFile(filename, []byte(fileContents), 0); writeErr != nil {
