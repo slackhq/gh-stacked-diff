@@ -48,7 +48,7 @@ func (m logStatusModel) Error() any {
 }
 
 func (m logStatusModel) InputRequired() bool {
-	return false
+	return m.polling
 }
 
 func (m logStatusModel) Init() tea.Cmd {

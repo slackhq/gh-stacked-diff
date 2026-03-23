@@ -120,7 +120,7 @@ usage: sd log [flags]
 Flags:
   -s, --status   Show PR status including checks, approvals, and state.
                  Only supported on the main branch.
-  -p, --poll     Keep polling for status updates. Requires --status.
+  -p, --poll     Keep polling for status updates. Implies --status.
                  Press Esc or Ctrl+C to exit.
                  Poll interval is configurable via --config pollInterval=30s
 ```

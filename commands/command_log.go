@@ -36,13 +36,10 @@ func createLogCommand() *cobra.Command {
 		"Show PR status including checks, approvals, and state.\n"+
 			"Only supported on the main branch.")
 	poll := cmd.Flags().BoolP("poll", "p", false,
-		"Keep polling for status updates. Requires --status.\n"+
+		"Keep polling for status updates. Implies --status.\n"+
 			"Press Esc or Ctrl+C to exit.")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		if *poll && !*status {
-			panic("--poll requires --status")
-		}
-		if *status {
+		if *status || *poll {
 			printGitLogWithStatus(cmd, *poll)
 		} else {
 			printGitLog()

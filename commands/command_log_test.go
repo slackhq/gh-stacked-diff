@@ -159,20 +159,25 @@ func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
 	assert.Regexp("✅.*second", out)
 }
 
-func TestSdLog_WhenPollFlagWithoutStatus_Panics(t *testing.T) {
+func TestSdLog_WhenPollFlagWithoutStatus_ImpliesStatus(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelError)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
 
-	out := new(bytes.Buffer)
-	defer func() {
-		r := recover()
-		assert.NotNil(r)
-		assert.Contains(out.String(), "--poll requires --status")
-	}()
-	testParseArgumentsWithOut(out, "log", "--poll")
-	assert.Fail("did not panic")
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	// Use pollInterval=0s so the program shows status once without entering the poll loop.
+	out := testParseArguments("log", "--poll", "--config", "pollInterval=0s")
+
+	assert.Contains(out, "first")
+	assert.Contains(out, "[open]")
 }
 
 func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
@@ -279,6 +284,20 @@ func TestSdLog_WhenStatusFlag_ShowsMergedStatus(t *testing.T) {
 
 	assert.Contains(out, "[merged]")
 	assert.Contains(out, "[checks: passed")
+}
+
+func TestSdLog_WhenStatusFlagAndNoPRs_PrintsCommitsWithoutBubbletea(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "first")
+	assert.Contains(out, "second")
+	assert.NotContains(out, "✅")
 }
 
 func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
