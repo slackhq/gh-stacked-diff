@@ -87,6 +87,7 @@ func buildRootCommand() *cobra.Command {
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
 			"   pollInterval: 1m")
+	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// If --log-level flag was set, it was already applied in ExecuteCommand.
