@@ -183,17 +183,17 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 		return m.spinner.View()
 	}
 	var parts []string
-	if status.IsDraft {
-		parts = append(parts, grayColor.Sprint("[draft]"))
-	} else {
-		switch status.State {
-		case util.PullRequestStateOpen:
+	switch status.State {
+	case util.PullRequestStateOpen:
+		if status.IsDraft {
+			parts = append(parts, grayColor.Sprint("[draft]"))
+		} else {
 			parts = append(parts, color.CyanString("[open]"))
-		case util.PullRequestStateMerged:
-			parts = append(parts, purpleColor.Sprint("[merged]"))
-		case util.PullRequestStateClosed:
-			parts = append(parts, color.RedString("[closed]"))
 		}
+	case util.PullRequestStateMerged:
+		parts = append(parts, purpleColor.Sprint("[merged]"))
+	case util.PullRequestStateClosed:
+		parts = append(parts, color.RedString("[closed]"))
 	}
 	checks := status.Checks
 	total := checks.Total()

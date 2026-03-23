@@ -15,6 +15,7 @@ import (
 )
 
 const DefaultPollFrequency = 30 * time.Second
+const waitForOtherReviewersSeconds = 10
 
 func createAddReviewersCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -107,14 +108,17 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 	}
 }
 
+func countdown(progressIndicator *interactive.ProgressIndicator, index int, seconds int, message string) {
+	for seconds > 0 {
+		progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", seconds, " seconds ", message))
+		util.Sleep(1 * time.Second)
+		seconds--
+	}
+}
+
 func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, progressIndicator *interactive.ProgressIndicator, index int) {
 	if opts.WaitBeforePolling > 0 {
-		remaining := int(opts.WaitBeforePolling.Seconds())
-		for remaining > 0 {
-			progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for Github to add checks to pushed changes"))
-			util.Sleep(1 * time.Second)
-			remaining--
-		}
+		countdown(progressIndicator, index, int(opts.WaitBeforePolling.Seconds()), "for Github to add checks to pushed changes")
 	}
 	for {
 		summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
@@ -150,12 +154,7 @@ func markPrReady(targetCommit templates.GitLog, progressIndicator *interactive.P
 
 func addReviewers(targetCommit templates.GitLog, reviewers string, progressIndicator *interactive.ProgressIndicator, index int) {
 	appConfig := util.GetAppConfig()
-	remaining := 10
-	for remaining > 0 {
-		progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for any automatically assigned reviewers to be added..."))
-		util.Sleep(1 * time.Second)
-		remaining--
-	}
+	countdown(progressIndicator, index, waitForOtherReviewersSeconds, "for any automatically assigned reviewers to be added...")
 	progressIndicator.SetLogLine(index, "Checking if user has already approved latest commit")
 	approvingUsers, nonApprovingUsers := getNonApprovingUsers(targetCommit, reviewers)
 	if nonApprovingUsers != reviewers {
