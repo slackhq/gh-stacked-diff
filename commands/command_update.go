@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const waitForAddedChecksSeconds = 10
+
 func createUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [PR commitIndicator [fixup commitIndicator...]]",
@@ -35,7 +37,7 @@ func createUpdateCommand() *cobra.Command {
 			MinChecks:         *minChecks,
 			PollFrequency:     DefaultPollFrequency,
 			AutoMerge:         *merge,
-			WaitBeforePolling: 10 * time.Second,
+			WaitBeforePolling: waitForAddedChecksSeconds * time.Second,
 		})
 	}
 	return cmd

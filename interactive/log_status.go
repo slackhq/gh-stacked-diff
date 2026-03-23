@@ -32,11 +32,12 @@ type logStatusRow struct {
 }
 
 type logStatusModel struct {
-	spinner spinner.Model
-	rows    []logStatusRow
-	polling bool
-	loading bool
-	error   any
+	spinner    spinner.Model
+	rows       []logStatusRow
+	polling    bool
+	loading    bool
+	error      any
+	generation int
 }
 
 var _ failableModel = logStatusModel{}
@@ -56,17 +57,20 @@ func (m logStatusModel) Init() tea.Cmd {
 }
 
 type updateLogStatusRowMsg struct {
-	index  int
-	status util.PullRequestStatus
+	index      int
+	status     util.PullRequestStatus
+	generation int
 }
 
 type updateLogStatusBranchCommitsMsg struct {
 	index         int
 	branchCommits []templates.GitLog
+	generation    int
 }
 
 type updateAllRowsMsg struct {
-	rows []logStatusRow
+	rows       []logStatusRow
+	generation int
 }
 
 type pollFetchStartMsg struct{}
@@ -96,14 +100,15 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.rows = msg.rows
+		m.generation = msg.generation
 		return m, nil
 	case updateLogStatusRowMsg:
-		if msg.index < len(m.rows) {
+		if msg.generation == m.generation && msg.index < len(m.rows) {
 			m.rows[msg.index].status = &msg.status
 		}
 		return m, nil
 	case updateLogStatusBranchCommitsMsg:
-		if msg.index < len(m.rows) {
+		if msg.generation == m.generation && msg.index < len(m.rows) {
 			m.rows[msg.index].branchCommits = msg.branchCommits
 		}
 		return m, nil
@@ -163,15 +168,15 @@ func (m logStatusModel) hasInlineSpinner() bool {
 
 func coloredCommit(row logStatusRow) string {
 	if row.status != nil {
-		if row.status.IsDraft {
-			return grayColor.Sprint(row.log.Commit)
-		}
 		switch row.status.State {
 		case util.PullRequestStateMerged:
 			return purpleColor.Sprint(row.log.Commit)
 		case util.PullRequestStateClosed:
 			return color.RedString(row.log.Commit)
 		case util.PullRequestStateOpen:
+			if row.status.IsDraft {
+				return grayColor.Sprint(row.log.Commit)
+			}
 			return color.CyanString(row.log.Commit)
 		}
 	}
@@ -325,7 +330,9 @@ func buildRows(logs []templates.GitLog, checkedBranches []string) []logStatusRow
 
 func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, pollInterval time.Duration, refreshFunc LogDataFunc) {
 	defer SendErrorOnPanic(program)
+	generation := 0
 	for {
+		gen := generation
 		var wg sync.WaitGroup
 		sem := make(chan struct{}, maxParallelAPICalls)
 		for i, row := range rows {
@@ -337,10 +344,10 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					sem <- struct{}{}
 					defer func() { <-sem }()
 					branchCommits := templates.GetNewCommits(row.log.Branch)
-					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
+					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, generation: gen})
 					// Use 1 for minChecks as this flow does not need to have it calculated.
 					status := util.GetPullRequestStatus(row.log.Branch, 1)
-					program.Send(updateLogStatusRowMsg{index: i, status: status})
+					program.Send(updateLogStatusRowMsg{index: i, status: status, generation: gen})
 				}()
 			}
 		}
@@ -350,11 +357,12 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 			return
 		}
 		time.Sleep(pollInterval)
+		generation++
 		program.Send(pollFetchStartMsg{})
 		// Refresh the full log data (new commits, new PRs, etc.)
 		logs, checkedBranches := refreshFunc()
 		rows = buildRows(logs, checkedBranches)
-		program.Send(updateAllRowsMsg{rows: rows})
+		program.Send(updateAllRowsMsg{rows: rows, generation: generation})
 	}
 }
 

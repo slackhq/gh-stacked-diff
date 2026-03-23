@@ -34,7 +34,7 @@ func createAddReviewersCommand() *cobra.Command {
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		selectPrsOptions := interactive.CommitSelectionOptions{
-			Prompt:      "What PR do you want to add reviewers too?",
+			Prompt:      "What PR do you want to add reviewers to?",
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: true,
 		}
@@ -110,7 +110,11 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 
 func countdown(progressIndicator *interactive.ProgressIndicator, index int, seconds int, message string) {
 	for seconds > 0 {
-		progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", seconds, " seconds ", message))
+		unit := "seconds"
+		if seconds == 1 {
+			unit = "second"
+		}
+		progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", seconds, " ", unit, " ", message))
 		util.Sleep(1 * time.Second)
 		seconds--
 	}
@@ -160,7 +164,7 @@ func addReviewers(targetCommit templates.GitLog, reviewers string, progressIndic
 	if nonApprovingUsers != reviewers {
 		slog.Info(fmt.Sprint("Skipping reviewers that have already approved: " + approvingUsers))
 	}
-	if len(nonApprovingUsers) > 0 {
+	if nonApprovingUsers != "" {
 		if appConfig.DemoMode {
 			progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers))
 		} else {

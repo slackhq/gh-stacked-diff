@@ -75,14 +75,15 @@ func printGitLog() {
 	logs, checkedBranches := getLogsAndBranches()
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
-		if slices.Contains(checkedBranches, log.Branch) {
+		hasPR := slices.Contains(checkedBranches, log.Branch)
+		if hasPR {
 			// Use color for ✅ otherwise in Git Bash on Windows it will appear as black and white.
 			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✅ "))
 		} else {
 			util.Fprint(stdIo.Out, numberPrefix+"   ")
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
-		if slices.Contains(checkedBranches, log.Branch) {
+		if hasPR {
 			branchCommits := templates.GetNewCommits(log.Branch)
 			if len(branchCommits) > 1 {
 				padding := strings.Repeat(" ", len(numberPrefix))

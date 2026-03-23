@@ -123,12 +123,12 @@ func RequireInput(t *testing.T) {
 	})
 }
 
-// Convienience method for creating a message for when user typed a key.
+// Convenience method for creating a message for when user typed a key.
 func NewMessageRune(r rune) tea.KeyMsg {
 	return tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{r}})
 }
 
-// Convienience method for creating a message for when user hits a non-rune key like enter or up/down.
+// Convenience method for creating a message for when user hits a non-rune key like enter or up/down.
 func NewMessageKey(keyType tea.KeyType) tea.KeyMsg {
 	return tea.KeyMsg(tea.Key{Type: keyType})
 }
