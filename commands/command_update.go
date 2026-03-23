@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
@@ -29,11 +30,12 @@ func createUpdateCommand() *cobra.Command {
 		selectedReviewers, markReady := promptForReviewers(len(args) < 2 && *reviewers == "", userConfig, *merge)
 		updatePr(destCommit, commitsToCherryPick)
 		maybeAddReviewers(*reviewers, selectedReviewers, markReady, []templates.GitLog{destCommit}, AddReviewersOptions{
-			WhenChecksPass: true,
-			Silent:         *silent,
-			MinChecks:      *minChecks,
-			PollFrequency:  DefaultPollFrequency,
-			AutoMerge:      *merge,
+			WhenChecksPass:    true,
+			Silent:            *silent,
+			MinChecks:         *minChecks,
+			PollFrequency:     DefaultPollFrequency,
+			AutoMerge:         *merge,
+			WaitBeforePolling: 10 * time.Second,
 		})
 	}
 	return cmd

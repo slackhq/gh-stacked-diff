@@ -59,12 +59,13 @@ func createAddReviewersCommand() *cobra.Command {
 }
 
 type AddReviewersOptions struct {
-	WhenChecksPass bool
-	Silent         bool
-	MinChecks      int
-	Reviewers      string
-	PollFrequency  time.Duration
-	AutoMerge      bool
+	WhenChecksPass    bool
+	Silent            bool
+	MinChecks         int
+	Reviewers         string
+	PollFrequency     time.Duration
+	AutoMerge         bool
+	WaitBeforePolling time.Duration
 }
 
 // Adds reviewers to a PR once checks have passed via Github CLI.
@@ -95,6 +96,14 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 	appConfig := util.GetAppConfig()
 	defer progressIndicator.SendErrorOnPanic()
 	if opts.WhenChecksPass {
+		if opts.WaitBeforePolling > 0 {
+			remaining := int(opts.WaitBeforePolling.Seconds())
+			for remaining > 0 {
+				progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for Github to add checks to pushed changes"))
+				util.Sleep(1 * time.Second)
+				remaining--
+			}
+		}
 		for {
 			summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
 			progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
