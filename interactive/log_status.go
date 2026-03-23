@@ -278,7 +278,7 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 		spinner: s,
 		rows:    rows,
 		polling: polling,
-		loading: polling,
+		loading: true,
 	}
 	program := newProgram(initialModel, appConfig.Io)
 	go fetchAllStatuses(program, rows, polling, pollInterval, refreshFunc)
@@ -301,11 +301,14 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 	defer SendErrorOnPanic(program)
 	for {
 		var wg sync.WaitGroup
+		sem := make(chan struct{}, 2)
 		for i, row := range rows {
 			if row.hasPR {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
 					branchCommits := templates.GetNewCommits(row.log.Branch)
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
 					status := util.GetPullRequestStatus(row.log.Branch, 1)

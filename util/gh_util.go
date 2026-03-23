@@ -23,8 +23,11 @@ type LatestReview struct {
 	CommentCount int
 }
 
+// minMeaningfulCommentLength filters out short auto-generated or boilerplate review bodies.
+const minMeaningfulCommentLength = 10
+
 func (r LatestReview) HasComments() bool {
-	return r.BodyLength > 10 || r.CommentCount > 0
+	return r.BodyLength > minMeaningfulCommentLength || r.CommentCount > 0
 }
 
 type PullRequestStatus struct {
@@ -37,7 +40,9 @@ type PullRequestStatus struct {
 }
 
 /*
-Returns users that have already approved latest commit.
+Returns users that have already approved the latest commit.
+This uses the "reviews" field filtered by commit OID, unlike GetPullRequestStatus
+which uses "latestReviews" (the latest review per user, regardless of commit).
 
 Example output of gh pr view:
 
