@@ -243,6 +243,7 @@ func formatReviewSummary(status *util.PullRequestStatus) string {
 		case "approved":
 			parts = append(parts, color.GreenString(names+" approved"))
 		case "approvedWithComments":
+			// Using red even though it is approved so that the user does not miss that they should check the review comments.
 			parts = append(parts, color.RedString(names+" approved with comments"))
 		case "changesRequested":
 			parts = append(parts, color.RedString(names+" requested changes"))
