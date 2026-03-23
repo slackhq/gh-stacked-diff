@@ -61,8 +61,9 @@ func TestLogStatusModel_UpdateAllRows_CarriesOverCachedStatus(t *testing.T) {
 			padding:      "   ",
 		},
 	}
-	updated, _ := m.Update(updateAllRowsMsg{rows: newRows})
+	updated, _ := m.Update(updateAllRowsMsg{rows: newRows, generation: 1})
 	model := updated.(logStatusModel)
+	assert.Equal(t, 1, model.generation)
 	assert.Equal(t, "test commit updated", model.rows[0].log.Subject)
 	assert.NotNil(t, model.rows[0].status)
 	assert.True(t, model.rows[0].status.CanMerge)
@@ -86,6 +87,23 @@ func TestLogStatusModel_UpdateStatusRow_IgnoresOutOfBounds(t *testing.T) {
 	assert.Nil(t, model.rows[0].status)
 }
 
+func TestLogStatusModel_UpdateStatusRow_IgnoresStaleGeneration(t *testing.T) {
+	m := newTestModel(true)
+	m.generation = 2
+	status := util.PullRequestStatus{State: util.PullRequestStateMerged}
+	updated, _ := m.Update(updateLogStatusRowMsg{index: 0, status: status, generation: 1})
+	model := updated.(logStatusModel)
+	assert.Nil(t, model.rows[0].status)
+}
+
+func TestLogStatusModel_UpdateBranchCommits_IgnoresStaleGeneration(t *testing.T) {
+	m := newTestModel(true)
+	m.generation = 2
+	updated, _ := m.Update(updateLogStatusBranchCommitsMsg{index: 0, branchCommits: []templates.GitLog{{Subject: "stale"}}, generation: 1})
+	model := updated.(logStatusModel)
+	assert.Nil(t, model.rows[0].branchCommits)
+}
+
 func TestFormatBranchCommits_EmptySlice(t *testing.T) {
 	assert.Equal(t, "", FormatBranchCommits(nil, "  "))
 	assert.Equal(t, "", FormatBranchCommits([]templates.GitLog{}, "  "))
@@ -94,4 +112,35 @@ func TestFormatBranchCommits_EmptySlice(t *testing.T) {
 func TestFormatBranchCommits_SingleCommit(t *testing.T) {
 	commits := []templates.GitLog{{Subject: "only one"}}
 	assert.Equal(t, "", FormatBranchCommits(commits, "  "))
+}
+
+func TestFormatBranchCommits_MultipleCommits(t *testing.T) {
+	// Commits are in reverse-chronological order (newest first), matching GetNewCommits output.
+	// First commit after reverse is skipped (it matches the main log entry).
+	commits := []templates.GitLog{
+		{Subject: "third"},
+		{Subject: "second"},
+		{Subject: "first (main entry)"},
+	}
+	result := FormatBranchCommits(commits, "  ")
+	assert.Contains(t, result, "   - second\n")
+	assert.Contains(t, result, "   - third\n")
+	assert.NotContains(t, result, "first (main entry)")
+}
+
+func TestFormatBranchCommits_TruncatesWhenManyCommits(t *testing.T) {
+	commits := []templates.GitLog{
+		{Subject: "fifth"},
+		{Subject: "fourth"},
+		{Subject: "third"},
+		{Subject: "second"},
+		{Subject: "first (main entry)"},
+	}
+	result := FormatBranchCommits(commits, "  ")
+	assert.Contains(t, result, "[hiding 2 previous...]")
+	assert.NotContains(t, result, "second")
+	assert.NotContains(t, result, "third")
+	assert.Contains(t, result, "   - fourth\n")
+	assert.Contains(t, result, "   - fifth\n")
+	assert.NotContains(t, result, "first (main entry)")
 }

@@ -175,12 +175,17 @@ func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := util.NewWriteRecorder(new(bytes.Buffer))
-	go testParseArgumentsWithOut(out, "log", "--poll", "--config", "pollInterval=10m")
+	done := make(chan struct{})
+	go func() {
+		testParseArgumentsWithOut(out, "log", "--poll", "--config", "pollInterval=10m")
+		close(done)
+	}()
 
 	testutil.WaitForOutput(t, out, "[open]")
 	assert.Contains(out.String(), "first")
 
 	interactive.SendToProgram(0, interactive.NewMessageRune('q'))
+	testutil.WaitForDone(t, done)
 }
 
 func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {

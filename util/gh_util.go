@@ -108,9 +108,8 @@ func GetBranchLatestCommit(branchName string) string {
 	out, err := Execute(ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H", branchName)
 	if err != nil {
 		return ""
-	} else {
-		return strings.TrimSpace(out)
 	}
+	return strings.TrimSpace(out)
 }
 
 /*
@@ -171,6 +170,8 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				status.State = PullRequestStateMerged
 			case "OPEN":
 				status.State = PullRequestStateOpen
+			case "CLOSED":
+				status.State = PullRequestStateClosed
 			}
 		case "reviewRequestCount":
 			count, err := strconv.Atoi(fields[1])
