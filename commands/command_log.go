@@ -25,7 +25,7 @@ func createLogCommand() *cobra.Command {
 			"A " + color.GreenString("✅") + " means that there is a PR associated with the commit (actually it\n" +
 			"means there is a branch, but having a branch means there is a PR when\n" +
 			"using this workflow). If there is more than one commit on the\n" +
-			"associated branch, those commits are also listed (indented under the\n" +
+			"associated branch, those commits are also listed (indented under\n" +
 			"their associated commit summary).",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
