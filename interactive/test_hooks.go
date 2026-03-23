@@ -13,6 +13,8 @@ import (
 
 var sendMessageProgramListener func(program *tea.Program)
 var fakeMessages = map[int][]tea.Msg{}
+var currentProgramIndex int = -1
+var currentProgram *tea.Program = nil
 
 type programWriter struct {
 	program *tea.Program
@@ -77,22 +79,30 @@ func SendToProgram(programIndex int, messages ...tea.Msg) {
 		programMessages = []tea.Msg{}
 	}
 	programMessages = slices.AppendSeq(programMessages, slices.Values(messages))
-	fakeMessages[programIndex] = programMessages
+	if programIndex > currentProgramIndex {
+		fakeMessages[programIndex] = programMessages
+	} else if programIndex == currentProgramIndex {
+		for _, msg := range programMessages {
+			currentProgram.Send(msg)
+		}
+	} else {
+		panic(fmt.Sprintf("Sending input for a program, %d, that has already completed, %d", programIndex, currentProgramIndex))
+	}
 }
 
 func RequireInput(t *testing.T) {
-	currentProgramIndex := 0
 	if sendMessageProgramListener != nil {
 		panic("RequireInput already called for this test")
 	}
 	sendMessageProgramListener = func(program *tea.Program) {
+		currentProgramIndex++
+		currentProgram = program
 		programMessages := fakeMessages[currentProgramIndex]
 		if len(programMessages) == 0 {
-			panic(fmt.Sprint(
+			slog.Warn(fmt.Sprint(
 				"no input setup for interactive ui program number ",
 				currentProgramIndex, ", use interactive.SendToProgram"))
 		}
-		currentProgramIndex++
 		for _, msg := range programMessages {
 			program.Send(msg)
 		}
@@ -100,6 +110,8 @@ func RequireInput(t *testing.T) {
 	t.Cleanup(func() {
 		sendMessageProgramListener = nil
 		fakeMessages = map[int][]tea.Msg{}
+		currentProgramIndex = -1
+		currentProgram = nil
 	})
 }
 
