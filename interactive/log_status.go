@@ -320,7 +320,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					defer func() { <-sem }()
 					branchCommits := templates.GetNewCommits(row.log.Branch)
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
-					// Use 1 as minChecks is ignored in this flow.
+					// Use 1 for minChecks as this flow does not need to have it calculated.
 					status := util.GetPullRequestStatus(row.log.Branch, 1)
 					program.Send(updateLogStatusRowMsg{index: i, status: status})
 				}()

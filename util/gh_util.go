@@ -162,6 +162,8 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		case "check":
 			if len(fields) >= 4 {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
+			} else {
+				slog.Warn(fmt.Sprint("malformed check line in pr view output: ", line))
 			}
 		case "state":
 			switch fields[1] {
@@ -189,6 +191,8 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 					BodyLength:   bodyLen,
 					CommentCount: commentCount,
 				})
+			} else {
+				slog.Warn(fmt.Sprint("malformed latestReview line in pr view output: ", line))
 			}
 		case "mergeStateStatus":
 			status.CanMerge = fields[1] == "CLEAN"
