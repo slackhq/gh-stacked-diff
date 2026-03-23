@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -172,13 +173,12 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	if status == nil {
 		return m.spinner.View()
 	}
-	isMerged := status.State == util.PullRequestStateMerged
 	var parts []string
 	switch status.State {
 	case util.PullRequestStateOpen:
 		parts = append(parts, color.CyanString("[open]"))
 	case util.PullRequestStateMerged:
-		parts = append(parts, "[merged]")
+		parts = append(parts, purpleColor.Sprint("[merged]"))
 	case util.PullRequestStateClosed:
 		parts = append(parts, color.RedString("[closed]"))
 	}
@@ -209,9 +209,6 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	}
 	if status.CanMerge {
 		parts = append(parts, color.GreenString("[can merge]"))
-	}
-	if isMerged {
-		parts[0] = purpleColor.Sprint("[merged]")
 	}
 	return strings.Join(parts, " ")
 }
@@ -303,18 +300,20 @@ func buildRows(logs []templates.GitLog, checkedBranches []string) []logStatusRow
 func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, pollInterval time.Duration, refreshFunc LogDataFunc) {
 	defer SendErrorOnPanic(program)
 	for {
+		var wg sync.WaitGroup
 		for i, row := range rows {
 			if row.hasPR {
-				branchCommits := templates.GetNewCommits(row.log.Branch)
-				program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					branchCommits := templates.GetNewCommits(row.log.Branch)
+					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits})
+					status := util.GetPullRequestStatus(row.log.Branch, 1)
+					program.Send(updateLogStatusRowMsg{index: i, status: status})
+				}()
 			}
 		}
-		for i, row := range rows {
-			if row.hasPR {
-				status := util.GetPullRequestStatus(row.log.Branch, 1)
-				program.Send(updateLogStatusRowMsg{index: i, status: status})
-			}
-		}
+		wg.Wait()
 		program.Send(allStatusesLoadedMsg{})
 		if !polling {
 			return
