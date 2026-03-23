@@ -90,7 +90,7 @@ Flags:
 
                                 Equivalent config.yaml:
                                    promptForReview: promptY
-                                   pollInterval: 1m (default [])
+                                   pollInterval: 1m
   -h, --help                    help for sd
   -l, --log-level string        Possible log levels:
                                    debug
@@ -477,7 +477,7 @@ The following flags are available on all commands:
 
                                 Equivalent config.yaml:
                                    promptForReview: promptY
-                                   pollInterval: 1m (default [])
+                                   pollInterval: 1m
   -l, --log-level string        Possible log levels:
                                    debug
                                    info
