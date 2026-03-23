@@ -244,5 +244,10 @@ func RebaseAndSkipAllEmptyOrDie(options ExecuteOptions, otherRebaseArgs ...strin
 // Modified from https://superuser.com/a/1827815/681646
 func rebaseNoVerify() []string {
 	// Also use commit.cleanup=strip to avoid having conflict comments added to commit message.
-	return []string{"-c", "core.hooksPath=/dev/null", "-c", "commit.cleanup=strip", "-c", "advice.skippedCherryPicks=false", "rebase", "--no-verify"}
+	return []string{
+		"-c", "core.hooksPath=/dev/null",
+		"-c", "commit.cleanup=strip",
+		"-c", "advice.skippedCherryPicks=false",
+		"-c", "advice.diverging=false",
+		"rebase", "--no-verify"}
 }
