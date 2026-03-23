@@ -93,69 +93,85 @@ func addReviewersToPr(targetCommits []templates.GitLog, opts AddReviewersOptions
 }
 
 func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progressIndicator *interactive.ProgressIndicator, index int) {
-	appConfig := util.GetAppConfig()
 	defer progressIndicator.SendErrorOnPanic()
 	if opts.WhenChecksPass {
-		if opts.WaitBeforePolling > 0 {
-			remaining := int(opts.WaitBeforePolling.Seconds())
-			for remaining > 0 {
-				progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for Github to add checks to pushed changes"))
-				util.Sleep(1 * time.Second)
-				remaining--
-			}
-		}
-		for {
-			summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
-			progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
-			if summary.IsFailing() {
-				if !opts.Silent {
-					util.ExecuteOrDie(util.ExecuteOptions{}, "say", "Checks failed")
-				}
-				panic(fmt.Sprint("Checks failed for ", targetCommit, ". "+
-					"Total: ", summary.Total(),
-					" | Passed: ", summary.Passing,
-					" | Pending: ", summary.Pending,
-					" | Failed: ", summary.Failing,
-					"\n"))
-			}
-			if summary.Total() < summary.MinChecks {
-				progressIndicator.SetLogLine(index, fmt.Sprint("Waiting for at least ", summary.MinChecks, " checks to be added to PR. Currently only ", summary.Total()))
-			} else {
-				progressIndicator.SetLogLine(index, fmt.Sprint(summary.Passing, "/", summary.Passing+summary.Pending, " checks passed"))
-				if summary.IsSuccess() {
-					break
-				}
-			}
-			util.Sleep(opts.PollFrequency)
-		}
+		waitForChecks(targetCommit, opts, progressIndicator, index)
 	}
-	progressIndicator.SetLogLine(index, "Marking PR as ready for review")
-	util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "ready", targetCommit.Branch)
-	progressIndicator.SetLogLine(index, "PR marked as ready for review")
+	markPrReady(targetCommit, progressIndicator, index)
 	if opts.Reviewers != "" {
-		progressIndicator.SetLogLine(index, "Waiting 10 seconds for any automatically assigned reviewers to be added...")
-		util.Sleep(10 * time.Second)
-		progressIndicator.SetLogLine(index, "Checking if user has already approved latest commit")
-		approvingUsers, nonApprovingUsers := getNonApprovingUsers(targetCommit, opts.Reviewers)
-		if nonApprovingUsers != opts.Reviewers {
-			slog.Info(fmt.Sprint("Skipping reviewers that have already approved: " + approvingUsers))
-		}
-		if len(nonApprovingUsers) > 0 {
-			if appConfig.DemoMode {
-				progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers))
-			} else {
-				prUrl := strings.TrimSpace(
-					util.ExecuteOrDie(util.ExecuteOptions{},
-						"gh", "pr", "edit", targetCommit.Branch, "--add-reviewer", nonApprovingUsers,
-					),
-				)
-				progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers, " to ", prUrl))
-			}
-		}
+		addReviewers(targetCommit, opts.Reviewers, progressIndicator, index)
 	}
 	if opts.AutoMerge {
 		util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "merge", targetCommit.Branch, "--auto", "--squash")
 		progressIndicator.SetLogLine(index, "Auto-merge enabled")
+	}
+}
+
+func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, progressIndicator *interactive.ProgressIndicator, index int) {
+	if opts.WaitBeforePolling > 0 {
+		remaining := int(opts.WaitBeforePolling.Seconds())
+		for remaining > 0 {
+			progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for Github to add checks to pushed changes"))
+			util.Sleep(1 * time.Second)
+			remaining--
+		}
+	}
+	for {
+		summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
+		progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
+		if summary.IsFailing() {
+			if !opts.Silent {
+				util.ExecuteOrDie(util.ExecuteOptions{}, "say", "Checks failed")
+			}
+			panic(fmt.Sprint("Checks failed for ", targetCommit, ". "+
+				"Total: ", summary.Total(),
+				" | Passed: ", summary.Passing,
+				" | Pending: ", summary.Pending,
+				" | Failed: ", summary.Failing,
+				"\n"))
+		}
+		if summary.Total() < summary.MinChecks {
+			progressIndicator.SetLogLine(index, fmt.Sprint("Waiting for at least ", summary.MinChecks, " checks to be added to PR. Currently only ", summary.Total()))
+		} else {
+			progressIndicator.SetLogLine(index, fmt.Sprint(summary.Passing, "/", summary.Passing+summary.Pending, " checks passed"))
+			if summary.IsSuccess() {
+				break
+			}
+		}
+		util.Sleep(opts.PollFrequency)
+	}
+}
+
+func markPrReady(targetCommit templates.GitLog, progressIndicator *interactive.ProgressIndicator, index int) {
+	progressIndicator.SetLogLine(index, "Marking PR as ready for review")
+	util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "ready", targetCommit.Branch)
+	progressIndicator.SetLogLine(index, "PR marked as ready for review")
+}
+
+func addReviewers(targetCommit templates.GitLog, reviewers string, progressIndicator *interactive.ProgressIndicator, index int) {
+	appConfig := util.GetAppConfig()
+	remaining := 10
+	for remaining > 0 {
+		progressIndicator.SetLogLine(index, fmt.Sprint("Waiting ", remaining, " seconds for any automatically assigned reviewers to be added..."))
+		util.Sleep(1 * time.Second)
+		remaining--
+	}
+	progressIndicator.SetLogLine(index, "Checking if user has already approved latest commit")
+	approvingUsers, nonApprovingUsers := getNonApprovingUsers(targetCommit, reviewers)
+	if nonApprovingUsers != reviewers {
+		slog.Info(fmt.Sprint("Skipping reviewers that have already approved: " + approvingUsers))
+	}
+	if len(nonApprovingUsers) > 0 {
+		if appConfig.DemoMode {
+			progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers))
+		} else {
+			prUrl := strings.TrimSpace(
+				util.ExecuteOrDie(util.ExecuteOptions{},
+					"gh", "pr", "edit", targetCommit.Branch, "--add-reviewer", nonApprovingUsers,
+				),
+			)
+			progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers, " to ", prUrl))
+		}
 	}
 }
 
