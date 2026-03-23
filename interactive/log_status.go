@@ -130,9 +130,9 @@ func (m logStatusModel) View() string {
 		} else {
 			out.WriteString(row.numberPrefix + "   ")
 		}
-		out.WriteString(color.YellowString(row.log.Commit) + " " + row.log.Subject + "\n")
+		out.WriteString(coloredCommit(row) + " " + row.log.Subject + "\n")
 		if row.hasPR {
-			statusLine := row.padding + m.formatStatus(row.status)
+			statusLine := row.padding + "   " + m.formatStatus(row.status)
 			if row.status != nil {
 				reviewInfo := formatReviewSummary(row.status)
 				if reviewInfo != "" {
@@ -159,6 +159,23 @@ func (m logStatusModel) hasInlineSpinner() bool {
 		}
 	}
 	return false
+}
+
+func coloredCommit(row logStatusRow) string {
+	if row.status != nil {
+		if row.status.IsDraft {
+			return grayColor.Sprint(row.log.Commit)
+		}
+		switch row.status.State {
+		case util.PullRequestStateMerged:
+			return purpleColor.Sprint(row.log.Commit)
+		case util.PullRequestStateClosed:
+			return color.RedString(row.log.Commit)
+		case util.PullRequestStateOpen:
+			return color.CyanString(row.log.Commit)
+		}
+	}
+	return color.YellowString(row.log.Commit)
 }
 
 func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
