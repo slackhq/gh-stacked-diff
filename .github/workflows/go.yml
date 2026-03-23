@@ -25,7 +25,9 @@ jobs:
       run: make -o format build
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.11.3
 
     - name: Test
       run: make -o format -o lint test
