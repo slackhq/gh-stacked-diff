@@ -191,6 +191,7 @@ flags:
                                     Otherwise:                     commit
                                (default "guess")
   -m, --merge                 Enable auto-merge (squash) on the PR via Github CLI.
+                              Implies marking the PR as ready for review.
       --min-checks int        Minimum number of checks to wait for before verifying that checks
                               have passed before adding reviewers. It takes some time for checks
                               to be added to a PR by Github, and if you add-reviewers too soon it
@@ -239,6 +240,7 @@ flags:
                                  Otherwise:                     commit
                             (default "guess")
   -m, --merge              Enable auto-merge (squash) on the PR via Github CLI.
+                           Implies marking the PR as ready for review.
       --min-checks int     Minimum number of checks to wait for before verifying that checks
                            have passed before adding reviewers. It takes some time for checks
                            to be added to a PR by Github, and if you add-reviewers too soon it
@@ -271,6 +273,7 @@ flags:
                                         Otherwise:                     commit
                                    (default "guess")
   -m, --merge                     Enable auto-merge (squash) on the PR via Github CLI.
+                                  Implies marking the PR as ready for review.
       --min-checks int            Minimum number of checks to wait for before verifying that checks
                                   have passed before adding reviewers. It takes some time for checks
                                   to be added to a PR by Github, and if you add-reviewers too soon it

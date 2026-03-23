@@ -26,7 +26,7 @@ func createUpdateCommand() *cobra.Command {
 		userConfig := getUserConfig(cmd)
 		destCommit := getDestCommit(args, indicatorTypeString)
 		commitsToCherryPick := getCommitsToCherryPick(args, indicatorTypeString)
-		selectedReviewers, markReady := promptForReviewers(len(args) < 2 && *reviewers == "", userConfig)
+		selectedReviewers, markReady := promptForReviewers(len(args) < 2 && *reviewers == "", userConfig, *merge)
 		updatePr(destCommit, commitsToCherryPick)
 		maybeAddReviewers(*reviewers, selectedReviewers, markReady, []templates.GitLog{destCommit}, AddReviewersOptions{
 			WhenChecksPass: true,
