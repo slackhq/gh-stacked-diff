@@ -101,46 +101,20 @@ func GetBranchLatestCommit(branchName string) string {
 }
 
 /*
-$ gh pr view 73 --json "reviews,statusCheckRollup" --jq "pick(.reviews[].author.login, .reviews[].state, .reviews[].commit.oid, .statusCheckRollup[].status, .statusCheckRollup[].conclusion, .statusCheckRollup[].state)"
+GetPullRequestStatus fetches PR status via gh pr view using a jq query that
+produces CSV lines. Example raw JSON fields used:
 
-	{
-	  "reviews": [
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "CHANGES_REQUESTED"
-	    },
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "APPROVED"
-	    },
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "COMMENTED"
-	    }
-	  ],
-	  "statusCheckRollup": [
-	    {
-	      "conclusion": "SUCCESS",
-	      "state": null,
-	      "status": "COMPLETED"
-	    }
-	  ]
-	}
+	state, statusCheckRollup, latestReviews, reviewRequests, mergeStateStatus, isDraft
+
+Example jq output:
+
+	check,COMPLETED,SUCCESS,SUCCESS
+	state,OPEN
+	reviewRequestCount,3
+	latestReview,someuser,APPROVED,4,0
+	latestReview,otheruser,CHANGES_REQUESTED,0,2
+	mergeStateStatus,CLEAN
+	isDraft,false
 */
 func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	/*

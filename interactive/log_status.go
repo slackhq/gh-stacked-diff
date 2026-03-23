@@ -16,6 +16,7 @@ import (
 var (
 	grayColor   = color.New().AddRGB(128, 128, 128)
 	purpleColor = color.New().AddRGB(128, 0, 128)
+	hidingColor = color.New(color.Italic).AddRGB(88, 88, 88)
 )
 
 type logStatusRow struct {
@@ -130,7 +131,7 @@ func (m logStatusModel) View() string {
 		if row.hasPR {
 			statusLine := padding + m.formatStatus(row.status)
 			if row.status != nil {
-				reviewInfo := getChangesRequestedParts(row.status)
+				reviewInfo := formatReviewSummary(row.status)
 				if reviewInfo != "" {
 					statusLine += " " + reviewInfo
 				}
@@ -143,7 +144,6 @@ func (m logStatusModel) View() string {
 			slices.Reverse(branchCommits)
 			branchCommits = branchCommits[1:]
 			if len(branchCommits) > 3 {
-				hidingColor := color.New(color.Italic).AddRGB(88, 88, 88)
 				hidingMessage := hidingColor.Sprint("   - [hiding ", (len(branchCommits) - 2), " previous...]")
 				out.WriteString(padding + hidingMessage + "\n")
 				branchCommits = branchCommits[len(branchCommits)-2:]
@@ -232,7 +232,7 @@ func getReviewStatusKey(review util.LatestReview) string {
 	}
 }
 
-func getChangesRequestedParts(status *util.PullRequestStatus) string {
+func formatReviewSummary(status *util.PullRequestStatus) string {
 	// Group logins by status key.
 	groupLogins := make(map[string][]string)
 	for _, review := range status.LatestReviews {
@@ -281,7 +281,7 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 		spinner: s,
 		rows:    rows,
 		polling: polling,
-		loading: true,
+		loading: polling,
 	}
 	program := newProgram(initialModel, appConfig.Io)
 	go fetchAllStatuses(program, rows, polling, pollInterval, refreshFunc)

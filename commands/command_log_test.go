@@ -260,3 +260,43 @@ func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
 	assert.NotContains(out, "alice requested changes\n")
 	assert.NotContains(out, "bob requested changes\n")
 }
+
+func TestSdLog_WhenStatusFlag_ShowsMergedStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[merged]")
+	assert.Contains(out, "[checks: passed")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[open]")
+	assert.Contains(out, "[draft]")
+}
