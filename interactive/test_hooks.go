@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"sync"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +16,7 @@ var sendMessageProgramListener func(program *tea.Program)
 var fakeMessages = map[int][]tea.Msg{}
 var currentProgramIndex int = -1
 var currentProgram *tea.Program = nil
+var programMu sync.Mutex
 
 type programWriter struct {
 	program *tea.Program
@@ -74,6 +76,8 @@ func SendToProgram(programIndex int, messages ...tea.Msg) {
 	if sendMessageProgramListener == nil {
 		panic("RequireInput must be called by test init")
 	}
+	programMu.Lock()
+	defer programMu.Unlock()
 	programMessages := fakeMessages[programIndex]
 	if programMessages == nil {
 		programMessages = []tea.Msg{}
@@ -95,6 +99,8 @@ func RequireInput(t *testing.T) {
 		panic("RequireInput already called for this test")
 	}
 	sendMessageProgramListener = func(program *tea.Program) {
+		programMu.Lock()
+		defer programMu.Unlock()
 		currentProgramIndex++
 		currentProgram = program
 		programMessages := fakeMessages[currentProgramIndex]
@@ -108,6 +114,8 @@ func RequireInput(t *testing.T) {
 		}
 	}
 	t.Cleanup(func() {
+		programMu.Lock()
+		defer programMu.Unlock()
 		sendMessageProgramListener = nil
 		fakeMessages = map[int][]tea.Msg{}
 		currentProgramIndex = -1

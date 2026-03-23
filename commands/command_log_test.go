@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 
@@ -159,7 +160,7 @@ func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
 	assert.Regexp("✅.*second", out)
 }
 
-func TestSdLog_WhenPollFlagWithoutStatus_ImpliesStatus(t *testing.T) {
+func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -173,11 +174,13 @@ func TestSdLog_WhenPollFlagWithoutStatus_ImpliesStatus(t *testing.T) {
 		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	// Use pollInterval=0s so the program shows status once without entering the poll loop.
-	out := testParseArguments("log", "--poll", "--config", "pollInterval=0s")
+	out := util.NewWriteRecorder(new(bytes.Buffer))
+	go testParseArgumentsWithOut(out, "log", "--poll", "--config", "pollInterval=10m")
 
-	assert.Contains(out, "first")
-	assert.Contains(out, "[open]")
+	testutil.WaitForOutput(t, out, "[open]")
+	assert.Contains(out.String(), "first")
+
+	interactive.SendToProgram(0, interactive.NewMessageRune('q'))
 }
 
 func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
