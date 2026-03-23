@@ -319,6 +319,6 @@ func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
 
 	out := testParseArguments("log", "--status")
 
-	assert.Contains(out, "[open]")
+	assert.NotContains(out, "[open]")
 	assert.Contains(out, "[draft]")
 }
