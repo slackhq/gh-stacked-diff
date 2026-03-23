@@ -146,7 +146,8 @@ func (m logStatusModel) View() string {
 		}
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
-		out.WriteString(m.spinner.View() + "\n")
+		// Note: do not use eol here.
+		out.WriteString(m.spinner.View())
 	}
 	return out.String()
 }
