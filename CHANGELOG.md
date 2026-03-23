@@ -10,8 +10,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- `update` now waits 10 seconds before checking status
-- All poll intervals now use the --config pollInterval value
+- `update` now waits 10 seconds before checking status.
+- All poll intervals now use the config pollInterval value.
+- `--merge` flag now implies to mark PR as ready when checks pass, so the prompt is skipped.
 
 ## [2.0.12](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.11...v2.0.12) - 2026-03-22
 
