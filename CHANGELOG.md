@@ -121,7 +121,7 @@ Special thanks to the following contributors for contributing to this release!
 - [Hossain Khan - @hossain-khan](https://github.com/hossain-khan)
 - [Ritesh Bhatia - @ritesh.bhatia](https://github.com/ritesh.bhatia)
 
-## [2.0.1](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.0...v2.0.1) - 2026-06-13
+## [2.0.1](https://github.com/tinyspeck/gh-stacked-diff/compare/v2.0.0...v2.0.1) - 2025-06-13
 
 ### Changed
 
