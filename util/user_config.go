@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+const DefaultPollInterval = 30 * time.Second
 
 // PromptForReviewType controls whether and how the user is prompted to mark a PR as ready for review.
 type PromptForReviewType string
@@ -29,10 +32,12 @@ func (t PromptForReviewType) IsValid() bool {
 // UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
 	PromptForReview PromptForReviewType
+	PollInterval    time.Duration
 }
 
 type YamlConfig struct {
 	PromptForReview PromptForReviewType `yaml:"promptForReview"`
+	PollInterval    string              `yaml:"pollInterval"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -55,14 +60,23 @@ func LoadUserConfigFile() YamlConfig {
 	if cfg.PromptForReview != "" && !cfg.PromptForReview.IsValid() {
 		panic("invalid promptForReview value in config file: " + string(cfg.PromptForReview))
 	}
+	if cfg.PollInterval != "" {
+		if _, err := time.ParseDuration(cfg.PollInterval); err != nil {
+			panic("invalid pollInterval value in config file: " + cfg.PollInterval)
+		}
+	}
 	return cfg
 }
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
 func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
-	config := UserConfig{PromptForReview: PromptForReviewPromptN}
+	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
+	}
+	if fileConfig.PollInterval != "" {
+		d, _ := time.ParseDuration(fileConfig.PollInterval)
+		config.PollInterval = d
 	}
 	for key, value := range flagValues {
 		switch key {
@@ -72,6 +86,12 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 				panic("invalid promptForReview value: " + value)
 			}
 			config.PromptForReview = v
+		case "pollInterval":
+			d, err := time.ParseDuration(value)
+			if err != nil {
+				panic("invalid pollInterval value: " + value)
+			}
+			config.PollInterval = d
 		default:
 			panic("unknown --config key: " + key)
 		}

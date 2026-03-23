@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"bytes"
 	"log/slog"
 	"testing"
 
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 
@@ -156,4 +158,167 @@ func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
 
 	assert.Regexp("✅.*first", out)
 	assert.Regexp("✅.*second", out)
+}
+
+func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := util.NewWriteRecorder(new(bytes.Buffer))
+	go testParseArgumentsWithOut(out, "log", "--poll", "--config", "pollInterval=10m")
+
+	testutil.WaitForOutput(t, out, "[open]")
+	assert.Contains(out.String(), "first")
+
+	interactive.SendToProgram(0, interactive.NewMessageRune('q'))
+}
+
+func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		assert.NotNil(r)
+		assert.Contains(out.String(), "--status is only supported on the main branch")
+	}()
+	testParseArgumentsWithOut(out, "log", "--status")
+	assert.Fail("did not panic")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsStatusInfo(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "first")
+	assert.Contains(out, "[open]")
+	assert.Contains(out, "[checks: passed")
+	assert.Contains(out, "[approved: 1/2]")
+	assert.Contains(out, "[can merge]")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,APPROVED,50,0\nmergeStateStatus,BLOCKED\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[approved: 0/3]")
+	assert.Contains(out, "alice requested changes")
+	assert.Contains(out, "bob approved with comments")
+	assert.NotContains(out, "[can merge]")
+}
+
+func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "alice, bob requested changes")
+	assert.Contains(out, "carol, dave approved")
+	assert.NotContains(out, "alice requested changes\n")
+	assert.NotContains(out, "bob requested changes\n")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsMergedStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[merged]")
+	assert.Contains(out, "[checks: passed")
+}
+
+func TestSdLog_WhenStatusFlagAndNoPRs_PrintsCommitsWithoutBubbletea(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "first")
+	assert.Contains(out, "second")
+	assert.NotContains(out, "✅")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[open]")
+	assert.Contains(out, "[draft]")
 }

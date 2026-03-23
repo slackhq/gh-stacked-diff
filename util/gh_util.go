@@ -1,7 +1,10 @@
 package util
 
 import (
+	"fmt"
+	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -10,19 +13,44 @@ const GhRetries = 2
 type PullRequestState int
 
 const (
-	PullRequestStateOpen PullRequestState = iota
+	PullRequestStateClosed PullRequestState = iota
+	PullRequestStateOpen
 	PullRequestStateMerged
-	PullRequestStateClosed
 )
 
+const (
+	ReviewStateApproved         = "APPROVED"
+	ReviewStateChangesRequested = "CHANGES_REQUESTED"
+	ReviewStateCommented        = "COMMENTED"
+)
+
+type LatestReview struct {
+	Login        string
+	State        string
+	BodyLength   int
+	CommentCount int
+}
+
+// minMeaningfulCommentLength filters out short auto-generated or boilerplate review bodies.
+const minMeaningfulCommentLength = 10
+
+func (r LatestReview) HasComments() bool {
+	return r.BodyLength > minMeaningfulCommentLength || r.CommentCount > 0
+}
+
 type PullRequestStatus struct {
-	Checks    PullRequestChecksStatus
-	Approvers []string
-	State     PullRequestState
+	Checks         PullRequestChecksStatus
+	State          PullRequestState
+	TotalReviewers int
+	LatestReviews  []LatestReview
+	CanMerge       bool
+	IsDraft        bool
 }
 
 /*
-Returns users that have already approved latest commit.
+Returns users that have already approved the latest commit.
+This uses the "reviews" field filtered by commit OID, unlike GetPullRequestStatus
+which uses "latestReviews" (the latest review per user, regardless of commit).
 
 Example output of gh pr view:
 
@@ -86,89 +114,93 @@ func GetBranchLatestCommit(branchName string) string {
 }
 
 /*
-$ gh pr view 73 --json "reviews,statusCheckRollup" --jq "pick(.reviews[].author.login, .reviews[].state, .reviews[].commit.oid, .statusCheckRollup[].status, .statusCheckRollup[].conclusion, .statusCheckRollup[].state)"
+GetPullRequestStatus fetches PR status via gh pr view using a jq query that
+produces CSV lines. Example raw JSON fields used:
 
-	{
-	  "reviews": [
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "CHANGES_REQUESTED"
-	    },
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "APPROVED"
-	    },
-	    {
-	      "author": {
-	        "login": "jallentest1"
-	      },
-	      "commit": {
-	        "oid": "b7a6a8e29a906fbb009e5747167c5d11e80bc9b3"
-	      },
-	      "state": "COMMENTED"
-	    }
-	  ],
-	  "statusCheckRollup": [
-	    {
-	      "conclusion": "SUCCESS",
-	      "state": null,
-	      "status": "COMPLETED"
-	    }
-	  ]
-	}
+	state, statusCheckRollup, latestReviews, reviewRequests, mergeStateStatus, isDraft
+
+Example jq output:
+
+	check,COMPLETED,SUCCESS,SUCCESS
+	state,OPEN
+	reviewRequestCount,3
+	latestReview,someuser,APPROVED,4,0
+	latestReview,otheruser,CHANGES_REQUESTED,0,2
+	mergeStateStatus,CLEAN
+	isDraft,false
 */
 func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	/*
 		Turn each type into a CSV with initial key field.
-		gh pr view 73 --json "state,reviews,statusCheckRollup" --jq '(.reviews[] | select(.state == "APPROVED") | "approver," + .author.login + "," + .state+","+.commit.oid),(.statusCheckRollup[] | "check," + .status + ","+.conclusion+","+.state),("state," + .state)'
-		approved,jallentest1
+		gh pr view 73 --json "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft" --jq '...'
 		check,COMPLETED,SUCCESS,SUCCESS
 		state,OPEN
+		reviewRequestCount,3
+		latestReview,someuser,APPROVED,4,0
+		mergeStateStatus,CLEAN
+		isDraft,false
 	*/
 	if minChecks == -1 {
 		minChecks = getMinChecks()
 	}
-	lastCommit := GetBranchLatestCommit(branchName)
-	jq := "(.reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | \"approver,\" + .author.login)," +
-		"(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
-		"(\"state,\" + .state)"
+	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
+		"(\"state,\" + .state)," +
+		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
+		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
+		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
+		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))"
 	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "state,reviews,statusCheckRollup", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, Approvers: []string{}, State: PullRequestStateClosed}
+	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
-		if len(fields) > 0 {
-			switch fields[0] {
-			case "approver":
-				status.Approvers = append(status.Approvers, fields[1])
-			case "check":
+		if len(fields) < 2 {
+			continue
+		}
+		switch fields[0] {
+		case "check":
+			if len(fields) >= 4 {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
-			case "state":
-				switch fields[1] {
-				case "MERGED":
-					status.State = PullRequestStateMerged
-				case "OPEN":
-					status.State = PullRequestStateOpen
-				default:
-					status.State = PullRequestStateClosed
-				}
-			default:
-				panic("Unexpected key " + fields[0])
+			} else {
+				slog.Warn(fmt.Sprint("malformed check line in pr view output: ", line))
 			}
+		case "state":
+			switch fields[1] {
+			case "MERGED":
+				status.State = PullRequestStateMerged
+			case "OPEN":
+				status.State = PullRequestStateOpen
+			}
+		case "reviewRequestCount":
+			count, err := strconv.Atoi(fields[1])
+			if err == nil {
+				status.TotalReviewers += count
+			}
+		case "latestReview":
+			if len(fields) >= 4 {
+				status.TotalReviewers++
+				bodyLen, _ := strconv.Atoi(fields[3])
+				commentCount := 0
+				if len(fields) > 4 {
+					commentCount, _ = strconv.Atoi(fields[4])
+				}
+				status.LatestReviews = append(status.LatestReviews, LatestReview{
+					Login:        fields[1],
+					State:        fields[2],
+					BodyLength:   bodyLen,
+					CommentCount: commentCount,
+				})
+			} else {
+				slog.Warn(fmt.Sprint("malformed latestReview line in pr view output: ", line))
+			}
+		case "mergeStateStatus":
+			status.CanMerge = fields[1] == "CLEAN"
+		case "isDraft":
+			status.IsDraft = fields[1] == "true"
+		default:
+			slog.Warn(fmt.Sprint("unexpected key in pr view output: ", fields[0]))
 		}
 	}
-	slices.Sort(status.Approvers)
-	status.Approvers = slices.Compact(status.Approvers)
 	return status
 }

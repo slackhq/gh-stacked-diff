@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"sync"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,9 @@ import (
 
 var sendMessageProgramListener func(program *tea.Program)
 var fakeMessages = map[int][]tea.Msg{}
+var currentProgramIndex int = -1
+var currentProgram *tea.Program = nil
+var programMu sync.Mutex
 
 type programWriter struct {
 	program *tea.Program
@@ -72,34 +76,50 @@ func SendToProgram(programIndex int, messages ...tea.Msg) {
 	if sendMessageProgramListener == nil {
 		panic("RequireInput must be called by test init")
 	}
+	programMu.Lock()
+	defer programMu.Unlock()
 	programMessages := fakeMessages[programIndex]
 	if programMessages == nil {
 		programMessages = []tea.Msg{}
 	}
 	programMessages = slices.AppendSeq(programMessages, slices.Values(messages))
-	fakeMessages[programIndex] = programMessages
+	if programIndex > currentProgramIndex {
+		fakeMessages[programIndex] = programMessages
+	} else if programIndex == currentProgramIndex {
+		for _, msg := range programMessages {
+			currentProgram.Send(msg)
+		}
+	} else {
+		panic(fmt.Sprintf("Sending input for a program, %d, that has already completed, %d", programIndex, currentProgramIndex))
+	}
 }
 
 func RequireInput(t *testing.T) {
-	currentProgramIndex := 0
 	if sendMessageProgramListener != nil {
 		panic("RequireInput already called for this test")
 	}
 	sendMessageProgramListener = func(program *tea.Program) {
+		programMu.Lock()
+		defer programMu.Unlock()
+		currentProgramIndex++
+		currentProgram = program
 		programMessages := fakeMessages[currentProgramIndex]
 		if len(programMessages) == 0 {
-			panic(fmt.Sprint(
+			slog.Warn(fmt.Sprint(
 				"no input setup for interactive ui program number ",
 				currentProgramIndex, ", use interactive.SendToProgram"))
 		}
-		currentProgramIndex++
 		for _, msg := range programMessages {
 			program.Send(msg)
 		}
 	}
 	t.Cleanup(func() {
+		programMu.Lock()
+		defer programMu.Unlock()
 		sendMessageProgramListener = nil
 		fakeMessages = map[int][]tea.Msg{}
+		currentProgramIndex = -1
+		currentProgram = nil
 	})
 }
 

@@ -127,6 +127,21 @@ func AddCommit(commitMessage string, filename string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", commitMessage)
 }
 
+// WaitForOutput polls the stringer until its output contains the expected
+// substring, or fails the test after 10 seconds.
+func WaitForOutput(t *testing.T, out fmt.Stringer, expected string) {
+	t.Helper()
+	deadline := time.After(10 * time.Second)
+	for !strings.Contains(out.String(), expected) {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for output to contain %q", expected)
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
 func CommitFileChange(commitMessage string, filename string, fileContents string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", filename)
 	if writeErr := os.WriteFile(filename, []byte(fileContents), 0); writeErr != nil {
