@@ -13,9 +13,15 @@ const GhRetries = 2
 type PullRequestState int
 
 const (
-	PullRequestStateOpen PullRequestState = iota
+	PullRequestStateClosed PullRequestState = iota
+	PullRequestStateOpen
 	PullRequestStateMerged
-	PullRequestStateClosed
+)
+
+const (
+	ReviewStateApproved         = "APPROVED"
+	ReviewStateChangesRequested = "CHANGES_REQUESTED"
+	ReviewStateCommented        = "COMMENTED"
 )
 
 type LatestReview struct {
@@ -146,7 +152,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, State: PullRequestStateClosed}
+	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
 		if len(fields) < 2 {
@@ -163,8 +169,6 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				status.State = PullRequestStateMerged
 			case "OPEN":
 				status.State = PullRequestStateOpen
-			default:
-				status.State = PullRequestStateClosed
 			}
 		case "reviewRequestCount":
 			count, err := strconv.Atoi(fields[1])

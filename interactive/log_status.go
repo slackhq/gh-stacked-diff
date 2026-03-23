@@ -14,6 +14,8 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+const maxParallelAPICalls = 2
+
 var (
 	grayColor   = color.New().AddRGB(128, 128, 128)
 	purpleColor = color.New().AddRGB(128, 0, 128)
@@ -187,7 +189,7 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	}
 	approvedCount := 0
 	for _, review := range status.LatestReviews {
-		if review.State == "APPROVED" && !review.HasComments() {
+		if review.State == util.ReviewStateApproved && !review.HasComments() {
 			approvedCount++
 		}
 	}
@@ -204,14 +206,14 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 
 func getReviewStatusKey(review util.LatestReview) string {
 	switch review.State {
-	case "APPROVED":
+	case util.ReviewStateApproved:
 		if review.HasComments() {
 			return "approvedWithComments"
 		}
 		return "approved"
-	case "CHANGES_REQUESTED":
+	case util.ReviewStateChangesRequested:
 		return "changesRequested"
-	case "COMMENTED":
+	case util.ReviewStateCommented:
 		return "commented"
 	default:
 		return ""
@@ -262,6 +264,19 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 	appConfig := util.GetAppConfig()
 	rows := buildRows(logs, checkedBranches)
 	polling := pollInterval > 0
+	hasAnyPR := false
+	for _, row := range rows {
+		if row.hasPR {
+			hasAnyPR = true
+			break
+		}
+	}
+	if !polling && !hasAnyPR {
+		// No PRs to fetch status for; print static output without bubbletea.
+		m := logStatusModel{rows: rows}
+		util.Fprint(appConfig.Io.Out, m.View())
+		return
+	}
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	initialModel := logStatusModel{
@@ -293,12 +308,13 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 	defer SendErrorOnPanic(program)
 	for {
 		var wg sync.WaitGroup
-		sem := make(chan struct{}, 2)
+		sem := make(chan struct{}, maxParallelAPICalls)
 		for i, row := range rows {
 			if row.hasPR {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
+					defer SendErrorOnPanic(program)
 					sem <- struct{}{}
 					defer func() { <-sem }()
 					branchCommits := templates.GetNewCommits(row.log.Branch)
