@@ -59,7 +59,8 @@ func addReviewersFlags(cmd *cobra.Command) (*string, *bool, *int, *bool) {
 			"to be added to a PR by Github, and if you add-reviewers too soon it\n"+
 			"will think that they have all passed. Default of -1 means to use 4 \n"+
 			"or the average number of checks of merged PRs, whatever is less.")
-	merge := cmd.Flags().BoolP("merge", "m", false, "Enable auto-merge (squash) on the PR via Github CLI.")
+	merge := cmd.Flags().BoolP("merge", "m", false, "Enable auto-merge (squash) on the PR via Github CLI.\nImplies marking the PR as ready for review.")
+
 	return reviewers, silent, minChecks, merge
 }
 
@@ -88,17 +89,21 @@ func maybeAddReviewers(flagReviewers string, selectedReviewers string, markReady
 }
 
 // promptForReviewers prompts the user to mark a PR as ready for review and select reviewers.
-func promptForReviewers(shouldPrompt bool, userConfig util.UserConfig) (selectedReviewers string, markReady bool) {
-	if !shouldPrompt {
+// If autoMerge is true, markReady is always true (skipping the prompt).
+func promptForReviewers(shouldPrompt bool, userConfig util.UserConfig, autoMerge bool) (selectedReviewers string, markReady bool) {
+	if autoMerge {
+		markReady = true
+	} else if !shouldPrompt {
 		return "", false
-	}
-	switch userConfig.PromptForReview {
-	case util.PromptForReviewNever:
-		return "", false
-	case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
-		markReady = interactive.Confirm("Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
-	default:
-		panic("unknown promptForReview value: " + string(userConfig.PromptForReview))
+	} else {
+		switch userConfig.PromptForReview {
+		case util.PromptForReviewNever:
+			return "", false
+		case util.PromptForReviewPromptY, util.PromptForReviewPromptN:
+			markReady = interactive.Confirm("Mark PR as ready for review when checks pass?", userConfig.PromptForReview == util.PromptForReviewPromptY)
+		default:
+			panic("unknown promptForReview value: " + string(userConfig.PromptForReview))
+		}
 	}
 	if markReady {
 		selectedReviewers = interactive.UserSelection()

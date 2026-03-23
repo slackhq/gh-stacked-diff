@@ -88,7 +88,7 @@ func createNewCommand() *cobra.Command {
 		if *baseBranch == "" {
 			*baseBranch = util.GetMainBranchOrDie()
 		}
-		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig)
+		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig, *merge)
 		createNewPr(*draft, *featureFlag, *baseBranch, targetCommits[0])
 		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
 			WhenChecksPass: true,
