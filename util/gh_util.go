@@ -142,25 +142,30 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, State: PullRequestStateClosed}
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
-		if len(fields) > 0 {
-			switch fields[0] {
-			case "check":
+		if len(fields) < 2 {
+			continue
+		}
+		switch fields[0] {
+		case "check":
+			if len(fields) >= 4 {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
-			case "state":
-				switch fields[1] {
-				case "MERGED":
-					status.State = PullRequestStateMerged
-				case "OPEN":
-					status.State = PullRequestStateOpen
-				default:
-					status.State = PullRequestStateClosed
-				}
-			case "reviewRequestCount":
-				count, err := strconv.Atoi(fields[1])
-				if err == nil {
-					status.TotalReviewers += count
-				}
-			case "latestReview":
+			}
+		case "state":
+			switch fields[1] {
+			case "MERGED":
+				status.State = PullRequestStateMerged
+			case "OPEN":
+				status.State = PullRequestStateOpen
+			default:
+				status.State = PullRequestStateClosed
+			}
+		case "reviewRequestCount":
+			count, err := strconv.Atoi(fields[1])
+			if err == nil {
+				status.TotalReviewers += count
+			}
+		case "latestReview":
+			if len(fields) >= 4 {
 				status.TotalReviewers++
 				bodyLen, _ := strconv.Atoi(fields[3])
 				commentCount := 0
@@ -173,13 +178,13 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 					BodyLength:   bodyLen,
 					CommentCount: commentCount,
 				})
-			case "mergeStateStatus":
-				status.CanMerge = fields[1] == "CLEAN"
-			case "isDraft":
-				status.IsDraft = fields[1] == "true"
-			default:
-				panic("Unexpected key " + fields[0])
 			}
+		case "mergeStateStatus":
+			status.CanMerge = fields[1] == "CLEAN"
+		case "isDraft":
+			status.IsDraft = fields[1] == "true"
+		default:
+			panic("Unexpected key " + fields[0])
 		}
 	}
 	return status

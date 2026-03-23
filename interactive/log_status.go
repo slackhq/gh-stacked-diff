@@ -211,7 +211,7 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 		parts = append(parts, color.GreenString("[can merge]"))
 	}
 	if isMerged {
-		return purpleColor.Sprint(strings.Join(parts, " "))
+		parts[0] = purpleColor.Sprint("[merged]")
 	}
 	return strings.Join(parts, " ")
 }
