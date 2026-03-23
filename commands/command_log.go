@@ -85,26 +85,11 @@ func printGitLog() {
 			util.Fprint(stdIo.Out, numberPrefix+"   ")
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
-		// find first commit that is not in main branch
 		if slices.Contains(checkedBranches, log.Branch) {
 			branchCommits := templates.GetNewCommits(log.Branch)
 			if len(branchCommits) > 1 {
-				// Reverse the commits so that they are ordered from the earliest to more recent.
-				slices.Reverse(branchCommits)
-				// Remove the earliest commit as it is equal to newCommit
-				branchCommits = branchCommits[1:]
-				// Only include the three most recent commits, if there are more than three
-				// commits use a "hiding xx" message
 				padding := strings.Repeat(" ", len(numberPrefix))
-				if len(branchCommits) > 3 {
-					hidingColor := color.New(color.Italic).AddRGB(88, 88, 88) // Dark gray
-					hidingMessage := hidingColor.Sprint("   - [hiding ", (len(branchCommits) - 2), " previous...]")
-					util.Fprintln(stdIo.Out, padding+hidingMessage)
-					branchCommits = branchCommits[len(branchCommits)-2:]
-				}
-				for _, branchCommit := range branchCommits {
-					util.Fprintln(stdIo.Out, padding+"   - "+branchCommit.Subject)
-				}
+				util.Fprint(stdIo.Out, interactive.FormatBranchCommits(branchCommits, padding))
 			}
 		}
 	}

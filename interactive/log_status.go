@@ -139,19 +139,8 @@ func (m logStatusModel) View() string {
 			}
 			out.WriteString(statusLine + "\n")
 		}
-		if row.hasPR && row.branchCommits != nil && len(row.branchCommits) > 1 {
-			branchCommits := make([]templates.GitLog, len(row.branchCommits))
-			copy(branchCommits, row.branchCommits)
-			slices.Reverse(branchCommits)
-			branchCommits = branchCommits[1:]
-			if len(branchCommits) > 3 {
-				hidingMessage := hidingColor.Sprint("   - [hiding ", (len(branchCommits) - 2), " previous...]")
-				out.WriteString(padding + hidingMessage + "\n")
-				branchCommits = branchCommits[len(branchCommits)-2:]
-			}
-			for _, bc := range branchCommits {
-				out.WriteString(padding + "   - " + bc.Subject + "\n")
-			}
+		if row.hasPR && len(row.branchCommits) > 1 {
+			out.WriteString(FormatBranchCommits(row.branchCommits, padding))
 		}
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
@@ -328,6 +317,26 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 		rows = buildRows(logs, checkedBranches)
 		program.Send(updateAllRowsMsg{rows: rows})
 	}
+}
+
+// FormatBranchCommits formats the additional commits on a branch for display.
+// It copies the slice, reverses to chronological order, skips the first (which
+// matches the main log entry), and truncates with a hiding message if needed.
+func FormatBranchCommits(branchCommits []templates.GitLog, padding string) string {
+	commits := make([]templates.GitLog, len(branchCommits))
+	copy(commits, branchCommits)
+	slices.Reverse(commits)
+	commits = commits[1:]
+	var out strings.Builder
+	if len(commits) > 3 {
+		hidingMessage := hidingColor.Sprint("   - [hiding ", (len(commits) - 2), " previous...]")
+		out.WriteString(padding + hidingMessage + "\n")
+		commits = commits[len(commits)-2:]
+	}
+	for _, bc := range commits {
+		out.WriteString(padding + "   - " + bc.Subject + "\n")
+	}
+	return out.String()
 }
 
 func GetLogNumberPrefix(i int, numLogs int) string {
