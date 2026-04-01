@@ -12,6 +12,10 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+func init() {
+	util.RegisterTestInitHook(RequireInput)
+}
+
 var sendMessageProgramListener func(program *tea.Program)
 var fakeMessages = map[int][]tea.Msg{}
 var currentProgramIndex int = -1

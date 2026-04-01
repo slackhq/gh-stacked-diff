@@ -119,6 +119,18 @@ func getSecondaryWorktreeBranch() string {
 	return filepath.Base(currentRoot)
 }
 
+// Returns the path of the main worktree. Panics if it cannot be determined.
+func GetMainWorktreePath() string {
+	worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
+	lines := strings.Split(worktreeList, "\n")
+	return strings.Fields(lines[0])[0]
+}
+
+// Returns true if running in a secondary worktree (not the main worktree).
+func IsSecondaryWorktree() bool {
+	return getSecondaryWorktreeBranch() != ""
+}
+
 // Returns name of the local main branch, or panics if it cannot be determined.
 // The result is cached after the first call.
 func GetLocalMainBranchOrDie() string {

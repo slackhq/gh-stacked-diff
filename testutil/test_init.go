@@ -14,7 +14,6 @@ import (
 
 	"testing"
 
-	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
@@ -46,6 +45,7 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 
 	// Set new TestExecutor in case previous test has faked any of the git responses.
 	testExecutor := setTestExecutor()
+	util.SetUserConfig(util.UserConfig{})
 
 	cdTestRepo(testFunctionName)
 	// Setup author config in case it is not set on machine.
@@ -53,12 +53,14 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "user.name", "Unit Test")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "--allow-empty", "-m", InitialCommitSubject)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
+	// Set origin/HEAD so GetRemoteMainBranch works.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "remote", "set-head", "origin", util.GetCurrentBranchName())
 
 	util.SetDefaultSleep(func(d time.Duration) {
 		slog.Debug(fmt.Sprint("Skipping sleep in tests ", d))
 	})
 
-	interactive.RequireInput(t)
+	util.RunTestInitHooks(t)
 	return testExecutor
 }
 
@@ -150,6 +152,27 @@ func WaitForDone(t *testing.T, done <-chan struct{}) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for done")
 	}
+}
+
+// SetupSecondaryWorktree creates a secondary worktree from the current repo
+// and changes into it. Resets cached branch values.
+// Returns the main worktree path.
+func SetupSecondaryWorktree(t *testing.T) string {
+	t.Helper()
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	return mainPath
 }
 
 func CommitFileChange(commitMessage string, filename string, fileContents string) {

@@ -139,6 +139,7 @@ func buildRootCommand() *cobra.Command {
 		createUpdateCommand(),
 		createVersionCommand(),
 		createWaitForMergeCommand(),
+		createWorktreeMoveCommand(),
 	)
 
 	return rootCmd
