@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -17,15 +18,15 @@ const waitForAddedChecksSeconds = 10
 func createUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [PR commitIndicator [fixup commitIndicator...]]",
-		Short: "Add commits from " + util.GetMainBranchForHelp() + " to an existing PR",
-		Long: "Add commits from local " + util.GetMainBranchForHelp() + " branch to an existing PR.\n" +
+		Short: "Add commits from " + gitutil.GetMainBranchForHelp() + " to an existing PR",
+		Long: "Add commits from local " + gitutil.GetMainBranchForHelp() + " branch to an existing PR.\n" +
 			"\n" +
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		util.RequireMainBranch()
+		gitutil.RequireMainBranch()
 		userConfig := getUserConfig(cmd)
 		destCommit := getDestCommit(args, indicatorTypeString)
 		commitsToCherryPick := getCommitsToCherryPick(args, indicatorTypeString)
@@ -71,15 +72,15 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 	appConfig := util.GetAppConfig()
 	templates.RequireCommitOnMain(destCommit.Commit)
 	checkNotMerged(destCommit.Branch)
-	util.WithStashAndRollback("before update-pr "+destCommit.Commit+" "+destCommit.Subject, func(rollbackManager *util.GitRollbackManager) {
-		util.GitSwitch(destCommit.Branch)
+	gitutil.WithStashAndRollback("before update-pr "+destCommit.Commit+" "+destCommit.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
+		gitutil.GitSwitch(destCommit.Branch)
 		rollbackManager.SaveState() // Save state again for associated branch.
 		slog.Info("Fast forwarding in case there were any commits made via github web interface")
 		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", destCommit.Branch)
 		forcePush := false
 		if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "--ff-only", "origin/"+destCommit.Branch); err != nil {
 			slog.Info(fmt.Sprint("Could not fast forward to match origin. Rebasing instead. ", err))
-			util.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, "origin", destCommit.Branch)
+			gitutil.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, "origin", destCommit.Branch)
 			// As we rebased, a force push may be required.
 			forcePush = true
 		}
@@ -94,16 +95,16 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		if cherryPickError != nil {
 			slog.Info("First attempt at cherry-pick failed")
 			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", "--abort")
-			rebaseCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
-			slog.Info(fmt.Sprint("Rebasing with the base commit on "+util.GetLocalMainBranchOrDie()+" branch, ", rebaseCommit,
-				", in case the local "+util.GetLocalMainBranchOrDie()+" was rebased with origin/"+util.GetRemoteMainBranchOrDie()))
-			util.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
+			rebaseCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+			slog.Info(fmt.Sprint("Rebasing with the base commit on "+gitutil.GetLocalMainBranchOrDie()+" branch, ", rebaseCommit,
+				", in case the local "+gitutil.GetLocalMainBranchOrDie()+" was rebased with origin/"+gitutil.GetRemoteMainBranchOrDie()))
+			gitutil.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
 			slog.Info(fmt.Sprint("Cherry picking again ", commitsToCherryPick))
 			util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", cherryPickArgs...)
 			forcePush = true
 		}
-		slog.Info("Switching back to " + util.GetLocalMainBranchOrDie())
-		util.GitSwitch(util.GetLocalMainBranchOrDie())
+		slog.Info("Switching back to " + gitutil.GetLocalMainBranchOrDie())
+		gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Rebasing, marking as fixup ", commitsToCherryPick, " for target ", destCommit.Commit))
 		commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
 			return commit.Commit
@@ -114,7 +115,7 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
 		options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: appConfig.Io}
 		rebaseBase := earliestCommit(destCommit, commitsToCherryPick)
-		util.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
+		gitutil.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
 		// Do the push last so that if there is a rollback origin was not updated.
 		slog.Info("Pushing to remote")
 		if forcePush {

@@ -13,6 +13,7 @@ import (
 
 	"errors"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -26,7 +27,7 @@ func TestSdNew_OnRepoWithPreviousCommit_CreatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 	allCommits := templates.GetNewCommits("HEAD")
@@ -44,7 +45,7 @@ func TestSdNew_WithMiddleCommit_CreatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -81,10 +82,10 @@ func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
 
 	testExecutor.SetResponse(
 		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "--reviewers=mybestie", "1")
+	testParseArguments("new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
 
 	allCommits := templates.GetAllCommits()
 
@@ -105,7 +106,7 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 	testutil.AddCommit("first", "")
 
 	testExecutor.SetResponse(
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	// Set AppConfig so ReadHistory() can find the correct history file before testParseArguments runs.
@@ -114,7 +115,7 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 	// Verify no history before running.
 	assert.Empty(interactive.ReviewersHistory.ReadHistory())
 
-	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "--reviewers=mybestie", "1")
+	testParseArguments("new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
 
 	history := interactive.ReviewersHistory.ReadHistory()
 	assert.Contains(history, "mybestie", "reviewers passed via --reviewers flag should be saved to history")
@@ -133,7 +134,7 @@ func TestSdNew_WhenUsingListIndex_UsesCorrectList(t *testing.T) {
 
 	testParseArguments("new", "2")
 
-	assert.Equal(true, util.RemoteHasBranch(allCommits[1].Branch))
+	assert.Equal(true, gitutil.RemoteHasBranch(allCommits[1].Branch))
 }
 
 func TestSdNew_WhenDraftNotSupported_TriesAgainWithoutDraft(t *testing.T) {
@@ -247,7 +248,7 @@ func TestSdNew_WhenDestinationCommitNotSpecified_CreatesPrWithSelectedCommit(t *
 
 	allCommits := templates.GetAllCommits()
 
-	assert.True(util.RemoteHasBranch(allCommits[1].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
 }
 
 func TestSdNew_WhenDestinationCommitNotSpecified_WrapsCursorUp(t *testing.T) {
@@ -270,7 +271,7 @@ func TestSdNew_WhenDestinationCommitNotSpecified_WrapsCursorUp(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 
-	assert.True(util.RemoteHasBranch(allCommits[2].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[2].Branch))
 }
 
 func TestSdNew_WhenDestinationCommitNotSpecified_SkipsDisabledRows(t *testing.T) {
@@ -299,7 +300,7 @@ func TestSdNew_WhenDestinationCommitNotSpecified_SkipsDisabledRows(t *testing.T)
 	allCommits := templates.GetAllCommits()
 
 	// "third" is at index 2 (0-indexed) in allCommits.
-	assert.True(util.RemoteHasBranch(allCommits[2].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[2].Branch))
 }
 
 func TestSdNew_WhenDestinationCommitNotSpecified_WrapsUpSkipsDisabledLastRow(t *testing.T) {
@@ -328,7 +329,7 @@ func TestSdNew_WhenDestinationCommitNotSpecified_WrapsUpSkipsDisabledLastRow(t *
 	allCommits := templates.GetAllCommits()
 
 	// "second" is at index 1 (0-indexed) in allCommits.
-	assert.True(util.RemoteHasBranch(allCommits[1].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
 }
 
 func TestSdNew_WhenDestinationCommitNotSpecified_WrapsCursorDown(t *testing.T) {
@@ -353,7 +354,7 @@ func TestSdNew_WhenDestinationCommitNotSpecified_WrapsCursorDown(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 
-	assert.True(util.RemoteHasBranch(allCommits[0].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[0].Branch))
 }
 
 func TestSdNew_WhenDestinationCommitNotSpecifiedAndManyCommits_PadsIndex(t *testing.T) {
@@ -423,7 +424,7 @@ func TestSdNew_WhenNoReviewersAndDraft_ConfirmReady_MarksPrReady(t *testing.T) {
 
 	testExecutor.SetResponse(
 		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
@@ -438,7 +439,7 @@ func TestSdNew_WhenNoReviewersAndDraft_ConfirmReady_MarksPrReady(t *testing.T) {
 		// Reviewers to add when checks pass?
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
-	testParseArguments("new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+	testParseArguments("new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks))
 
 	allCommits := templates.GetAllCommits()
 
@@ -456,7 +457,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 
 	testExecutor.SetResponse(
 		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
@@ -471,7 +472,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 		// Reviewers to add when checks pass?
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
-	testParseArguments("--config", "promptForReview=promptY", "new", "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+	testParseArguments("--config", "promptForReview=promptY", "new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks))
 
 	allCommits := templates.GetAllCommits()
 
@@ -533,7 +534,7 @@ func TestSdNew_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePush(
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommitsBeforeNew, templates.GetAllCommits())
 		}
 	}()
@@ -557,5 +558,5 @@ func TestSdNew_WhenNoDraft_NoReadyPromptShown(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 
-	assert.True(util.RemoteHasBranch(allCommits[0].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[0].Branch))
 }

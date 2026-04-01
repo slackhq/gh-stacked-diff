@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
@@ -82,11 +83,11 @@ func GetBranchInfo(commitIndicator string, indicatorType IndicatorType) GitLog {
 	case IndicatorTypePr:
 		slog.Debug("Using commitIndicator as a pull request number " + commitIndicator)
 
-		branchName := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "headRefName", "-q", ".headRefName")
+		branchName := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "headRefName", "-q", ".headRefName")
 		// Fetch the branch in case the lastest commit is only on GitHub.
 		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branchName)
 		// Get the first commit of the branch on Github.
-		prCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "commits", "-q", "[.commits[].oid] | first")
+		prCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "commits", "-q", "[.commits[].oid] | first")
 		gitLogs := newGitLogs(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", "--no-patch", newGitLogsFormat, "--abbrev-commit", prCommit))
 		if len(gitLogs) == 0 {
 			panic(fmt.Sprint("Could not find first commit (", prCommit, ") of PR ", commitIndicator))
@@ -198,7 +199,7 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 	ticketNumber := strings.TrimSpace(summaryMatches[1])
 	resolvedTicketUrl := strings.ReplaceAll(ticketUrlPattern, "{TicketNumber}", ticketNumber)
 	return templateData{
-		Username:                   util.GetUsername(),
+		Username:                   gitutil.GetUsername(),
 		TicketNumber:               ticketNumber,
 		TicketUrlPattern:           resolvedTicketUrl,
 		CommitBody:                 commitBody,
@@ -239,7 +240,7 @@ func templateTextContains(configFilename string, defaultText string, search stri
 
 func getBranchTemplateData(sanitizedSummary string) branchTemplateData {
 	// Dots are not allowed in branch names of some Github configurations.
-	username := strings.ReplaceAll(util.GetUsername(), ".", "-")
+	username := strings.ReplaceAll(gitutil.GetUsername(), ".", "-")
 	return branchTemplateData{
 		UsernameCleaned:      username,
 		CommitSummaryCleaned: sanitizedSummary,

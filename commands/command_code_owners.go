@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 
@@ -84,7 +85,7 @@ func changedFilesOwners(changedFiles []string) map[string][]string {
 Returns changed files against main.
 */
 func getChangedFiles() []string {
-	firstOriginCommit := util.FirstOriginMainCommit(util.GetCurrentBranchName())
+	firstOriginCommit := gitutil.FirstOriginMainCommit(util.GetCurrentBranchName())
 	filenamesRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "--no-pager",
 		"log", "--pretty=format:\"\"", "--name-only", firstOriginCommit+"..HEAD")
 	return strings.Split(strings.TrimSpace(filenamesRaw), "\n")

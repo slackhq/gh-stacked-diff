@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ func createPrsCommand() *cobra.Command {
 			"defaultLogLevel": "error",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: util.GhRetries, EnvironmentVariables: []string{"GH_PAGER=", "GH_FORCE_TTY=true"}},
+			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries, EnvironmentVariables: []string{"GH_PAGER=", "GH_FORCE_TTY=true"}},
 				"gh", "pr", "list", "--author", "@me")
 			util.Fprintln(util.GetAppConfig().Io.Out, out)
 		},

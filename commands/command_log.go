@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -49,7 +50,7 @@ func createLogCommand() *cobra.Command {
 }
 
 func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
-	if util.GetCurrentBranchName() != util.GetLocalMainBranchOrDie() {
+	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		panic("--status is only supported on the main branch")
 	}
 	logs, checkedBranches := getLogsAndBranches()
@@ -63,10 +64,10 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 // Prints changes in the current branch compared to the main branch to out.
 func printGitLog() {
 	stdIo := util.GetAppConfig().Io
-	if util.GetCurrentBranchName() != util.GetLocalMainBranchOrDie() {
+	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit"}
-		if util.RemoteHasBranch(util.GetRemoteMainBranchOrDie()) {
-			gitArgs = append(gitArgs, "origin/"+util.GetRemoteMainBranchOrDie()+"..HEAD")
+		if gitutil.RemoteHasBranch(gitutil.GetRemoteMainBranchOrDie()) {
+			gitArgs = append(gitArgs, "origin/"+gitutil.GetRemoteMainBranchOrDie()+"..HEAD")
 		}
 		gitArgs = append(gitArgs, "--color=always")
 		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs...)

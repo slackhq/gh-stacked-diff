@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
-	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,7 +49,7 @@ func TestLogStatusModel_PollFetchStart_SetsLoading(t *testing.T) {
 
 func TestLogStatusModel_UpdateAllRows_CarriesOverCachedStatus(t *testing.T) {
 	m := newTestModel(true)
-	cachedStatus := util.PullRequestStatus{State: util.PullRequestStateOpen, CanMerge: true}
+	cachedStatus := gitutil.PullRequestStatus{State: gitutil.PullRequestStateOpen, CanMerge: true}
 	m.rows[0].status = &cachedStatus
 	m.rows[0].branchCommits = []templates.GitLog{{Subject: "extra"}}
 
@@ -72,16 +72,16 @@ func TestLogStatusModel_UpdateAllRows_CarriesOverCachedStatus(t *testing.T) {
 
 func TestLogStatusModel_UpdateStatusRow_SetsStatus(t *testing.T) {
 	m := newTestModel(true)
-	status := util.PullRequestStatus{State: util.PullRequestStateMerged}
+	status := gitutil.PullRequestStatus{State: gitutil.PullRequestStateMerged}
 	updated, _ := m.Update(updateLogStatusRowMsg{index: 0, status: status})
 	model := updated.(logStatusModel)
 	assert.NotNil(t, model.rows[0].status)
-	assert.Equal(t, util.PullRequestStateMerged, model.rows[0].status.State)
+	assert.Equal(t, gitutil.PullRequestStateMerged, model.rows[0].status.State)
 }
 
 func TestLogStatusModel_UpdateStatusRow_IgnoresOutOfBounds(t *testing.T) {
 	m := newTestModel(true)
-	status := util.PullRequestStatus{State: util.PullRequestStateMerged}
+	status := gitutil.PullRequestStatus{State: gitutil.PullRequestStateMerged}
 	updated, _ := m.Update(updateLogStatusRowMsg{index: 99, status: status})
 	model := updated.(logStatusModel)
 	assert.Nil(t, model.rows[0].status)
@@ -90,7 +90,7 @@ func TestLogStatusModel_UpdateStatusRow_IgnoresOutOfBounds(t *testing.T) {
 func TestLogStatusModel_UpdateStatusRow_IgnoresStaleGeneration(t *testing.T) {
 	m := newTestModel(true)
 	m.generation = 2
-	status := util.PullRequestStatus{State: util.PullRequestStateMerged}
+	status := gitutil.PullRequestStatus{State: gitutil.PullRequestStateMerged}
 	updated, _ := m.Update(updateLogStatusRowMsg{index: 0, status: status, generation: 1})
 	model := updated.(logStatusModel)
 	assert.Nil(t, model.rows[0].status)

@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -39,7 +40,7 @@ func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommi
 
 	if tt.expectPrReady {
 		testExecutor.SetResponse(
-			strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+			strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 			nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 	}
 
@@ -60,7 +61,7 @@ func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommi
 	args := []string{"--config", "promptForReview=" + tt.configValue}
 	args = append(args, commandArgs...)
 	if tt.expectPrReady {
-		args = append(args, "--min-checks", fmt.Sprint(util.DefaultMinChecks))
+		args = append(args, "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks))
 	}
 	testParseArguments(args...)
 

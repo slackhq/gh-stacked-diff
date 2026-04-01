@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -25,7 +26,7 @@ func TestSdAddDescription_WhenHasPr_UpdatesPrBody(t *testing.T) {
 
 	testParseArguments("new", "1")
 
-	testExecutor.SetResponse("101"+util.GhDelim+"first"+util.GhDelim+"open"+util.GhDelim+prBodyBegin+prBodyEnd, nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse("101"+gitutil.GhDelim+"first"+gitutil.GhDelim+"open"+gitutil.GhDelim+prBodyBegin+prBodyEnd, nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
 
 	generatedDescription := "Ai\ngenerated\ndescription\n"
 	aiOut := "Based on the PR changes, here's my recommended description:\n```markdown\n" + generatedDescription + "\n```\n"
@@ -68,7 +69,7 @@ func TestSdAddDescription_WhenHasPrHasExistingComment_ReplacesComment(t *testing
 	originalBody := prBodyBegin + addition + prBodyEnd
 	testParseArguments("new", "1")
 
-	testExecutor.SetResponse("101"+util.GhDelim+"first"+util.GhDelim+"open"+util.GhDelim+originalBody, nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse("101"+gitutil.GhDelim+"first"+gitutil.GhDelim+"open"+gitutil.GhDelim+originalBody, nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
 
 	updatedDescription := "this is an\nupdated description\n"
 	aiOut := "Based on the PR changes, here's my recommended description:\n```markdown\n" + updatedDescription + "\n```\n"

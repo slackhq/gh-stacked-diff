@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -47,6 +48,6 @@ func waitForMerge(targetCommit templates.GitLog, silent bool, pollInterval time.
 }
 
 func getMergedAt(branchName string) string {
-	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: util.GhRetries},
+	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries},
 		"gh", "pr", "view", branchName, "--json", "mergedAt", "--jq", ".mergedAt")
 }

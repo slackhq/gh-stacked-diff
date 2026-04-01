@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
@@ -25,7 +26,7 @@ var (
 type logStatusRow struct {
 	log           templates.GitLog
 	hasPR         bool
-	status        *util.PullRequestStatus
+	status        *gitutil.PullRequestStatus
 	branchCommits []templates.GitLog
 	numberPrefix  string
 	padding       string
@@ -58,7 +59,7 @@ func (m logStatusModel) Init() tea.Cmd {
 
 type updateLogStatusRowMsg struct {
 	index      int
-	status     util.PullRequestStatus
+	status     gitutil.PullRequestStatus
 	generation int
 }
 
@@ -169,11 +170,11 @@ func (m logStatusModel) hasInlineSpinner() bool {
 func coloredCommit(row logStatusRow) string {
 	if row.status != nil {
 		switch row.status.State {
-		case util.PullRequestStateMerged:
+		case gitutil.PullRequestStateMerged:
 			return purpleColor.Sprint(row.log.Commit)
-		case util.PullRequestStateClosed:
+		case gitutil.PullRequestStateClosed:
 			return color.RedString(row.log.Commit)
-		case util.PullRequestStateOpen:
+		case gitutil.PullRequestStateOpen:
 			if row.status.IsDraft {
 				return grayColor.Sprint(row.log.Commit)
 			}
@@ -183,21 +184,21 @@ func coloredCommit(row logStatusRow) string {
 	return color.YellowString(row.log.Commit)
 }
 
-func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
+func (m logStatusModel) formatStatus(status *gitutil.PullRequestStatus) string {
 	if status == nil {
 		return m.spinner.View()
 	}
 	var parts []string
 	switch status.State {
-	case util.PullRequestStateOpen:
+	case gitutil.PullRequestStateOpen:
 		if status.IsDraft {
 			parts = append(parts, grayColor.Sprint("[draft]"))
 		} else {
 			parts = append(parts, color.CyanString("[open]"))
 		}
-	case util.PullRequestStateMerged:
+	case gitutil.PullRequestStateMerged:
 		parts = append(parts, purpleColor.Sprint("[merged]"))
-	case util.PullRequestStateClosed:
+	case gitutil.PullRequestStateClosed:
 		parts = append(parts, color.RedString("[closed]"))
 	}
 	checks := status.Checks
@@ -213,7 +214,7 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	}
 	approvedCount := 0
 	for _, review := range status.LatestReviews {
-		if review.State == util.ReviewStateApproved && !review.HasComments() {
+		if review.State == gitutil.ReviewStateApproved && !review.HasComments() {
 			approvedCount++
 		}
 	}
@@ -228,23 +229,23 @@ func (m logStatusModel) formatStatus(status *util.PullRequestStatus) string {
 	return strings.Join(parts, " ")
 }
 
-func getReviewStatusKey(review util.LatestReview) string {
+func getReviewStatusKey(review gitutil.LatestReview) string {
 	switch review.State {
-	case util.ReviewStateApproved:
+	case gitutil.ReviewStateApproved:
 		if review.HasComments() {
 			return "approvedWithComments"
 		}
 		return "approved"
-	case util.ReviewStateChangesRequested:
+	case gitutil.ReviewStateChangesRequested:
 		return "changesRequested"
-	case util.ReviewStateCommented:
+	case gitutil.ReviewStateCommented:
 		return "commented"
 	default:
 		return ""
 	}
 }
 
-func formatReviewSummary(status *util.PullRequestStatus) string {
+func formatReviewSummary(status *gitutil.PullRequestStatus) string {
 	// Group logins by status key.
 	groupLogins := make(map[string][]string)
 	for _, review := range status.LatestReviews {
@@ -349,7 +350,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					branchCommits := templates.GetNewCommits(row.log.Branch)
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, generation: gen})
 					// Use 1 for minChecks as this flow does not need to have it calculated.
-					status := util.GetPullRequestStatus(row.log.Branch, 1)
+					status := gitutil.GetPullRequestStatus(row.log.Branch, 1)
 					program.Send(updateLogStatusRowMsg{index: i, status: status, generation: gen})
 				}()
 			}

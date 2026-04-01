@@ -1,10 +1,12 @@
-package util
+package gitutil
 
 import (
 	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
+
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 // Cached repository name with owner.
@@ -22,7 +24,7 @@ var cachedRepoHostnameOnce *sync.Once = new(sync.Once)
 func GetRepoNameWithOwner() string {
 	if repoNameWithOwner == "" {
 		repoNameWithOwnerOnce.Do(func() {
-			repoNameWithOwner = ExecuteOrDieTrimmed(ExecuteOptions{Retries: GhRetries},
+			repoNameWithOwner = util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
 				"gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
 		})
 	}
@@ -33,7 +35,7 @@ func GetLoggedInUsername() string {
 	if loggedInUsername == "" {
 		loggedInUsernameOnce.Do(func() {
 			jq := ".hosts | to_entries[] | select(.key == \"" + GetRepoHostname() + "\") | .value[].login"
-			out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
+			out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 				"gh", "auth", "status", "--active", "--json", "hosts", "--jq", jq)
 			slog.Debug("loggedInUsername " + loggedInUsername)
 			loggedInUsername = strings.Fields(out)[0]
@@ -45,7 +47,7 @@ func GetLoggedInUsername() string {
 func GetRepoHostname() string {
 	if cachedRepoHostname == "" {
 		cachedRepoHostnameOnce.Do(func() {
-			out := ExecuteOrDieTrimmed(ExecuteOptions{Retries: GhRetries},
+			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
 				"gh", "repo", "view", "--json", "url", "--jq", ".url")
 			parsedUrl, err := url.Parse(out)
 			if err != nil {

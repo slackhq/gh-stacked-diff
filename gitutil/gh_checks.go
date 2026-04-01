@@ -1,4 +1,4 @@
-package util
+package gitutil
 
 import (
 	"bufio"
@@ -9,13 +9,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 const DefaultMinChecks = 1
 const MaxChecks = 5
 
 // Cached value from minChecks api call if there were checks run.
-var minChecksHistory = NewHistoricalData("min-checks.history", 2)
+var minChecksHistory = util.NewHistoricalData("min-checks.history", 2)
 var minChecksCacheDuration = 48 * time.Hour
 
 type PullRequestChecksStatus struct {
@@ -56,7 +58,7 @@ func GetChecksStatus(branchName string, minChecks int) PullRequestChecksStatus {
 		minChecks = getMinChecks()
 	}
 	summary := PullRequestChecksStatus{MinChecks: minChecks}
-	stateString := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
+	stateString := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "statusCheckRollup",
 		"--jq", ".statusCheckRollup[] | .status, .conclusion, .state")
 	scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(stateString)))
@@ -99,7 +101,7 @@ func getMinChecks() int {
 			}
 			jq := ".[].statusCheckRollup | length"
 			// Github sometimes returns an error for this command so retry and then fallback to default.
-			out, err := Execute(ExecuteOptions{Retries: GhRetries},
+			out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
 				"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
 				"--json", "statusCheckRollup", "--jq", jq)
 			if err != nil {
@@ -107,7 +109,7 @@ func getMinChecks() int {
 				cachedMinChecks = DefaultMinChecks
 				return
 			}
-			allNumChecks := MapSlice(strings.Fields(out), func(next string) int {
+			allNumChecks := util.MapSlice(strings.Fields(out), func(next string) int {
 				numChecks, err := strconv.Atoi(next)
 				if err != nil {
 					panic(err)

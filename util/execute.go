@@ -38,6 +38,11 @@ func SetGlobalExecutor(executor Executor) {
 	globalExecutor = executor
 }
 
+// GetGlobalExecutor returns the current executor.
+func GetGlobalExecutor() Executor {
+	return globalExecutor
+}
+
 // Implementation of Execute that uses [exec.Command].
 func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programName string, args ...string) (string, error) {
 	cmd := exec.Command(programName, args...)

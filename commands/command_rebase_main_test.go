@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -21,7 +22,7 @@ func TestSdRebaseMain_WithDifferentCommits_DropsCommits(t *testing.T) {
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "rebase-will-keep-this-file")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
@@ -57,7 +58,7 @@ func TestSdRebaseMain_WithMulitpleMergedBranches_DropsCommits(t *testing.T) {
 	testutil.AddCommit("second", "2")
 	testutil.AddCommit("third", "3")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
@@ -125,7 +126,7 @@ func TestSdRebaseMain_WhenRebaseFails_DropsBranches(t *testing.T) {
 	testutil.CommitFileChange("second", "change-value-to-avoid-same-hash", "1")
 	testutil.CommitFileChange("third", "file-with-conflicts", "1")
 	testParseArguments("new", "2")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allCommits := templates.GetAllCommits()
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[2].Commit)
@@ -167,7 +168,7 @@ func TestSdRebaseMain_WithMergedPrAlreadyRebased_KeepsCommits(t *testing.T) {
 	testutil.AddCommit("second", "second-1")
 	testutil.AddCommit("third", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	allCommits := templates.GetAllCommits()
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[1].Commit)
 
@@ -199,7 +200,7 @@ func TestSdRebaseMain_WithDroppedCommits_DropsBranches(t *testing.T) {
 
 	testParseArguments("new", "1")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
@@ -217,8 +218,8 @@ func TestSdRebaseMain_WithDroppedCommits_DropsBranches(t *testing.T) {
 
 	testParseArguments("rebase-main")
 
-	assert.False(util.RemoteHasBranch(allOriginalCommits[0].Branch))
-	assert.False(util.GetLocalHasBranchOrDie(allOriginalCommits[0].Branch))
+	assert.False(gitutil.RemoteHasBranch(allOriginalCommits[0].Branch))
+	assert.False(gitutil.GetLocalHasBranchOrDie(allOriginalCommits[0].Branch))
 }
 
 func TestSdRebaseMain_WithClosedPRConfirmed_DropsCommits(t *testing.T) {
@@ -228,7 +229,7 @@ func TestSdRebaseMain_WithClosedPRConfirmed_DropsCommits(t *testing.T) {
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "rebase-will-keep-this-file")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
@@ -268,7 +269,7 @@ func TestSdRebaseMain_WithClosedPRDeclined_KeepsCommits(t *testing.T) {
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "file2")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
@@ -312,7 +313,7 @@ func TestSdRebaseMain_WithMergedAndClosedPRs_DropsBothWhenConfirmed(t *testing.T
 	testutil.AddCommit("second", "2")
 	testutil.AddCommit("third", "3")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	allOriginalCommits := templates.GetAllCommits()
 
