@@ -113,6 +113,9 @@ func getSecondaryWorktreeBranch() string {
 	if currentRoot == mainWorktreePath {
 		return ""
 	}
+	if util.GetUserConfig().WorktreeMainBranchGuard == util.WorktreeMainBranchGuardNone {
+		return util.GetCurrentBranchName()
+	}
 	return filepath.Base(currentRoot)
 }
 
@@ -214,7 +217,7 @@ func localHasBranch(branchName string) (bool, error) {
 
 func RequireMainBranch() {
 	if util.GetCurrentBranchName() != GetLocalMainBranchOrDie() {
-		panic("Must be run from " + GetLocalMainBranchOrDie() + " branch")
+		panic("Must be run from " + GetLocalMainBranchOrDie() + " branch\nTo disable this check set config worktreeMainBranchGuard to none")
 	}
 }
 

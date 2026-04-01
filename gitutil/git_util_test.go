@@ -24,8 +24,10 @@ func setupWorktreeTestRepo(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		ResetCacheForTesting()
+		util.SetUserConfig(util.UserConfig{})
 	})
 	ResetCacheForTesting()
+	util.SetUserConfig(util.UserConfig{})
 	util.SetGlobalExecutor(util.DefaultExecutor{})
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "init", "--bare", "remote-repo")
@@ -99,6 +101,25 @@ func TestGetSecondaryWorktreeBranch_WhenInSecondaryWorktree_ReturnsLastPathCompo
 	assert.Equal(t, "my-custom-dir", result)
 }
 
+func TestGetSecondaryWorktreeBranch_WhenGuardNone_ReturnsBranchName(t *testing.T) {
+	setupWorktreeTestRepo(t)
+	util.SetUserConfig(util.UserConfig{WorktreeMainBranchGuard: util.WorktreeMainBranchGuardNone})
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "feature-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../feature-worktree", "feature-branch")
+
+	if err := os.Chdir("../feature-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(t.TempDir())
+	})
+
+	result := getSecondaryWorktreeBranch()
+
+	assert.Equal(t, "feature-branch", result)
+}
+
 func TestGetLocalMainBranch_WhenInMainWorktree_ReturnsRemoteMainBranch(t *testing.T) {
 	setupWorktreeTestRepo(t)
 
@@ -126,7 +147,7 @@ func TestGetLocalMainBranch_WhenInSecondaryWorktree_ReturnsWorktreeBranch(t *tes
 	branch, err := GetLocalMainBranch()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "feature-branch", branch)
+	assert.Equal(t, "feature-worktree", branch)
 }
 
 func TestGetLocalMainBranch_CachesResult(t *testing.T) {

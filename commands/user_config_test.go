@@ -96,3 +96,32 @@ func TestNewUserConfig_TicketUrlPatternFlagOverridesFile(t *testing.T) {
 	)
 	assert.Equal(t, "https://flag.example.com/{TicketNumber}", config.TicketUrlPattern)
 }
+
+func TestNewUserConfig_WorktreeMainBranchGuardDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, util.WorktreeMainBranchGuardPath, config.WorktreeMainBranchGuard)
+}
+
+func TestNewUserConfig_WorktreeMainBranchGuardFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"worktreeMainBranchGuard": "none"})
+	assert.Equal(t, util.WorktreeMainBranchGuardNone, config.WorktreeMainBranchGuard)
+}
+
+func TestNewUserConfig_WorktreeMainBranchGuardFromFile(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{WorktreeMainBranchGuard: util.WorktreeMainBranchGuardNone}, nil)
+	assert.Equal(t, util.WorktreeMainBranchGuardNone, config.WorktreeMainBranchGuard)
+}
+
+func TestNewUserConfig_WorktreeMainBranchGuardFlagOverridesFile(t *testing.T) {
+	config := util.NewUserConfig(
+		util.YamlConfig{WorktreeMainBranchGuard: util.WorktreeMainBranchGuardNone},
+		map[string]string{"worktreeMainBranchGuard": "path"},
+	)
+	assert.Equal(t, util.WorktreeMainBranchGuardPath, config.WorktreeMainBranchGuard)
+}
+
+func TestNewUserConfig_WorktreeMainBranchGuardInvalidValue(t *testing.T) {
+	assert.PanicsWithValue(t, "invalid worktreeMainBranchGuard value: invalid", func() {
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"worktreeMainBranchGuard": "invalid"})
+	})
+}

@@ -22,14 +22,17 @@ type AppConfig struct {
 	DemoMode      bool
 }
 
-var globalAppConfig AppConfig
+var globalAppConfig *AppConfig
 
 // SetAppConfig sets the global AppConfig. Must be called once at startup (main or test setup).
 func SetAppConfig(config AppConfig) {
-	globalAppConfig = config
+	globalAppConfig = &config
 }
 
-// GetAppConfig returns the global AppConfig.
+// GetAppConfig returns the global AppConfig. Panics if SetAppConfig has not been called.
 func GetAppConfig() AppConfig {
-	return globalAppConfig
+	if globalAppConfig == nil {
+		panic("GetAppConfig called before SetAppConfig")
+	}
+	return *globalAppConfig
 }

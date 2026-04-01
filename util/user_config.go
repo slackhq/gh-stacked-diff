@@ -30,17 +30,35 @@ func (t PromptForReviewType) IsValid() bool {
 	return false
 }
 
+// WorktreeMainBranchGuardType controls how the main branch is determined in secondary worktrees.
+type WorktreeMainBranchGuardType string
+
+const (
+	WorktreeMainBranchGuardPath WorktreeMainBranchGuardType = "path"
+	WorktreeMainBranchGuardNone WorktreeMainBranchGuardType = "none"
+)
+
+func (t WorktreeMainBranchGuardType) IsValid() bool {
+	switch t {
+	case WorktreeMainBranchGuardPath, WorktreeMainBranchGuardNone:
+		return true
+	}
+	return false
+}
+
 // UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
-	PromptForReview  PromptForReviewType
-	PollInterval     time.Duration
-	TicketUrlPattern string
+	PromptForReview         PromptForReviewType
+	PollInterval            time.Duration
+	TicketUrlPattern        string
+	WorktreeMainBranchGuard WorktreeMainBranchGuardType
 }
 
 type YamlConfig struct {
-	PromptForReview  PromptForReviewType `yaml:"promptForReview,omitempty"`
-	PollInterval     string              `yaml:"pollInterval,omitempty"`
-	TicketUrlPattern string              `yaml:"ticketUrlPattern,omitempty"`
+	PromptForReview         PromptForReviewType         `yaml:"promptForReview,omitempty"`
+	PollInterval            string                      `yaml:"pollInterval,omitempty"`
+	TicketUrlPattern        string                      `yaml:"ticketUrlPattern,omitempty"`
+	WorktreeMainBranchGuard WorktreeMainBranchGuardType `yaml:"worktreeMainBranchGuard,omitempty"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -68,12 +86,15 @@ func LoadUserConfigFile() YamlConfig {
 			panic("invalid pollInterval value in config file: " + cfg.PollInterval)
 		}
 	}
+	if cfg.WorktreeMainBranchGuard != "" && !cfg.WorktreeMainBranchGuard.IsValid() {
+		panic("invalid worktreeMainBranchGuard value in config file: " + string(cfg.WorktreeMainBranchGuard))
+	}
 	return cfg
 }
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
 func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
-	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval}
+	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
 	}
@@ -83,6 +104,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 	}
 	if fileConfig.TicketUrlPattern != "" {
 		config.TicketUrlPattern = fileConfig.TicketUrlPattern
+	}
+	if fileConfig.WorktreeMainBranchGuard != "" {
+		config.WorktreeMainBranchGuard = fileConfig.WorktreeMainBranchGuard
 	}
 	for key, value := range flagValues {
 		switch key {
@@ -100,11 +124,32 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 			config.PollInterval = d
 		case "ticketUrlPattern":
 			config.TicketUrlPattern = value
+		case "worktreeMainBranchGuard":
+			v := WorktreeMainBranchGuardType(value)
+			if !v.IsValid() {
+				panic("invalid worktreeMainBranchGuard value: " + value)
+			}
+			config.WorktreeMainBranchGuard = v
 		default:
 			panic("unknown --config key: " + key)
 		}
 	}
 	return config
+}
+
+var globalUserConfig *UserConfig
+
+// SetUserConfig sets the global UserConfig. Should be called early in command execution.
+func SetUserConfig(config UserConfig) {
+	globalUserConfig = &config
+}
+
+// GetUserConfig returns the global UserConfig. Panics if SetUserConfig has not been called.
+func GetUserConfig() UserConfig {
+	if globalUserConfig == nil {
+		panic("GetUserConfig called before SetUserConfig")
+	}
+	return *globalUserConfig
 }
 
 // SaveTicketUrlPattern saves the ticketUrlPattern value to the config file,

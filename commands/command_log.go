@@ -56,7 +56,7 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 	logs, checkedBranches := getLogsAndBranches()
 	var pollInterval time.Duration
 	if poll {
-		pollInterval = getUserConfig(cmd).PollInterval
+		pollInterval = util.GetUserConfig().PollInterval
 	}
 	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranches)
 }

@@ -86,7 +86,7 @@ func createNewCommand() *cobra.Command {
 			CommitType:  interactive.CommitTypeNoPr,
 			MultiSelect: false,
 		}
-		userConfig := getUserConfig(cmd)
+		userConfig := util.GetUserConfig()
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		if *baseBranch == "" {

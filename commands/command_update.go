@@ -27,7 +27,7 @@ func createUpdateCommand() *cobra.Command {
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		gitutil.RequireMainBranch()
-		userConfig := getUserConfig(cmd)
+		userConfig := util.GetUserConfig()
 		destCommit := getDestCommit(args, indicatorTypeString)
 		commitsToCherryPick := getCommitsToCherryPick(args, indicatorTypeString)
 		selectedReviewers, markReady := promptForReviewers(len(args) < 2 && *reviewers == "", userConfig, *merge)
