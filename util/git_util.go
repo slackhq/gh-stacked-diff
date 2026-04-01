@@ -78,20 +78,44 @@ func GetRemoteMainBranchOrDie() string {
 	return remoteMainBranch
 }
 
-// Returns name of the local main branch. In a standard checkout this is the same
-// as the remote main branch. In a secondary worktree, this will be the worktree's branch.
+// Returns name of the local main branch. In a standard checkout or the main worktree,
+// this is the same as the remote main branch. In a secondary worktree, this is the
+// worktree's branch (the branch it was created with).
 // The result is cached after the first successful call.
 func GetLocalMainBranch() (string, error) {
 	if localMainBranch != "" {
 		return localMainBranch, nil
 	}
-	// For now, delegate to remote. Worktree support will be added here.
+	if branch := getSecondaryWorktreeBranch(); branch != "" {
+		localMainBranch = branch
+		return localMainBranch, nil
+	}
 	branch, err := GetRemoteMainBranch()
 	if err != nil {
 		return "", err
 	}
 	localMainBranch = branch
 	return localMainBranch, nil
+}
+
+// Returns the current branch name if running in a secondary worktree,
+// or empty string if in the main worktree or not using worktrees.
+func getSecondaryWorktreeBranch() string {
+	worktreeList, err := Execute(ExecuteOptions{}, "git", "worktree", "list")
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
+	if len(lines) <= 1 {
+		return ""
+	}
+	// First worktree listed is the main worktree.
+	mainWorktreePath := strings.Fields(lines[0])[0]
+	currentRoot := ExecuteOrDieTrimmed(ExecuteOptions{}, "git", "rev-parse", "--show-toplevel")
+	if currentRoot == mainWorktreePath {
+		return ""
+	}
+	return GetCurrentBranchName()
 }
 
 // Returns name of the local main branch, or panics if it cannot be determined.
