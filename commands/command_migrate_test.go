@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -487,17 +488,6 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 	// Record current branch before processing
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
 
-	// Set appConfig for the test
-	out := &strings.Builder{}
-	stdin := strings.NewReader("")
-	util.SetAppConfig(util.AppConfig{
-		Io:            util.StdIo{Out: out, Err: out, In: stdin},
-		AppExecutable: "sd",
-		Exit:          func(code int) {},
-		ConfigHome:    getTestConfigHome(),
-		UserCacheDir:  getTestAppCacheDir(),
-	})
-
 	// Process the branch
 	processBranch("feature-1", mostRecentMainCommit)
 
@@ -541,22 +531,14 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 	// Get the base commit for the feature branch
 	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
 
-	// Set appConfig with stdin that provides the PR name
-	out := &strings.Builder{}
-	stdin := strings.NewReader("My Feature PR\n\n") // PR name, then empty string for prefix (press enter to skip)
-	util.SetAppConfig(util.AppConfig{
-		Io:            util.StdIo{Out: out, Err: out, In: stdin},
-		AppExecutable: "sd",
-		Exit:          func(code int) {},
-		ConfigHome:    getTestConfigHome(),
-		UserCacheDir:  getTestAppCacheDir(),
-	})
-
+	appConfig := util.GetAppConfig()
+	appConfig.Io.In = strings.NewReader("My Feature PR\n\n") // PR name, then empty string for prefix (press enter to skip)
+	util.SetAppConfig(appConfig)
 	// Process the branch without PR - this should skip the duplicate commits
 	result := processBranch("feature-branch", mostRecentMainCommit)
 
 	// Verify the migration was successful
-	assert.True(result.success, "Migration should succeed")
+	assert.True(result.success, fmt.Sprint("Migration should succeed", result))
 	assert.Equal("feature-branch", result.branchName)
 	assert.Equal(3, result.numCommits, "Should report 3 commits migrated")
 

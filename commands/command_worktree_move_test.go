@@ -13,7 +13,7 @@ import (
 
 func TestWorktreeMove_CherryPicksToMainWorktree(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
@@ -33,7 +33,7 @@ func TestWorktreeMove_CherryPicksToMainWorktree(t *testing.T) {
 
 func TestWorktreeMove_MultipleCommits(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
@@ -54,7 +54,7 @@ func TestWorktreeMove_MultipleCommits(t *testing.T) {
 
 func TestWorktreeMove_WhenNotInSecondaryWorktree_Panics(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
 	allCommits := templates.GetAllCommits()
