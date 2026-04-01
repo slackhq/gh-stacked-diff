@@ -3,6 +3,7 @@ package gitutil
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -112,7 +113,7 @@ func getSecondaryWorktreeBranch() string {
 	if currentRoot == mainWorktreePath {
 		return ""
 	}
-	return util.GetCurrentBranchName()
+	return filepath.Base(currentRoot)
 }
 
 // Returns name of the local main branch, or panics if it cannot be determined.

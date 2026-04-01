@@ -78,7 +78,25 @@ func TestGetSecondaryWorktreeBranch_WhenInSecondaryWorktree_ReturnsBranch(t *tes
 
 	result := getSecondaryWorktreeBranch()
 
-	assert.Equal(t, "feature-branch", result)
+	assert.Equal(t, "feature-worktree", result)
+}
+
+func TestGetSecondaryWorktreeBranch_WhenInSecondaryWorktree_ReturnsLastPathComponent(t *testing.T) {
+	setupWorktreeTestRepo(t)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "my-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../my-custom-dir", "my-branch")
+
+	if err := os.Chdir("../my-custom-dir"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(t.TempDir())
+	})
+
+	result := getSecondaryWorktreeBranch()
+
+	assert.Equal(t, "my-custom-dir", result)
 }
 
 func TestGetLocalMainBranch_WhenInMainWorktree_ReturnsRemoteMainBranch(t *testing.T) {
