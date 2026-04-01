@@ -103,8 +103,8 @@ func buildRootCommand() *cobra.Command {
 			setSlogLogger(appConfig.Io.Out, defaultLevel)
 		}
 		if cmd.Annotations["skipRepoCheck"] != "true" {
-			// Note: call GetMainBranchOrDie early as it has useful error messages.
-			slog.Debug("Using main branch " + util.GetMainBranchOrDie())
+			// Note: call GetLocalMainBranchOrDie early as it has useful error messages.
+			slog.Debug("Using main branch " + util.GetLocalMainBranchOrDie())
 		}
 	}
 

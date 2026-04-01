@@ -194,8 +194,7 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 	commentLineRegex := regexp.MustCompile("(?m)^#.*$")
 	commitBody = commentLineRegex.ReplaceAllString(commitBody, "")
 	commitSummaryCleaned := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "show", "--no-patch", "--format=%f", commitHash)
-	expression := regexp.MustCompile(`^(\S+-[[:digit:]]+ )?(.*)`)
-	summaryMatches := expression.FindStringSubmatch(commitSummary)
+	summaryMatches := ticketNumberRegex.FindStringSubmatch(commitSummary)
 	ticketNumber := strings.TrimSpace(summaryMatches[1])
 	resolvedTicketUrl := strings.ReplaceAll(ticketUrlPattern, "{TicketNumber}", ticketNumber)
 	return templateData{
@@ -208,6 +207,15 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 		CommitSummaryCleaned:       commitSummaryCleaned,
 		FeatureFlag:                featureFlag,
 	}
+}
+
+var ticketNumberRegex = regexp.MustCompile(`^(\S+-[[:digit:]]+ )?(.*)`)
+
+// HasTicketNumber returns true if the commit summary starts with a
+// Jira-style ticket number (e.g. "CONV-9999 Add feature").
+func HasTicketNumber(commitSummary string) bool {
+	matches := ticketNumberRegex.FindStringSubmatch(commitSummary)
+	return len(matches) > 1 && strings.TrimSpace(matches[1]) != ""
 }
 
 // TemplateUsesTicketUrlPattern returns true if the PR description or title

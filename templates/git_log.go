@@ -36,7 +36,7 @@ func GetAllCommits() []GitLog {
 }
 
 func GetNewCommits(to string) []GitLog {
-	compareFromRemoteBranch := util.GetMainBranchOrDie()
+	compareFromRemoteBranch := util.GetRemoteMainBranchOrDie()
 	gitArgs := []string{"--no-pager", "log", newGitLogsFormat, "--abbrev-commit"}
 	if util.RemoteHasBranch(compareFromRemoteBranch) {
 		gitArgs = append(gitArgs, "origin/"+compareFromRemoteBranch+".."+to)
@@ -62,13 +62,13 @@ func newGitLogs(logsRaw string) []GitLog {
 }
 
 func RequireCommitOnMain(commit string) {
-	if commit == util.GetMainBranchOrDie() {
+	if commit == util.GetLocalMainBranchOrDie() {
 		return
 	}
 	newCommits := GetNewCommits("HEAD")
 	if !slices.ContainsFunc(newCommits, func(gitLog GitLog) bool {
 		return gitLog.Commit == commit
 	}) {
-		panic("Commit " + commit + " does not exist on " + util.GetMainBranchOrDie() + ". Check `sd log` for available commits.")
+		panic("Commit " + commit + " does not exist on " + util.GetLocalMainBranchOrDie() + ". Check `sd log` for available commits.")
 	}
 }

@@ -26,7 +26,7 @@ func TestSdNew_OnRepoWithPreviousCommit_CreatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 	allCommits := templates.GetNewCommits("HEAD")
@@ -44,7 +44,7 @@ func TestSdNew_WithMiddleCommit_CreatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -533,7 +533,7 @@ func TestSdNew_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePush(
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommitsBeforeNew, templates.GetAllCommits())
 		}
 	}()
