@@ -87,6 +87,13 @@ func getTestConfigHome() string {
 	configHome := filepath.Join(parentDir, ".gh-stacked-diff")
 	// nolint:errcheck
 	os.Mkdir(configHome, os.ModePerm)
+	// Write a default config.yaml so that tests don't trigger interactive
+	// prompts for ticketUrlPattern.
+	configFile := filepath.Join(configHome, "config.yaml")
+	if _, statErr := os.Stat(configFile); os.IsNotExist(statErr) {
+		// nolint:errcheck
+		os.WriteFile(configFile, []byte("ticketUrlPattern: https://example.com/browse/{TicketNumber}\n"), 0644)
+	}
 	return configHome
 }
 

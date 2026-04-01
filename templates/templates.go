@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ type branchTemplateData struct {
 
 type templateData struct {
 	TicketNumber               string
+	TicketUrlPattern           string
 	Username                   string
 	CommitBody                 string
 	CommitSummary              string
@@ -157,8 +159,8 @@ func truncateString(str string, maxBytes int) string {
 	return str
 }
 
-func GetPullRequestText(commitHash string, featureFlag string) PullRequestText {
-	data := getPullRequestTemplateData(commitHash, featureFlag)
+func GetPullRequestText(commitHash string, featureFlag string, ticketUrlPattern string) PullRequestText {
+	data := getPullRequestTemplateData(commitHash, featureFlag, ticketUrlPattern)
 	title := RunTemplate("pr-title.template", prTitleTemplateText, data)
 	description := RunTemplate("pr-description.template", prDescriptionTemplateText, data)
 	return PullRequestText{Description: description, Title: title}
@@ -186,7 +188,7 @@ func RunTemplate(configFilename string, defaultTemplateText string, data any) st
 	return output.String()
 }
 
-func getPullRequestTemplateData(commitHash string, featureFlag string) templateData {
+func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrlPattern string) templateData {
 	commitSummary := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%s", commitHash)
 	commitBody := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%b", commitHash)
 	commentLineRegex := regexp.MustCompile("(?m)^#.*$")
@@ -194,15 +196,37 @@ func getPullRequestTemplateData(commitHash string, featureFlag string) templateD
 	commitSummaryCleaned := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "show", "--no-patch", "--format=%f", commitHash)
 	expression := regexp.MustCompile(`^(\S+-[[:digit:]]+ )?(.*)`)
 	summaryMatches := expression.FindStringSubmatch(commitSummary)
+	ticketNumber := strings.TrimSpace(summaryMatches[1])
+	resolvedTicketUrl := strings.ReplaceAll(ticketUrlPattern, "{TicketNumber}", ticketNumber)
 	return templateData{
 		Username:                   util.GetUsername(),
-		TicketNumber:               strings.TrimSpace(summaryMatches[1]),
+		TicketNumber:               ticketNumber,
+		TicketUrlPattern:           resolvedTicketUrl,
 		CommitBody:                 commitBody,
 		CommitSummary:              commitSummary,
 		CommitSummaryWithoutTicket: summaryMatches[2],
 		CommitSummaryCleaned:       commitSummaryCleaned,
 		FeatureFlag:                featureFlag,
 	}
+}
+
+// TemplateUsesTicketUrlPattern returns true if the PR description or title
+// template references the TicketUrlPattern variable.
+func TemplateUsesTicketUrlPattern() bool {
+	return templateTextContains("pr-description.template", prDescriptionTemplateText, "TicketUrlPattern") ||
+		templateTextContains("pr-title.template", prTitleTemplateText, "TicketUrlPattern")
+}
+
+func templateTextContains(configFilename string, defaultText string, search string) bool {
+	configFile := util.GetConfigFile(configFilename)
+	if configFile != "" {
+		data, err := os.ReadFile(configFile)
+		if err != nil {
+			panic(fmt.Sprint("Could not read ", configFile, ": ", err))
+		}
+		return strings.Contains(string(data), search)
+	}
+	return strings.Contains(defaultText, search)
 }
 
 func getBranchTemplateData(sanitizedSummary string) branchTemplateData {

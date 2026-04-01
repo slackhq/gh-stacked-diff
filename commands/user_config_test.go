@@ -73,3 +73,26 @@ func TestNewUserConfig_InvalidPollInterval(t *testing.T) {
 		util.NewUserConfig(util.YamlConfig{}, map[string]string{"pollInterval": "notaduration"})
 	})
 }
+
+func TestNewUserConfig_TicketUrlPatternDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, "", config.TicketUrlPattern)
+}
+
+func TestNewUserConfig_TicketUrlPatternFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"ticketUrlPattern": "https://jira.example.com/browse/{TicketNumber}"})
+	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+}
+
+func TestNewUserConfig_TicketUrlPatternFromFile(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{TicketUrlPattern: "https://jira.example.com/browse/{TicketNumber}"}, nil)
+	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+}
+
+func TestNewUserConfig_TicketUrlPatternFlagOverridesFile(t *testing.T) {
+	config := util.NewUserConfig(
+		util.YamlConfig{TicketUrlPattern: "https://file.example.com/{TicketNumber}"},
+		map[string]string{"ticketUrlPattern": "https://flag.example.com/{TicketNumber}"},
+	)
+	assert.Equal(t, "https://flag.example.com/{TicketNumber}", config.TicketUrlPattern)
+}

@@ -82,11 +82,14 @@ func buildRootCommand() *cobra.Command {
 			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
 			"   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)\n"+
+			"   ticketUrlPattern=<url> URL pattern for tickets, e.g.\n"+
+			"                          https://jira.example.com/browse/{TicketNumber}\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
-			"   pollInterval: 1m")
+			"   pollInterval: 1m\n"+
+			"   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

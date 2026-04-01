@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -31,13 +32,15 @@ func (t PromptForReviewType) IsValid() bool {
 
 // UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
-	PromptForReview PromptForReviewType
-	PollInterval    time.Duration
+	PromptForReview  PromptForReviewType
+	PollInterval     time.Duration
+	TicketUrlPattern string
 }
 
 type YamlConfig struct {
-	PromptForReview PromptForReviewType `yaml:"promptForReview"`
-	PollInterval    string              `yaml:"pollInterval"`
+	PromptForReview  PromptForReviewType `yaml:"promptForReview,omitempty"`
+	PollInterval     string              `yaml:"pollInterval,omitempty"`
+	TicketUrlPattern string              `yaml:"ticketUrlPattern,omitempty"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -78,6 +81,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 		d, _ := time.ParseDuration(fileConfig.PollInterval)
 		config.PollInterval = d
 	}
+	if fileConfig.TicketUrlPattern != "" {
+		config.TicketUrlPattern = fileConfig.TicketUrlPattern
+	}
 	for key, value := range flagValues {
 		switch key {
 		case "promptForReview":
@@ -92,9 +98,27 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 				panic("invalid pollInterval value: " + value)
 			}
 			config.PollInterval = d
+		case "ticketUrlPattern":
+			config.TicketUrlPattern = value
 		default:
 			panic("unknown --config key: " + key)
 		}
 	}
 	return config
+}
+
+// SaveTicketUrlPattern saves the ticketUrlPattern value to the config file,
+// preserving any existing config values.
+func SaveTicketUrlPattern(pattern string) {
+	fileConfig := LoadUserConfigFile()
+	fileConfig.TicketUrlPattern = pattern
+	configPath := filepath.Join(GetAppConfig().ConfigHome, "config.yaml")
+	data, err := yaml.Marshal(fileConfig)
+	if err != nil {
+		panic(fmt.Sprint("Could not marshal config: ", err))
+	}
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		panic(fmt.Sprint("Could not write config file: ", err))
+	}
+	slog.Info(fmt.Sprint("Saved ticketUrlPattern to ", configPath))
 }
