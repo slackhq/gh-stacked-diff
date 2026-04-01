@@ -180,6 +180,9 @@ func (m logStatusModel) hasInlineSpinner() bool {
 
 func coloredCommit(row logStatusRow) string {
 	if row.status != nil {
+		if row.status.IsInMergeQueue {
+			return color.YellowString(row.log.Commit)
+		}
 		switch row.status.State {
 		case gitutil.PullRequestStateMerged:
 			return purpleColor.Sprint(row.log.Commit)
@@ -200,17 +203,21 @@ func (m logStatusModel) formatStatus(status *gitutil.PullRequestStatus) string {
 		return m.spinner.View()
 	}
 	var parts []string
-	switch status.State {
-	case gitutil.PullRequestStateOpen:
-		if status.IsDraft {
-			parts = append(parts, grayColor.Sprint("[draft]"))
-		} else {
-			parts = append(parts, color.CyanString("[open]"))
+	if status.IsInMergeQueue {
+		parts = append(parts, color.YellowString("[merging]"))
+	} else {
+		switch status.State {
+		case gitutil.PullRequestStateOpen:
+			if status.IsDraft {
+				parts = append(parts, grayColor.Sprint("[draft]"))
+			} else {
+				parts = append(parts, color.CyanString("[open]"))
+			}
+		case gitutil.PullRequestStateMerged:
+			parts = append(parts, purpleColor.Sprint("[merged]"))
+		case gitutil.PullRequestStateClosed:
+			parts = append(parts, color.RedString("[closed]"))
 		}
-	case gitutil.PullRequestStateMerged:
-		parts = append(parts, purpleColor.Sprint("[merged]"))
-	case gitutil.PullRequestStateClosed:
-		parts = append(parts, color.RedString("[closed]"))
 	}
 	checks := status.Checks
 	total := checks.Total()

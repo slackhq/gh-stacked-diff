@@ -173,7 +173,7 @@ func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := util.NewWriteRecorder(new(bytes.Buffer))
@@ -220,7 +220,7 @@ func TestSdLog_WhenStatusFlag_ShowsStatusInfo(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -243,7 +243,7 @@ func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,APPROVED,50,0\nmergeStateStatus,BLOCKED\nisDraft,false",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,APPROVED,50,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -265,7 +265,7 @@ func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -287,13 +287,34 @@ func TestSdLog_WhenStatusFlag_ShowsMergedStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"check,COMPLETED,SUCCESS,SUCCESS\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
 
 	assert.Contains(out, "[merged]")
 	assert.Contains(out, "[checks: passed")
+}
+
+func TestSdLog_WhenStatusFlag_ShowsMergingStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,true",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[merging]")
+	assert.NotContains(out, "[open]")
+	assert.NotContains(out, "[merged]")
 }
 
 func TestSdLog_WhenStatusFlagAndNoPRs_PrintsCommitsWithoutBubbletea(t *testing.T) {
@@ -321,7 +342,7 @@ func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true",
+		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
