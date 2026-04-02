@@ -2,6 +2,7 @@ package commands
 
 import (
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 
@@ -52,7 +53,7 @@ func TestWorktreeMove_MultipleCommits(t *testing.T) {
 	assert.True(strings.Contains(mainLog, "commit-two"))
 }
 
-func TestWorktreeMove_WhenNotInSecondaryWorktree_Panics(t *testing.T) {
+func TestWorktreeMove_WhenNotInSecondaryWorktree_AndNoWorktrees_Panics(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
 
@@ -63,6 +64,71 @@ func TestWorktreeMove_WhenNotInSecondaryWorktree_Panics(t *testing.T) {
 		"Panicking instead of exiting with code 1",
 		func() {
 			testParseArguments("worktree-move", allCommits[0].Commit)
+		},
+	)
+}
+
+func TestWorktreeMove_WhenNotInSecondaryWorktree_WithWorktreeFlag(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+
+	// Switch to secondary worktree, add a commit, switch back.
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	testutil.AddCommit("secondary-commit", "secondary-file")
+	commitHash := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%h")
+	if err := os.Chdir(mainPath); err != nil {
+		t.Fatal(err)
+	}
+
+	testParseArguments("worktree-move", "-w", "secondary-branch", commitHash)
+
+	// Verify the commit was cherry-picked to the main worktree.
+	mainLog := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "--oneline")
+	assert.True(strings.Contains(mainLog, "secondary-commit"))
+}
+
+func TestWorktreeMove_WhenNotInSecondaryWorktree_InvalidWorktreeFlag_Panics(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree but stay in the main worktree.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+
+	assert.PanicsWithValue(
+		"Panicking instead of exiting with code 1",
+		func() {
+			testParseArguments("worktree-move", "-w", "nonexistent-branch", "abc123")
 		},
 	)
 }
