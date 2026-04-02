@@ -409,7 +409,7 @@ func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T)
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
-	assert.Contains(out, "secondary-worktree  (secondary-branch)")
+	assert.Contains(out, "secondary-worktree (secondary-branch)")
 }
 
 func TestSdLog_WhenOtherWorktreeHasOnlySharedCommits_DoesNotShowWorktreeSection(t *testing.T) {
