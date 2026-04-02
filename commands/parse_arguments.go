@@ -85,12 +85,18 @@ func buildRootCommand() *cobra.Command {
 			"   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)\n"+
 			"   ticketUrlPattern=<url> URL pattern for tickets, e.g.\n"+
 			"                          https://jira.example.com/browse/{TicketNumber}\n"+
+			"   worktreeMainBranchGuard=path|none (default: path)\n"+
+			"      What to consider the \"main\" branch when in a worktree, to guard\n"+
+			"      against incorrect use:\n"+
+			"         path: worktree directory name\n"+
+			"         none: current branch\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
 			"   pollInterval: 1m\n"+
-			"   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}")
+			"   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}\n"+
+			"   worktreeMainBranchGuard: path")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
@@ -103,6 +109,12 @@ func buildRootCommand() *cobra.Command {
 			}
 			setSlogLogger(appConfig.Io.Out, defaultLevel)
 		}
+		configValues, err := cmd.Flags().GetStringToString("config")
+		if err != nil {
+			panic(err.Error())
+		}
+		fileConfig := util.LoadUserConfigFile()
+		util.SetUserConfig(util.NewUserConfig(fileConfig, configValues))
 		if cmd.Annotations["skipRepoCheck"] != "true" {
 			// Note: call GetLocalMainBranchOrDie early as it has useful error messages.
 			slog.Debug("Using main branch " + gitutil.GetLocalMainBranchOrDie())
@@ -127,6 +139,7 @@ func buildRootCommand() *cobra.Command {
 		createUpdateCommand(),
 		createVersionCommand(),
 		createWaitForMergeCommand(),
+		createWorktreeMoveCommand(),
 	)
 
 	return rootCmd

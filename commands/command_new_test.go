@@ -109,9 +109,6 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	// Set AppConfig so ReadHistory() can find the correct history file before testParseArguments runs.
-	util.SetAppConfig(util.AppConfig{UserCacheDir: getTestAppCacheDir(), ConfigHome: getTestConfigHome()})
-
 	// Verify no history before running.
 	assert.Empty(interactive.ReviewersHistory.ReadHistory())
 

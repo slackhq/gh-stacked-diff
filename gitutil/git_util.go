@@ -3,6 +3,7 @@ package gitutil
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -112,7 +113,22 @@ func getSecondaryWorktreeBranch() string {
 	if currentRoot == mainWorktreePath {
 		return ""
 	}
-	return util.GetCurrentBranchName()
+	if util.GetUserConfig().WorktreeMainBranchGuard == util.WorktreeMainBranchGuardNone {
+		return util.GetCurrentBranchName()
+	}
+	return filepath.Base(currentRoot)
+}
+
+// Returns the path of the main worktree. Panics if it cannot be determined.
+func GetMainWorktreePath() string {
+	worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
+	lines := strings.Split(worktreeList, "\n")
+	return strings.Fields(lines[0])[0]
+}
+
+// Returns true if running in a secondary worktree (not the main worktree).
+func IsSecondaryWorktree() bool {
+	return getSecondaryWorktreeBranch() != ""
 }
 
 // Returns name of the local main branch, or panics if it cannot be determined.
@@ -213,7 +229,7 @@ func localHasBranch(branchName string) (bool, error) {
 
 func RequireMainBranch() {
 	if util.GetCurrentBranchName() != GetLocalMainBranchOrDie() {
-		panic("Must be run from " + GetLocalMainBranchOrDie() + " branch")
+		panic("Must be run from " + GetLocalMainBranchOrDie() + " branch\nTo disable this check set config worktreeMainBranchGuard to none")
 	}
 }
 

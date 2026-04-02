@@ -10,15 +10,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
 	"time"
 
-	"testing"
-
-	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 const InitialCommitSubject = "Initial empty commit"
+const programName string = "gh-stacked-diff"
 
 var TestWorkingDir string
 var thisFile string
@@ -46,6 +45,7 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 
 	// Set new TestExecutor in case previous test has faked any of the git responses.
 	testExecutor := setTestExecutor()
+	util.SetUserConfig(util.UserConfig{})
 
 	cdTestRepo(testFunctionName)
 	// Setup author config in case it is not set on machine.
@@ -53,13 +53,70 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "user.name", "Unit Test")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "--allow-empty", "-m", InitialCommitSubject)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
+	// Set origin/HEAD so GetRemoteMainBranch works.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "remote", "set-head", "origin", util.GetCurrentBranchName())
 
 	util.SetDefaultSleep(func(d time.Duration) {
 		slog.Debug(fmt.Sprint("Skipping sleep in tests ", d))
 	})
 
-	interactive.RequireInput(t)
+	panicOnExit := func(code int) {
+		panic("Panicking instead of exiting with code " + fmt.Sprint(code))
+	}
+	// Executable must be on PATH for tests to pass so that sequenceEditorPrefix will execute.
+	// PATH is set in ../Makefile
+	appExecutable := programName
+
+	// Set stdin in unit tests to avoid error with bubbletea:
+	// "error creating cancelreader: failed to prepare console input: get console mode: The handle is invalid."
+	// To fake user input use interactive.SendToProgram.
+	stdin := strings.NewReader("")
+
+	appConfig := util.AppConfig{
+		Io:            util.StdIo{Out: os.Stdout, Err: os.Stdout, In: stdin},
+		AppExecutable: appExecutable,
+		Exit:          panicOnExit,
+		UserCacheDir:  getTestAppCacheDir(),
+		ConfigHome:    getTestConfigHome(),
+		DemoMode:      false,
+	}
+	util.SetAppConfig(appConfig)
+
+	util.RunTestInitHooks(t)
 	return testExecutor
+}
+
+func getTestConfigHome() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("cannot get wd: " + err.Error())
+	}
+	parentDir, _ := filepath.Split(wd)
+	configHome := filepath.Join(parentDir, ".gh-stacked-diff")
+	// nolint:errcheck
+	os.Mkdir(configHome, os.ModePerm)
+	// Write a default config.yaml so that tests don't trigger interactive
+	// prompts for ticketUrlPattern.
+	configFile := filepath.Join(configHome, "config.yaml")
+	if _, statErr := os.Stat(configFile); os.IsNotExist(statErr) {
+		// nolint:errcheck
+		os.WriteFile(configFile, []byte("ticketUrlPattern: https://example.com/browse/{TicketNumber}\n"), 0644)
+	}
+	return configHome
+}
+
+func getTestAppCacheDir() string {
+	// okay I need it as a C:\\ in order to use WriteFile/ReadFile
+	// but all of the path stuff uses /
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("cannot get wd: " + err.Error())
+	}
+	parentDir, _ := filepath.Split(wd)
+	userCacheDir := filepath.Join(parentDir, "user-cache")
+	// nolint:errcheck
+	os.Mkdir(userCacheDir, os.ModePerm)
+	return userCacheDir
 }
 
 func getTestFunctionName() string {
@@ -150,6 +207,27 @@ func WaitForDone(t *testing.T, done <-chan struct{}) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for done")
 	}
+}
+
+// SetupSecondaryWorktree creates a secondary worktree from the current repo
+// and changes into it. Resets cached branch values.
+// Returns the main worktree path.
+func SetupSecondaryWorktree(t *testing.T) string {
+	t.Helper()
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	return mainPath
 }
 
 func CommitFileChange(commitMessage string, filename string, fileContents string) {

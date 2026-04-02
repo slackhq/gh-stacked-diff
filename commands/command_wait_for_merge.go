@@ -23,7 +23,7 @@ func createWaitForMergeCommand() *cobra.Command {
 	indicatorTypeString := addIndicatorFlag(cmd)
 	silent := addSilentFlag(cmd, "the PR has been merged")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		userConfig := getUserConfig(cmd)
+		userConfig := util.GetUserConfig()
 		selectCommitOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What PR do you want to wait for to be merged?",
 			CommitType:  interactive.CommitTypePr,

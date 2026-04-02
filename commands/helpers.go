@@ -11,15 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func getUserConfig(cmd *cobra.Command) util.UserConfig {
-	configValues, err := cmd.Flags().GetStringToString("config")
-	if err != nil {
-		panic(err.Error())
-	}
-	fileConfig := util.LoadUserConfigFile()
-	return util.NewUserConfig(fileConfig, configValues)
-}
-
 func addIndicatorFlag(cmd *cobra.Command) *string {
 	usage := "Indicator type to use to interpret commitIndicator:\n" +
 		"   commit   a commit hash, can be abbreviated,\n" +

@@ -31,7 +31,7 @@ func createAddReviewersCommand() *cobra.Command {
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		userConfig := getUserConfig(cmd)
+		userConfig := util.GetUserConfig()
 		selectPrsOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What PR do you want to add reviewers to?",
 			CommitType:  interactive.CommitTypePr,
