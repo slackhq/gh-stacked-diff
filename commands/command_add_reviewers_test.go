@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -268,6 +269,35 @@ func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
 	}))
+}
+
+func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	// Return failing checks: one SUCCESS and one FAILURE to meet min checks.
+	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\n\n"
+	testExecutor.SetResponse(
+		failingChecks,
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	// The panic from checks failing should be caught by SendErrorOnPanic and
+	// propagated through the bubbletea program, then re-panicked in runProgram,
+	// and finally caught by ExecuteCommand's recover which prints the error and
+	// calls appConfig.Exit(1). In tests, Exit panics, so we recover it here.
+	// If SendErrorOnPanic fails to recover (the bug), the goroutine panic
+	// crashes the entire test process instead of being caught here.
+	out := new(bytes.Buffer)
+	assert.Panics(func() {
+		testParseArgumentsWithOut(out, "add-reviewers", "--min-checks", "2", "--silent", "--reviewers=mybestie", "1")
+	})
+
+	assert.Contains(out.String(), "Checks failed")
 }
 
 func TestSdAddReviewers_WhenMinChecksFails_UsesDefault(t *testing.T) {

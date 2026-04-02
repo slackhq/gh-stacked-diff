@@ -116,7 +116,10 @@ func (p *ProgressIndicator) Quit() {
 }
 
 func (p *ProgressIndicator) SendErrorOnPanic() {
-	SendErrorOnPanic(p.program)
+	r := recover()
+	if r != nil {
+		p.program.Send(errorMsg{error: r})
+	}
 }
 
 /*
