@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
@@ -18,7 +19,7 @@ func createReplaceConflictsCommand() *cobra.Command {
 		Short: "For failed rebase: replace changes with its associated branch",
 		Long: "During a rebase that failed because of merge conflicts, replace the\n" +
 			"current uncommitted changes (merge conflicts), with the contents\n" +
-			"(diff between origin/" + util.GetMainBranchForHelp() + " and HEAD) of its associated branch.",
+			"(diff between origin/" + gitutil.GetMainBranchForHelp() + " and HEAD) of its associated branch.",
 		Args: cobra.NoArgs,
 	}
 	confirmed := cmd.Flags().BoolP("confirm", "y", false, "Whether to automatically confirm to do this rather than ask for y/n input")
@@ -35,7 +36,7 @@ func replaceConflicts(confirmed bool) {
 	checkConfirmed(confirmed)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", "HEAD")
 	slog.Info(fmt.Sprint("Replacing changes (merge conflicts) for failed rebase of commit ", commitWithConflicts, ", with changes from associated branch, ", gitLog.Branch))
-	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", "origin/"+util.GetRemoteMainBranchOrDie(), gitLog.Branch)
+	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", "origin/"+gitutil.GetRemoteMainBranchOrDie(), gitLog.Branch)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: util.StdIo{In: strings.NewReader(diff), Out: nil, Err: nil}},
 		"git", "apply",
 	)

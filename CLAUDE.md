@@ -58,12 +58,19 @@ Commands follow this structure:
 - Helper functions: `getTargetCommits()`
 - Shell completions are provided by cobra's built-in `completion` command
 
-**util/** - Shared utilities
+**util/** - Core infrastructure
 - `AppConfig`: Dependency injection struct for testing (holds IO, Exit function, paths)
 - `execute.go`: Command execution with `ExecuteOrDie()` and `ExecuteOptions`
-- `git_util.go`: Git operations (branch detection, stashing, etc.)
-- `gh_util.go`: GitHub CLI interactions
+- `git_util.go`: Low-level git helpers (`GetCurrentBranchName`, `GetRepoName`) needed by infrastructure
 - `TestExecutor`: Mock executor for unit tests (allows faking git/gh responses)
+
+**gitutil/** - Git and GitHub operations
+- `git_util.go`: Branch detection (local/remote main, worktrees), stashing, cherry-pick, rebase
+- `gh_util.go`: GitHub CLI interactions (PR status, checks, reviews)
+- `gh_pr_info.go`: PR info queries (merged/unmerged PR lookup)
+- `gh_repo.go`: Repository metadata (name with owner, hostname)
+- `gh_checks.go`: CI check status with historical min-checks caching
+- `git_rollback.go`: Rollback manager for safe git operations
 
 **templates/** - PR template system and git log parsing
 - `GitLog` struct: Represents a commit with its branch and metadata
@@ -113,7 +120,7 @@ To add a new command:
 
 ## Important Conventions
 
-- **Main branch**: Tool supports either `main` or `master` via `util.GetMainBranchOrDie()`
+- **Main branch**: Tool supports either `main` or `master` via `gitutil.GetLocalMainBranchOrDie()` (respects worktrees) and `gitutil.GetRemoteMainBranchOrDie()`
 - **Branch naming**: Auto-generated from commit subject (sanitized, max 120 chars)
 - **Error handling**: Use `panic()` for user-facing errors (caught by defer/recover in `ExecuteCommand` and `testParseArgumentsWithOut`). This is an intentional design choice, not a code smell. The panic/recover pattern keeps command implementations clean — commands just `panic("message")` on errors and the top-level recover catches them, prints the message, and exits gracefully. Do NOT refactor this to use returned errors; that would add boilerplate to every command for no benefit
 - **Logging**: Use `slog` (Debug, Info, Warn, Error levels). Always pass a single `fmt.Sprint(...)` message string — do NOT use slog's key-value args (e.g. `slog.Debug(fmt.Sprint("msg: ", val))` not `slog.Debug("msg", "key", val)`), as the key-value format produces undesirable output with the project's custom logger

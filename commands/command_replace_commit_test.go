@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -19,7 +20,7 @@ func TestSdReplaceCommit_WithMultipleCommits_ReplacesCommitWithBranch(t *testing
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "1")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	testutil.AddCommit("second", "will-be-replaced")
 	testParseArguments("new", "1")
 	testutil.AddCommit("fifth", "5")
@@ -33,7 +34,7 @@ func TestSdReplaceCommit_WithMultipleCommits_ReplacesCommitWithBranch(t *testing
 	testutil.AddCommit("on-second-branch-only", "3")
 	testutil.AddCommit("on-second-branch-only", "4")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	testParseArguments("replace-commit", allCommits[1].Commit)
 
@@ -63,7 +64,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_RestoresBranch(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "1")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	testutil.AddCommit("second", "will-be-replaced")
 	testParseArguments("new", "1")
 	// Create a commit after "second" that modifies the same file, so that
@@ -77,7 +78,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_RestoresBranch(t *testing.T) {
 	testParseArguments("checkout", allCommits[1].Commit)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[2].Commit)
 	testutil.CommitFileChange("on-branch-only", "will-be-replaced", "branch content")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	defer func() {
 		r := recover()
@@ -97,7 +98,7 @@ func TestSdReplaceCommit_WhenCherryPickFailsWithPrompt_RestoresBranch(t *testing
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "1")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	testutil.AddCommit("second", "will-be-replaced")
 	testParseArguments("new", "1")
 	testutil.CommitFileChange("third", "will-be-replaced", "conflicting content")
@@ -108,7 +109,7 @@ func TestSdReplaceCommit_WhenCherryPickFailsWithPrompt_RestoresBranch(t *testing
 	testParseArguments("checkout", allCommits[1].Commit)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[2].Commit)
 	testutil.CommitFileChange("on-branch-only", "will-be-replaced", "branch content")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	// Confirm rollback (Enter = default Y)
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -131,7 +132,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_AndExitFlag_DoesNotRestore(t *testi
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "1")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	testutil.AddCommit("second", "will-be-replaced")
 	testParseArguments("new", "1")
 	// Create a commit after "second" that modifies the same file, so that
@@ -144,7 +145,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_AndExitFlag_DoesNotRestore(t *testi
 	testParseArguments("checkout", allCommits[1].Commit)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[2].Commit)
 	testutil.CommitFileChange("on-branch-only", "will-be-replaced", "branch content")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	defer func() {
 		r := recover()
@@ -165,7 +166,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_AndPromptDeclined_DoesNotRestore(t 
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "1")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	testutil.AddCommit("second", "will-be-replaced")
 	testParseArguments("new", "1")
 	testutil.CommitFileChange("third", "will-be-replaced", "conflicting content")
@@ -175,7 +176,7 @@ func TestSdReplaceCommit_WhenCherryPickFails_AndPromptDeclined_DoesNotRestore(t 
 	testParseArguments("checkout", allCommits[1].Commit)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allCommits[2].Commit)
 	testutil.CommitFileChange("on-branch-only", "will-be-replaced", "branch content")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	// Decline rollback (n = manual fix)
 	interactive.SendToProgram(0, interactive.NewMessageRune('n'))

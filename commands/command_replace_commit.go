@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
@@ -22,13 +23,13 @@ const (
 func createReplaceCommitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace-commit [commitIndicator]",
-		Short: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with its associated branch",
-		Long: "Replaces a commit on " + util.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
+		Short: "Replaces a commit on " + gitutil.GetMainBranchForHelp() + " branch with its associated branch",
+		Long: "Replaces a commit on " + gitutil.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
 			"associated branch.\n" +
 			"\n" +
 			"This is useful when you make changes within a branch, for example to\n" +
 			"fix a problem found on CI, and want to bring the changes over to your\n" +
-			"local " + util.GetMainBranchForHelp() + " branch.",
+			"local " + gitutil.GetMainBranchForHelp() + " branch.",
 		Args: cobra.MaximumNArgs(1),
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
@@ -43,7 +44,7 @@ func createReplaceCommitCommand() *cobra.Command {
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: false,
 		}
-		util.RequireMainBranch()
+		gitutil.RequireMainBranch()
 		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		replaceCommit(*onCherryPickError, targetCommit[0])
 	}
@@ -53,19 +54,19 @@ func createReplaceCommitCommand() *cobra.Command {
 // Replaces a commit on main branch with its associated branch.
 func replaceCommit(onCherryPickError string, targetCommit templates.GitLog) {
 	templates.RequireCommitOnMain(targetCommit.Commit)
-	util.WithStashAndRollback("replace-commit "+targetCommit.Commit+" "+targetCommit.Subject, func(rollbackManager *util.GitRollbackManager) {
+	gitutil.WithStashAndRollback("replace-commit "+targetCommit.Commit+" "+targetCommit.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		replaceCommitOfBranchInfo(rollbackManager, onCherryPickError, targetCommit)
 		rollbackManager.Clear()
 	})
 }
 
 // Replaces commit gitLog.Commit with the contents of branch gitLog.Branch.
-func replaceCommitOfBranchInfo(rollbackManager *util.GitRollbackManager, onCherryPickError string, gitLog templates.GitLog) {
+func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCherryPickError string, gitLog templates.GitLog) {
 	appConfig := util.GetAppConfig()
 	rollbackCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H")
 	commitsAfter := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "log", gitLog.Commit+"..HEAD", "--pretty=format:%h"))
 	slices.Reverse(commitsAfter)
-	commitToDiffFrom := util.FirstOriginMainCommit(gitLog.Branch)
+	commitToDiffFrom := gitutil.FirstOriginMainCommit(gitLog.Branch)
 	slog.Info("Resetting to " + gitLog.Commit + "~1")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", gitLog.Commit+"~1")
 	slog.Info("Adding diff from commits " + gitLog.Branch)
@@ -81,7 +82,7 @@ func replaceCommitOfBranchInfo(rollbackManager *util.GitRollbackManager, onCherr
 		slog.Info(fmt.Sprint("Cherry picking commits back on top ", commitsAfter))
 		cherryPickErr := func() (r any) {
 			defer func() { r = recover() }()
-			util.CherryPickAndSkipAllEmpty(commitsAfter)
+			gitutil.CherryPickAndSkipAllEmpty(commitsAfter)
 			return nil
 		}()
 		if cherryPickErr != nil {

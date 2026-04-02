@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/ai"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -52,7 +53,7 @@ func executeAddDescription(targetCommits []templates.GitLog) {
 func addDescriptionForBranch(branch string) {
 	appConfig := util.GetAppConfig()
 	slog.Info("Getting PR info for branch " + branch)
-	pr := util.GetUnmergedPR(branch)
+	pr := gitutil.GetUnmergedPR(branch)
 	if pr == nil {
 		panic("No open PR found for branch " + branch)
 	}
@@ -63,7 +64,7 @@ func addDescriptionForBranch(branch string) {
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "gh", "pr", "edit", pr.Number, "--body", newBody)
 }
 
-func createAiDescription(pr util.PrInfo) string {
+func createAiDescription(pr gitutil.PrInfo) string {
 	appConfig := util.GetAppConfig()
 	prompt := ai.GetPromptPrDescription(pr.Number)
 	outWriter := util.NewWriteRecorder(appConfig.Io.Out)
@@ -104,7 +105,7 @@ func parseDescription(aiOutput string) string {
 	return string(aiOutput[start+len(begins[beginIndex]) : start+end])
 }
 
-func getNewPrBody(pr util.PrInfo, description string) string {
+func getNewPrBody(pr gitutil.PrInfo, description string) string {
 	bodyComment := GENERATED_CLAUDE_SUMMARY_BEGIN + description + GENERATED_CLAUDE_SUMMARY_END
 
 	bodyWithoutComment := pr.Body

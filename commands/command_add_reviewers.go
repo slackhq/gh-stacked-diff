@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -101,7 +102,7 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 		addReviewers(targetCommit, opts.Reviewers, progressIndicator, index)
 	}
 	if opts.AutoMerge {
-		util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "merge", targetCommit.Branch, "--auto", "--squash")
+		util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "merge", targetCommit.Branch, "--auto", "--squash")
 		progressIndicator.SetLogLine(index, "Auto-merge enabled")
 	}
 }
@@ -123,7 +124,7 @@ func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, prog
 		countdown(progressIndicator, index, int(opts.WaitBeforePolling.Seconds()), "for Github to add checks to pushed changes")
 	}
 	for {
-		summary := util.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
+		summary := gitutil.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
 		progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
 		if summary.IsFailing() {
 			if !opts.Silent {
@@ -150,7 +151,7 @@ func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, prog
 
 func markPrReady(targetCommit templates.GitLog, progressIndicator *interactive.ProgressIndicator, index int) {
 	progressIndicator.SetLogLine(index, "Marking PR as ready for review")
-	util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "ready", targetCommit.Branch)
+	util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "ready", targetCommit.Branch)
 	progressIndicator.SetLogLine(index, "PR marked as ready for review")
 }
 
@@ -177,7 +178,7 @@ func addReviewers(targetCommit templates.GitLog, reviewers string, progressIndic
 }
 
 func getNonApprovingUsers(commit templates.GitLog, reviewers string) (string, string) {
-	allApprovingUsers := util.GetAllApprovingUsers(commit.Branch)
+	allApprovingUsers := gitutil.GetAllApprovingUsers(commit.Branch)
 	approvingUsers := make([]string, 0)
 	nonApprovingUsers := make([]string, 0)
 	for _, reviewer := range strings.Split(reviewers, ",") {

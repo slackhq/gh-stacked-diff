@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -20,7 +21,7 @@ func TestSdLog_WhenRemoteHasSomeCommits_PrintsNewLogsOnly(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -49,7 +50,7 @@ func TestSdLog_WhenNotOnMain_OnlyShowsCommitsNotOnMain(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
 
@@ -194,7 +195,7 @@ func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
 
 	out := new(bytes.Buffer)

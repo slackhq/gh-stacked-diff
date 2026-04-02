@@ -13,6 +13,7 @@ import (
 
 	"slices"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -67,7 +68,7 @@ func TestSdUpdate_OnExistingRoot_UpdatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -163,10 +164,10 @@ func TestSdUpdate_WithReviewers_AddReviewers(t *testing.T) {
 
 	testExecutor.SetResponse(
 		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	testParseArguments("update", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "--reviewers=mybestie", "2", "1")
+	testParseArguments("update", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "2", "1")
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[1].Branch, "--add-reviewer", "mybestie"}
@@ -190,7 +191,7 @@ func TestSdUpdate_WhenCherryPickFails_RestoresBranch(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommits, templates.GetAllCommits())
 		}
 	}()
@@ -212,7 +213,7 @@ func TestSdUpdate_WhenPushFails_RestoresBranches(t *testing.T) {
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
 	firstCommits := templates.GetAllCommits()
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -221,7 +222,7 @@ func TestSdUpdate_WhenPushFails_RestoresBranches(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommits, templates.GetAllCommits())
 
 			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
@@ -280,7 +281,7 @@ func TestSdUpdate_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePu
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommitsBeforeUpdate, templates.GetAllCommits())
 		}
 	}()
@@ -396,7 +397,7 @@ func TestSdUpdate_WhenDestinationCommitNotSpecifiedAndMultiplePossibleValues_Upd
 	assert.Equal("second", allCommits[2].Subject)
 	assert.Equal("first", allCommits[3].Subject)
 	assert.Equal(testutil.InitialCommitSubject, allCommits[4].Subject)
-	assert.True(util.RemoteHasBranch(allCommits[3].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[3].Branch))
 }
 
 func TestSdUpdate_WhenBranchAlreadyMergedAndUserDoesNotConfirm_Cancels(t *testing.T) {
@@ -458,7 +459,7 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 
 	testExecutor.SetResponse(
 		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", util.DefaultMinChecks),
+		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	// What commits do you want to add?
@@ -467,7 +468,7 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 	interactive.SendToProgram(1, interactive.NewMessageRune('y'))
 	// Reviewers to add when checks pass?
 	interactive.SendToProgram(2, interactive.NewMessageKey(tea.KeyEnter))
-	testParseArguments("update", "--min-checks", fmt.Sprint(util.DefaultMinChecks), "2")
+	testParseArguments("update", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "2")
 
 	allCommits := templates.GetAllCommits()
 

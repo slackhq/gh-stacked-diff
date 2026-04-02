@@ -5,6 +5,7 @@ import (
 
 	"slices"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
@@ -82,8 +83,8 @@ Example output from: gh repo view --json nameWithOwner
 */
 func getAllCollaborators() []string {
 	jq := ".[] | .login"
-	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries},
-		"gh", "api", "--hostname", util.GetRepoHostname(), "repos/"+util.GetRepoNameWithOwner()+"/collaborators",
+	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+		"gh", "api", "--hostname", gitutil.GetRepoHostname(), "repos/"+gitutil.GetRepoNameWithOwner()+"/collaborators",
 		"--paginate", "--cache", "6h", "--jq", jq)
 	collaborators := strings.Fields(out)
 	collaborators = removeCurrentUser(collaborators)
@@ -93,6 +94,6 @@ func getAllCollaborators() []string {
 
 func removeCurrentUser(users []string) []string {
 	return slices.DeleteFunc(users, func(next string) bool {
-		return next == util.GetLoggedInUsername()
+		return next == gitutil.GetLoggedInUsername()
 	})
 }

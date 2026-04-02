@@ -1,8 +1,10 @@
-package util
+package gitutil
 
 import (
+	"os"
 	"testing"
 
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,23 +14,24 @@ func TestGetMinChecksFromHistory_WhenHistorySet_ReturnsCachedValue(t *testing.T)
 	tmpDir := t.TempDir()
 
 	// Save and restore global state.
-	oldRepoName := repoName
 	oldCachedMinChecks := cachedMinChecks
-	oldExecutor := globalExecutor
-	oldAppConfig := GetAppConfig()
+	oldExecutor := util.GetGlobalExecutor()
+	oldAppConfig := util.GetAppConfig()
 	defer func() {
-		repoName = oldRepoName
 		cachedMinChecks = oldCachedMinChecks
-		globalExecutor = oldExecutor
-		SetAppConfig(oldAppConfig)
+		util.SetGlobalExecutor(oldExecutor)
+		util.SetAppConfig(oldAppConfig)
 	}()
 
-	globalExecutor = DefaultExecutor{}
-	repoName = "test-repo"
-
-	SetAppConfig(AppConfig{
+	util.SetGlobalExecutor(util.DefaultExecutor{})
+	util.SetAppConfig(util.AppConfig{
 		UserCacheDir: tmpDir,
 	})
+	// Init a git repo so GetRepoName() works (called by history file path).
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "init")
 
 	// Write min checks = 3 to history via setMinChecksToHistory.
 	cachedMinChecks = 3

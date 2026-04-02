@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
@@ -104,7 +105,7 @@ func buildRootCommand() *cobra.Command {
 		}
 		if cmd.Annotations["skipRepoCheck"] != "true" {
 			// Note: call GetLocalMainBranchOrDie early as it has useful error messages.
-			slog.Debug("Using main branch " + util.GetLocalMainBranchOrDie())
+			slog.Debug("Using main branch " + gitutil.GetLocalMainBranchOrDie())
 		}
 	}
 

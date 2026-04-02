@@ -1,4 +1,4 @@
-package util
+package gitutil
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
 const GhRetries = 2
@@ -96,7 +98,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	// gh pr list --search "429bb20,0ff019b" --state all
 	lastCommit := GetBranchLatestCommit(branchName)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
-	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
+	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq)
 	approvingUsers := strings.Fields(out)
 	slices.Sort(approvingUsers)
@@ -105,7 +107,7 @@ func GetAllApprovingUsers(branchName string) []string {
 
 // Returns full commit hash of branch with name of branchName, or "" if no such branch.
 func GetBranchLatestCommit(branchName string) string {
-	out, err := Execute(ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H", branchName)
+	out, err := util.Execute(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H", branchName)
 	if err != nil {
 		return ""
 	}
@@ -148,7 +150,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
 		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
 		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))"
-	out := ExecuteOrDie(ExecuteOptions{Retries: GhRetries},
+	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}

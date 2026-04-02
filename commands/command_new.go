@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
@@ -69,7 +70,7 @@ func createNewCommand() *cobra.Command {
 
 	draft := cmd.Flags().BoolP("draft", "d", true, "Whether to create the PR as draft")
 	featureFlag := cmd.Flags().StringP("feature-flag", "f", "", "Value for FEATURE_FLAG in PR description")
-	baseBranch := cmd.Flags().StringP("base", "b", "", "Base branch for Pull Request. Default is "+util.GetMainBranchForHelp())
+	baseBranch := cmd.Flags().StringP("base", "b", "", "Base branch for Pull Request. Default is "+gitutil.GetMainBranchForHelp())
 	_ = cmd.RegisterFlagCompletionFunc("base", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		branches := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--format=%(refname:short)"))
 		return branches, cobra.ShellCompDirectiveNoFileComp
@@ -79,7 +80,7 @@ func createNewCommand() *cobra.Command {
 	indicatorTypeString := addIndicatorFlag(cmd)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		util.RequireMainBranch()
+		gitutil.RequireMainBranch()
 		selectCommitOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What commit do you want to create a PR from?",
 			CommitType:  interactive.CommitTypeNoPr,
@@ -89,7 +90,7 @@ func createNewCommand() *cobra.Command {
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		if *baseBranch == "" {
-			*baseBranch = util.GetLocalMainBranchOrDie()
+			*baseBranch = gitutil.GetLocalMainBranchOrDie()
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
 		if ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
@@ -116,7 +117,7 @@ func createNewCommand() *cobra.Command {
 // Creates a new pull request via Github CLI.
 func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBranch string, gitLog templates.GitLog) {
 	templates.RequireCommitOnMain(gitLog.Commit)
-	util.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *util.GitRollbackManager) {
+	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog)
 		pushAndCreateGhPr(draft, featureFlag, ticketUrlPattern, baseBranch, gitLog)
 		rollbackManager.Clear()
@@ -124,10 +125,10 @@ func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBr
 	})
 }
 
-func createBranchAndCherryPick(rollbackManager *util.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
+func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
 	var commitToBranchFrom string
-	if baseBranch == util.GetLocalMainBranchOrDie() {
-		commitToBranchFrom = util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
+	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
+		commitToBranchFrom = gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Switching to branch ", gitLog.Branch, " based off commit ", commitToBranchFrom))
 	} else {
 		commitToBranchFrom = baseBranch
@@ -135,7 +136,7 @@ func createBranchAndCherryPick(rollbackManager *util.GitRollbackManager, baseBra
 	}
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "--no-track", gitLog.Branch, commitToBranchFrom)
 	rollbackManager.CreatedBranch(gitLog.Branch)
-	util.GitSwitch(gitLog.Branch)
+	gitutil.GitSwitch(gitLog.Branch)
 	slog.Info(fmt.Sprint("Cherry picking ", gitLog.Commit))
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", gitLog.Commit)
 }
@@ -151,9 +152,9 @@ func pushAndCreateGhPr(draft bool, featureFlag string, ticketUrlPattern string, 
 }
 
 func openPrAndSwitchBack(gitLog templates.GitLog) {
-	util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "view", "--web")
-	slog.Info(fmt.Sprint("Switching back to " + util.GetLocalMainBranchOrDie()))
-	util.GitSwitch(util.GetLocalMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web")
+	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))
+	gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
 }
@@ -168,11 +169,11 @@ func createPr(prText templates.PullRequestText, baseBranch string, draft bool) s
 	if createPrErr != nil {
 		if draft && strings.Contains(createPrOutput, "Draft pull requests are not supported") {
 			slog.Warn("Draft PRs not supported, trying again without draft.\nUse \"--draft=false\" to avoid this warning.")
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", createPrArgsNoDraft...)
+			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", createPrArgsNoDraft...)
 		} else {
 			slog.Warn("Retrying: " + "\"gh " + strings.Join(createPrArgs, " ") + "\": " + createPrErr.Error())
 			util.Sleep(util.RetryDelay)
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries - 1}, "gh", createPrArgs...)
+			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries - 1}, "gh", createPrArgs...)
 		}
 	} else {
 		return createPrOutput

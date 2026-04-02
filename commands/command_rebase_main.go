@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -16,7 +17,7 @@ func createRebaseMainCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rebase-main",
 		Short: "Bring your main branch up to date with remote",
-		Long: "Rebase with origin/" + util.GetMainBranchForHelp() + ", dropping any commits who's associated\n" +
+		Long: "Rebase with origin/" + gitutil.GetMainBranchForHelp() + ", dropping any commits who's associated\n" +
 			"branches have been merged or closed.\n" +
 			"\n" +
 			"Commits from merged PRs are automatically dropped. For commits from closed\n" +
@@ -36,8 +37,8 @@ func createRebaseMainCommand() *cobra.Command {
 // Bring local main branch up to date with remote
 func rebaseMain() {
 	appConfig := util.GetAppConfig()
-	util.RequireMainBranch()
-	shouldPopStash := util.Stash("rebase-main")
+	gitutil.RequireMainBranch()
+	shouldPopStash := gitutil.Stash("rebase-main")
 
 	slog.Info("Fetching...")
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "fetch")
@@ -84,7 +85,7 @@ func rebaseMain() {
 			EnvironmentVariables: environmentVariables,
 			Io:                   appConfig.Io,
 		}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "-i", "origin/"+util.GetRemoteMainBranchOrDie())
+		_, rebaseError = gitutil.RebaseAndSkipAllEmpty(options, "-i", "origin/"+gitutil.GetRemoteMainBranchOrDie())
 		slog.Info("Deleting branches...")
 		// Delete merged branches (including remote)
 		deleteBranches(appConfig.Io, mergedCommits, true)
@@ -92,12 +93,12 @@ func rebaseMain() {
 		deleteBranches(appConfig.Io, confirmedClosedCommits, false)
 	} else {
 		options := util.ExecuteOptions{Io: appConfig.Io}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "origin/"+util.GetRemoteMainBranchOrDie())
+		_, rebaseError = gitutil.RebaseAndSkipAllEmpty(options, "origin/"+gitutil.GetRemoteMainBranchOrDie())
 	}
 	if rebaseError != nil {
 		panic("Rebase failed, check output ^^ for details. Continue rebase manually.")
 	} else {
-		util.PopStash(shouldPopStash)
+		gitutil.PopStash(shouldPopStash)
 	}
 }
 
@@ -143,12 +144,12 @@ func getClosedBranches() []string {
 func getBranchesByPRState(mergedState bool) []string {
 	var branchesRaw string
 	if mergedState {
-		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries},
-			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", util.GetRemoteMainBranchOrDie(),
+		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", gitutil.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid")
 	} else {
-		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries},
-			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", util.GetRemoteMainBranchOrDie(),
+		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", gitutil.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,headRefOid", "--jq", ".[ ] | .headRefName + \" \" + .headRefOid")
 	}
 	branchesRawLines := strings.Split(strings.TrimSpace(branchesRaw), "\n")
@@ -208,13 +209,13 @@ func checkUniqueBranches(dropCommits []templates.GitLog) {
 
 func deleteBranches(stdIo util.StdIo, dropCommits []templates.GitLog, deleteRemote bool) {
 	for _, dropCommit := range dropCommits {
-		localHash := util.GetBranchLatestCommit(dropCommit.Branch)
+		localHash := gitutil.GetBranchLatestCommit(dropCommit.Branch)
 		if localHash != "" {
 			// nolint:errcheck
 			util.Execute(util.ExecuteOptions{Io: stdIo}, "git", "branch", "-D", dropCommit.Branch)
 			// Only delete remote branch if requested and if it is on the same commit to avoid
 			// accidentally deleting a branch that is not merged.
-			if deleteRemote && localHash == util.GetBranchLatestCommit("origin/"+dropCommit.Branch) {
+			if deleteRemote && localHash == gitutil.GetBranchLatestCommit("origin/"+dropCommit.Branch) {
 				// nolint:errcheck
 				util.Execute(util.ExecuteOptions{Io: stdIo}, "git", "push", "--delete", "origin", dropCommit.Branch)
 			}

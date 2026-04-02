@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -72,7 +73,7 @@ func executeMigrate() {
 	}
 
 	// Switch to main branch
-	mainBranch := util.GetLocalMainBranchOrDie()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	slog.Info(fmt.Sprintf("Switching to branch %s", mainBranch))
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
@@ -85,7 +86,7 @@ func processBranch(branch string, baseCommit string) migrationResult {
 	slog.Info(fmt.Sprintf("Processing branch: %s", branch))
 
 	// Step 4f: Check if branch has a PR - skip if so
-	mergedPR := util.GetMergedPR(branch)
+	mergedPR := gitutil.GetMergedPR(branch)
 	if mergedPR != nil {
 		slog.Warn(fmt.Sprintf("Branch %s has merged PR #%s: %s - skipping migration", branch, mergedPR.Number, mergedPR.Title))
 		return migrationResult{
@@ -118,7 +119,7 @@ func processBranch(branch string, baseCommit string) migrationResult {
 	}
 
 	// Step 4c: Check if branch has an unmerged PR
-	pr := util.GetUnmergedPR(branch)
+	pr := gitutil.GetUnmergedPR(branch)
 	if pr != nil {
 		// Step 4d: Handle branch with unmerged PR
 		// Branches with unmerged PRs are skipped because migrating them would create a new branch
@@ -140,7 +141,7 @@ func processBranch(branch string, baseCommit string) migrationResult {
 func rebaseBranch(branch string, baseCommit string) {
 	appConfig := util.GetAppConfig()
 	slog.Info("Rebasing branch " + branch + " onto most recent main commit " + baseCommit)
-	util.RebaseAndSkipAllEmptyOrDie(
+	gitutil.RebaseAndSkipAllEmptyOrDie(
 		util.ExecuteOptions{Io: util.StdIo{Out: appConfig.Io.Out, In: nil, Err: appConfig.Io.Err}},
 		baseCommit)
 	slog.Info(fmt.Sprintf("Successfully rebased branch: %s", branch))
@@ -175,7 +176,7 @@ func findUserBranches() []string {
 	userEmail := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "config", "user.email")
 	slog.Debug("Looking for branches with commits by: " + userEmail)
 
-	mainBranch := util.GetLocalMainBranchOrDie()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 
 	// Get all local branches
 	branchesOutput := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--format=%(refname:short)")
@@ -278,7 +279,7 @@ func selectBranchesToMigrate(branches []string) []string {
 // commits on main and should be disabled in the interactive selector.
 func computeDisabledBranches(branches []string) map[int]bool {
 	slog.Info("Fetching commits from main for branch filtering...")
-	mainBranch := util.GetLocalMainBranchOrDie()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	mainCommits := templates.GetNewCommits(mainBranch)
 	slog.Info(fmt.Sprintf("Found %d commits on main for branch filtering", len(mainCommits)))
 
@@ -303,7 +304,7 @@ func computeDisabledBranches(branches []string) map[int]bool {
 // findMostRecentMainCommit finds the most recent commit from origin/main that is an ancestor
 // of both the local main branch and all selected branches.
 func findMostRecentMainCommit(branches []string) string {
-	mainBranch := util.GetLocalMainBranchOrDie()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 
 	// Collect all branches to check (local main + selected branches)
 	allBranches := append([]string{mainBranch}, branches...)
@@ -312,7 +313,7 @@ func findMostRecentMainCommit(branches []string) string {
 
 	// For each branch, find its merge-base with origin/main
 	for _, branch := range allBranches {
-		mergeBase := util.FirstOriginMainCommit(branch)
+		mergeBase := gitutil.FirstOriginMainCommit(branch)
 		slog.Debug(fmt.Sprintf("Merge-base for %s with origin/main: %s", branch, mergeBase))
 
 		// Get the timestamp of this commit
@@ -420,11 +421,11 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 	}
 
 	// Cherry-pick each commit onto local main branch IN ORDER (oldest to newest)
-	mainBranch := util.GetLocalMainBranchOrDie()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	slog.Info(fmt.Sprintf("Cherry-picking %d commits to %s (oldest to newest)", len(finalCommits), mainBranch))
-	util.CherryPickAndSkipAllEmpty(finalCommits)
+	gitutil.CherryPickAndSkipAllEmpty(finalCommits)
 
 	return migrationResult{
 		branchName: branch,
