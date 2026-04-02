@@ -54,10 +54,15 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		panic("--status is only supported on the main branch")
 	}
-	logs, checkedBranches, worktreeSections := getLogsAndBranchesWithWorktrees()
+	userConfig := util.GetUserConfig()
+	var worktreeSections []interactive.WorktreeLogSection
+	logs, checkedBranches := getLogsAndBranches()
+	if userConfig.ShowWorktrees {
+		worktreeSections = getWorktreeSections(logs)
+	}
 	var pollInterval time.Duration
 	if poll {
-		pollInterval = util.GetUserConfig().PollInterval
+		pollInterval = userConfig.PollInterval
 	}
 	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranchesWithWorktrees, worktreeSections)
 }
@@ -76,7 +81,9 @@ func printGitLog() {
 	}
 	logs, checkedBranches := getLogsAndBranches()
 	printLogs(stdIo, logs, checkedBranches)
-	printWorktreeLogs(stdIo, logs)
+	if util.GetUserConfig().ShowWorktrees {
+		printWorktreeLogs(stdIo, logs)
+	}
 }
 
 func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) {

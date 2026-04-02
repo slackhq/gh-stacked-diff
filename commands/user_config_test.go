@@ -125,3 +125,34 @@ func TestNewUserConfig_WorktreeMainBranchGuardInvalidValue(t *testing.T) {
 		util.NewUserConfig(util.YamlConfig{}, map[string]string{"worktreeMainBranchGuard": "invalid"})
 	})
 }
+
+func TestNewUserConfig_ShowWorktreesDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, true, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"showWorktrees": "false"})
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFromFile(t *testing.T) {
+	showWorktrees := false
+	config := util.NewUserConfig(util.YamlConfig{ShowWorktrees: &showWorktrees}, nil)
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFlagOverridesFile(t *testing.T) {
+	showWorktrees := true
+	config := util.NewUserConfig(
+		util.YamlConfig{ShowWorktrees: &showWorktrees},
+		map[string]string{"showWorktrees": "false"},
+	)
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesInvalidValue(t *testing.T) {
+	assert.PanicsWithValue(t, "invalid showWorktrees value: invalid (must be true or false)", func() {
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"showWorktrees": "invalid"})
+	})
+}

@@ -90,13 +90,16 @@ func buildRootCommand() *cobra.Command {
 			"      against incorrect use:\n"+
 			"         path: worktree directory name\n"+
 			"         none: current branch\n"+
+			"   showWorktrees=true|false (default: true)\n"+
+			"      Whether to show worktrees in log command\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
 			"   pollInterval: 1m\n"+
 			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
-			"   worktreeMainBranchGuard: path")
+			"   worktreeMainBranchGuard: path\n"+
+			"   showWorktrees: true")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
