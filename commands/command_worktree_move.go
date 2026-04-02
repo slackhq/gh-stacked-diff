@@ -57,24 +57,18 @@ func resolveSecondaryWorktree(worktreeFlag string) string {
 	if !interactive.InteractiveEnabled() {
 		panic("Not in a secondary worktree and cannot ask interactively because not a terminal. Use --worktree to specify the source worktree.")
 	}
-	branches := make([]string, len(worktrees))
+	options := make([]interactive.WorktreeOption, len(worktrees))
 	for i, wt := range worktrees {
-		branches[i] = wt.Branch
+		options[i] = interactive.WorktreeOption{Branch: wt.Branch, Path: wt.Path}
 	}
-	selected, err := interactive.GetBranchSelection(branches, "Which worktree do you want to move commits from?")
+	selectedIndex, err := interactive.GetWorktreeSelection(options, "Which worktree do you want to move commits from?")
 	if err != nil {
 		panic(err.Error())
 	}
-	if len(selected) == 0 {
+	if selectedIndex < 0 {
 		util.GetAppConfig().Exit(0)
 	}
-	// Find the worktree path for the selected branch.
-	for _, wt := range worktrees {
-		if wt.Branch == selected[0] {
-			return wt.Path
-		}
-	}
-	panic("Selected worktree not found")
+	return worktrees[selectedIndex].Path
 }
 
 func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag string) {

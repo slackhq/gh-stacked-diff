@@ -180,3 +180,32 @@ func GetBranchSelectionWithFilter(branches []string, prompt string, rowEnabled f
 
 	return selectedBranches, nil
 }
+
+// WorktreeOption represents a worktree that can be selected.
+type WorktreeOption struct {
+	Branch string
+	Path   string
+}
+
+// GetWorktreeSelection displays an interactive single-select table for worktrees,
+// showing branch and directory columns. Returns the selected index, or -1 if cancelled.
+func GetWorktreeSelection(worktrees []WorktreeOption, prompt string) (int, error) {
+	appConfig := util.GetAppConfig()
+	if len(worktrees) == 0 {
+		return -1, errors.New("no worktrees to select from")
+	}
+	columns := []string{"#", "Directory", "Branch"}
+	rows := make([][]string, len(worktrees))
+	for i, wt := range worktrees {
+		rows[i] = []string{fmt.Sprintf("%d", i+1), wt.Path, wt.Branch}
+	}
+	selector := NewCommitSelector(prompt, columns, rows, false, func(row int) bool { return true })
+	program := newProgram(selector, appConfig.Io)
+	finalModel := runProgram(appConfig.Io, program)
+	selected := finalModel.(CommitSelector).SelectedRows
+	if len(selected) == 0 {
+		return -1, nil
+	}
+	slices.Sort(selected)
+	return selected[0], nil
+}
