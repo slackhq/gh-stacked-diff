@@ -79,7 +79,7 @@ func LoadUserConfigFile() YamlConfig {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&cfg); err != nil {
-		panic(fmt.Sprint("Could not parse config file: ", err))
+		panic(fmt.Sprint("Could not parse config file (", configFile, "): ", err))
 	}
 	if cfg.PromptForReview != "" && !cfg.PromptForReview.IsValid() {
 		panic("invalid promptForReview value in config file: " + string(cfg.PromptForReview))
