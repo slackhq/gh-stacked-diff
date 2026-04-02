@@ -47,6 +47,7 @@ type PullRequestStatus struct {
 	LatestReviews  []LatestReview
 	CanMerge       bool
 	IsDraft        bool
+	IsInMergeQueue bool
 }
 
 /*
@@ -149,9 +150,10 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
 		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
 		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
-		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))"
+		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))," +
+		"(\"autoMerge,\" + (if .autoMergeRequest != null then \"true\" else \"false\" end))"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	for _, line := range lines {
@@ -201,6 +203,8 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 			status.CanMerge = fields[1] == "CLEAN"
 		case "isDraft":
 			status.IsDraft = fields[1] == "true"
+		case "autoMerge":
+			status.IsInMergeQueue = fields[1] == "true"
 		default:
 			slog.Warn(fmt.Sprint("unexpected key in pr view output: ", fields[0]))
 		}
