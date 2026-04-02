@@ -84,7 +84,7 @@ func rebaseMain() {
 			EnvironmentVariables: environmentVariables,
 			Io:                   appConfig.Io,
 		}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "-i", "origin/"+util.GetMainBranchOrDie())
+		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "-i", "origin/"+util.GetRemoteMainBranchOrDie())
 		slog.Info("Deleting branches...")
 		// Delete merged branches (including remote)
 		deleteBranches(appConfig.Io, mergedCommits, true)
@@ -92,7 +92,7 @@ func rebaseMain() {
 		deleteBranches(appConfig.Io, confirmedClosedCommits, false)
 	} else {
 		options := util.ExecuteOptions{Io: appConfig.Io}
-		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "origin/"+util.GetMainBranchOrDie())
+		_, rebaseError = util.RebaseAndSkipAllEmpty(options, "origin/"+util.GetRemoteMainBranchOrDie())
 	}
 	if rebaseError != nil {
 		panic("Rebase failed, check output ^^ for details. Continue rebase manually.")
@@ -144,11 +144,11 @@ func getBranchesByPRState(mergedState bool) []string {
 	var branchesRaw string
 	if mergedState {
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries},
-			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", util.GetMainBranchOrDie(),
+			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", util.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid")
 	} else {
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries},
-			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", util.GetMainBranchOrDie(),
+			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", util.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,headRefOid", "--jq", ".[ ] | .headRefName + \" \" + .headRefOid")
 	}
 	branchesRawLines := strings.Split(strings.TrimSpace(branchesRaw), "\n")

@@ -87,12 +87,12 @@ func createNewCommand() *cobra.Command {
 		}
 		userConfig := getUserConfig(cmd)
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
-		// Note: set the default here rather than via flags to avoid GetMainBranchOrDie being called before Run.
+		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		if *baseBranch == "" {
-			*baseBranch = util.GetMainBranchOrDie()
+			*baseBranch = util.GetLocalMainBranchOrDie()
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
-		if ticketUrlPattern == "" && templates.TemplateUsesTicketUrlPattern() {
+		if ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
 			ticketUrlPattern = interactive.PromptForStringOrDie(
 				"Ticket URL pattern (use {TicketNumber} as placeholder):",
 				nil,
@@ -126,8 +126,8 @@ func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBr
 
 func createBranchAndCherryPick(rollbackManager *util.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
 	var commitToBranchFrom string
-	if baseBranch == util.GetMainBranchOrDie() {
-		commitToBranchFrom = util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	if baseBranch == util.GetLocalMainBranchOrDie() {
+		commitToBranchFrom = util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Switching to branch ", gitLog.Branch, " based off commit ", commitToBranchFrom))
 	} else {
 		commitToBranchFrom = baseBranch
@@ -152,8 +152,8 @@ func pushAndCreateGhPr(draft bool, featureFlag string, ticketUrlPattern string, 
 
 func openPrAndSwitchBack(gitLog templates.GitLog) {
 	util.ExecuteOrDie(util.ExecuteOptions{Retries: util.GhRetries}, "gh", "pr", "view", "--web")
-	slog.Info(fmt.Sprint("Switching back to " + util.GetMainBranchOrDie()))
-	util.GitSwitch(util.GetMainBranchOrDie())
+	slog.Info(fmt.Sprint("Switching back to " + util.GetLocalMainBranchOrDie()))
+	util.GitSwitch(util.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
 }

@@ -8,10 +8,8 @@ import (
 	"sync"
 )
 
-// Cached value of main branch name.
+// Cached value of main branch name for help text.
 var mainBranchNameForHelp string
-
-var mainBranchNameFromGitLog string
 
 // Cached value of user email.
 var userEmail string
@@ -20,18 +18,39 @@ var userEmail string
 var repoName string
 var repoNameOnce *sync.Once = new(sync.Once)
 
-// Cached repository name.
-var mainBranch string
-var mainBranchOnce *sync.Once = new(sync.Once)
+// Cached remote main branch name (from origin/HEAD).
+var remoteMainBranch string
+var remoteMainBranchOnce *sync.Once = new(sync.Once)
 
-// Returns name of main branch, or panics if cannot be determined.
+// Cached local main branch name.
+var localMainBranch string
+var localMainBranchOnce *sync.Once = new(sync.Once)
+
+// Returns name of the remote main branch (e.g. "main" or "master"), as determined
+// from origin/HEAD. Returns an error if it cannot be determined.
+// The result is cached after the first successful call.
+func GetRemoteMainBranch() (string, error) {
+	if remoteMainBranch != "" {
+		return remoteMainBranch, nil
+	}
+	branch, err := Execute(ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
+	if err != nil {
+		return "", err
+	}
+	branch = strings.TrimSpace(branch)
+	remoteMainBranch = branch[strings.Index(branch, "/")+1:]
+	return remoteMainBranch, nil
+}
+
+// Returns name of the remote main branch, or panics if it cannot be determined.
+// Handles initial repository setup (setting origin/HEAD) if needed.
 // The result is cached after the first call.
-func GetMainBranchOrDie() string {
-	if mainBranch == "" {
-		mainBranchOnce.Do(func() {
-			out, err := getMainBranchFromGitLog()
+func GetRemoteMainBranchOrDie() string {
+	if remoteMainBranch == "" {
+		remoteMainBranchOnce.Do(func() {
+			out, err := GetRemoteMainBranch()
 			if err == nil {
-				mainBranch = out
+				remoteMainBranch = out
 				return
 			}
 			out, err = Execute(ExecuteOptions{}, "git", "rev-parse")
@@ -49,14 +68,77 @@ func GetMainBranchOrDie() string {
 			}
 
 			setRemoteHead()
-			out, err = getMainBranchFromGitLog()
+			out, err = GetRemoteMainBranch()
 			if err != nil {
 				panic("Remote repository not setup.\n" + out + ": " + err.Error())
 			}
-			mainBranch = out
+			remoteMainBranch = out
 		})
 	}
-	return mainBranch
+	return remoteMainBranch
+}
+
+// Returns name of the local main branch. In a standard checkout or the main worktree,
+// this is the same as the remote main branch. In a secondary worktree, this is the
+// worktree's branch (the branch it was created with).
+// The result is cached after the first successful call.
+func GetLocalMainBranch() (string, error) {
+	if localMainBranch != "" {
+		return localMainBranch, nil
+	}
+	if branch := getSecondaryWorktreeBranch(); branch != "" {
+		localMainBranch = branch
+		return localMainBranch, nil
+	}
+	branch, err := GetRemoteMainBranch()
+	if err != nil {
+		return "", err
+	}
+	localMainBranch = branch
+	return localMainBranch, nil
+}
+
+// Returns the current branch name if running in a secondary worktree,
+// or empty string if in the main worktree or not using worktrees.
+func getSecondaryWorktreeBranch() string {
+	worktreeList, err := Execute(ExecuteOptions{}, "git", "worktree", "list")
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
+	if len(lines) <= 1 {
+		return ""
+	}
+	// First worktree listed is the main worktree.
+	mainWorktreePath := strings.Fields(lines[0])[0]
+	currentRoot := ExecuteOrDieTrimmed(ExecuteOptions{}, "git", "rev-parse", "--show-toplevel")
+	if currentRoot == mainWorktreePath {
+		return ""
+	}
+	return GetCurrentBranchName()
+}
+
+// Returns name of the local main branch, or panics if it cannot be determined.
+// The result is cached after the first call.
+func GetLocalMainBranchOrDie() string {
+	if localMainBranch == "" {
+		localMainBranchOnce.Do(func() {
+			out, err := GetLocalMainBranch()
+			if err == nil {
+				localMainBranch = out
+				return
+			}
+			// Fall through to GetRemoteMainBranchOrDie which handles setup.
+			GetRemoteMainBranchOrDie()
+			// Retry now that remote is set up.
+			result, err := GetLocalMainBranch()
+			if err != nil {
+				panic("Could not determine local main branch: " + err.Error())
+			}
+			localMainBranch = result
+		})
+	}
+	return localMainBranch
 }
 
 // Returns name of main branch, or "main" if cannot be determined. For use by CLI help.
@@ -64,26 +146,13 @@ func GetMainBranchForHelp() string {
 	if mainBranchNameForHelp != "" {
 		return mainBranchNameForHelp
 	}
-	mainBranch, err := getMainBranchFromGitLog()
+	branch, err := GetRemoteMainBranch()
 	if err != nil {
 		mainBranchNameForHelp = "main"
 	} else {
-		mainBranchNameForHelp = mainBranch
+		mainBranchNameForHelp = branch
 	}
 	return mainBranchNameForHelp
-}
-
-func getMainBranchFromGitLog() (string, error) {
-	if mainBranchNameFromGitLog != "" {
-		return mainBranchNameFromGitLog, nil
-	}
-	remoteMainBranch, err := Execute(ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
-	if err != nil {
-		return remoteMainBranch, err
-	}
-	remoteMainBranch = strings.TrimSpace(remoteMainBranch)
-	mainBranchNameFromGitLog = remoteMainBranch[strings.Index(remoteMainBranch, "/")+1:]
-	return mainBranchNameFromGitLog, nil
 }
 
 func setRemoteHead() {
@@ -119,7 +188,7 @@ func FirstOriginMainCommit(branchName string) string {
 	if !GetLocalHasBranchOrDie(branchName) {
 		panic("Branch does not exist " + branchName)
 	}
-	return ExecuteOrDieTrimmed(ExecuteOptions{}, "git", "merge-base", "origin/"+GetMainBranchOrDie(), branchName)
+	return ExecuteOrDieTrimmed(ExecuteOptions{}, "git", "merge-base", "origin/"+GetRemoteMainBranchOrDie(), branchName)
 }
 
 // Returns whether branchName is on remote.
@@ -146,8 +215,8 @@ func localHasBranch(branchName string) (bool, error) {
 }
 
 func RequireMainBranch() {
-	if GetCurrentBranchName() != GetMainBranchOrDie() {
-		panic("Must be run from " + GetMainBranchOrDie() + " branch")
+	if GetCurrentBranchName() != GetLocalMainBranchOrDie() {
+		panic("Must be run from " + GetLocalMainBranchOrDie() + " branch")
 	}
 }
 

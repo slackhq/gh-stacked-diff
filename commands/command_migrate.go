@@ -72,7 +72,7 @@ func executeMigrate() {
 	}
 
 	// Switch to main branch
-	mainBranch := util.GetMainBranchOrDie()
+	mainBranch := util.GetLocalMainBranchOrDie()
 	slog.Info(fmt.Sprintf("Switching to branch %s", mainBranch))
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
@@ -175,7 +175,7 @@ func findUserBranches() []string {
 	userEmail := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "config", "user.email")
 	slog.Debug("Looking for branches with commits by: " + userEmail)
 
-	mainBranch := util.GetMainBranchOrDie()
+	mainBranch := util.GetLocalMainBranchOrDie()
 
 	// Get all local branches
 	branchesOutput := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--format=%(refname:short)")
@@ -278,7 +278,7 @@ func selectBranchesToMigrate(branches []string) []string {
 // commits on main and should be disabled in the interactive selector.
 func computeDisabledBranches(branches []string) map[int]bool {
 	slog.Info("Fetching commits from main for branch filtering...")
-	mainBranch := util.GetMainBranchOrDie()
+	mainBranch := util.GetLocalMainBranchOrDie()
 	mainCommits := templates.GetNewCommits(mainBranch)
 	slog.Info(fmt.Sprintf("Found %d commits on main for branch filtering", len(mainCommits)))
 
@@ -303,7 +303,7 @@ func computeDisabledBranches(branches []string) map[int]bool {
 // findMostRecentMainCommit finds the most recent commit from origin/main that is an ancestor
 // of both the local main branch and all selected branches.
 func findMostRecentMainCommit(branches []string) string {
-	mainBranch := util.GetMainBranchOrDie()
+	mainBranch := util.GetLocalMainBranchOrDie()
 
 	// Collect all branches to check (local main + selected branches)
 	allBranches := append([]string{mainBranch}, branches...)
@@ -420,7 +420,7 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 	}
 
 	// Cherry-pick each commit onto local main branch IN ORDER (oldest to newest)
-	mainBranch := util.GetMainBranchOrDie()
+	mainBranch := util.GetLocalMainBranchOrDie()
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	slog.Info(fmt.Sprintf("Cherry-picking %d commits to %s (oldest to newest)", len(finalCommits), mainBranch))

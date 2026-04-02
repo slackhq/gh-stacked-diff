@@ -49,7 +49,7 @@ func TestFindUserBranches_FindsBranchesWithUserCommits(t *testing.T) {
 
 	// Create initial commit on main
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create first branch with user commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -57,13 +57,13 @@ func TestFindUserBranches_FindsBranchesWithUserCommits(t *testing.T) {
 	time.Sleep(time.Second) // Ensure different timestamps
 
 	// Create second branch with user commit (more recent)
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-2")
 	testutil.AddCommit("feature 2 commit", "feature2.txt")
 	time.Sleep(time.Second) // Ensure different timestamps
 
 	// Create third branch with user commit (oldest)
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-3")
 	time.Sleep(time.Second) // Ensure different timestamps
 
@@ -72,7 +72,7 @@ func TestFindUserBranches_FindsBranchesWithUserCommits(t *testing.T) {
 	testutil.AddCommit("feature 1 second commit", "feature1b.txt")
 
 	// Go back to main
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 
 	// Find user branches
 	branches := findUserBranches()
@@ -120,16 +120,16 @@ func TestSdMigrate_RebaseSingleBranch(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
 	testutil.AddCommit("feature 1 commit", "feature1.txt")
 
 	// Go back to main and add another commit to origin/main
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	testutil.AddCommit("new main commit", "file2.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Record current branch before running migrate
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -138,7 +138,7 @@ func TestSdMigrate_RebaseSingleBranch(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
 
 	// Get the most recent main commit
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Perform rebase
 	_, err := util.Execute(util.ExecuteOptions{}, "git", "rebase", mostRecentMainCommit)
@@ -158,24 +158,24 @@ func TestSdMigrate_RebaseMultipleBranches(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create first feature branch
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
 	testutil.AddCommit("feature 1 commit", "feature1.txt")
 
 	// Create second feature branch
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-2")
 	testutil.AddCommit("feature 2 commit", "feature2.txt")
 
 	// Go back to main and add commits
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	testutil.AddCommit("new main commit", "file2.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Get the most recent main commit
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Save current branch
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -202,7 +202,7 @@ func TestSdMigrate_RebaseFailure(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit that modifies file1.txt
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -211,14 +211,14 @@ func TestSdMigrate_RebaseFailure(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "feature 1 changes file1")
 
 	// Go back to main and modify the same file differently
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "sh", "-c", "echo 'main content' > file1.txt")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "main changes file1 differently")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Get the most recent main commit
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Try to rebase - should fail due to conflict
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
@@ -242,14 +242,14 @@ func TestSdMigrate_EndsOnMainBranch(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
 	testutil.AddCommit("feature 1 commit", "feature1.txt")
 
 	// Create another branch and stay on it
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-2")
 	testutil.AddCommit("feature 2 commit", "feature2.txt")
 
@@ -258,18 +258,18 @@ func TestSdMigrate_EndsOnMainBranch(t *testing.T) {
 	assert.Equal("feature-2", originalBranch)
 
 	// Get the most recent main commit
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Simulate the migrate process: checkout feature-1, rebase it
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rebase", mostRecentMainCommit)
 
 	// End on main branch (not restoring original branch)
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 
 	// Verify we're on main
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
-	assert.Equal(util.GetMainBranchOrDie(), currentBranch)
+	assert.Equal(util.GetLocalMainBranchOrDie(), currentBranch)
 }
 
 func TestGetCommitsAhead_SingleCommit(t *testing.T) {
@@ -338,7 +338,7 @@ func TestGetCommitsAhead_AfterRebase(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with commits
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -346,9 +346,9 @@ func TestGetCommitsAhead_AfterRebase(t *testing.T) {
 	testutil.AddCommit("feature commit 2", "feature2.txt")
 
 	// Go back to main and add a commit
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	testutil.AddCommit("new main commit", "main.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	newMainCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "HEAD")
 
@@ -368,7 +368,7 @@ func TestGetUnmergedPR_WithOpenPR(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -394,7 +394,7 @@ func TestGetUnmergedPR_WithoutPR(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -417,7 +417,7 @@ func TestGetMergedPR_WithMergedPR(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -443,7 +443,7 @@ func TestGetMergedPR_WithoutMergedPR(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
@@ -466,14 +466,14 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with a commit
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-1")
 	testutil.AddCommit("feature 1 commit", "feature1.txt")
 
 	// Go back to main
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 
 	// Mock the gh pr list response to simulate a merged PR
 	testExecutor.SetResponse("789|Already merged feature|MERGED", nil,
@@ -481,7 +481,7 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 
 	// Get the most recent main commit
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Record current branch before processing
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -511,7 +511,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 
 	// Create initial commit on main and push to origin
 	testutil.AddCommit("initial commit", "file1.txt")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	// Create a feature branch with 3 commits
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature-branch")
@@ -525,7 +525,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 
 	// Go back to main and manually cherry-pick the first and third commits
 	// This simulates commits that are already on main
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", firstCommitHash)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", thirdCommitHash)
 
@@ -538,7 +538,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 
 	// Get the base commit for the feature branch
-	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
+	mostRecentMainCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
 
 	// Set appConfig with stdin that provides the PR name
 	out := &strings.Builder{}
@@ -561,7 +561,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 
 	// Verify we're on main branch after migration
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
-	assert.Equal(util.GetMainBranchOrDie(), currentBranch, "Should be on main branch after migration")
+	assert.Equal(util.GetLocalMainBranchOrDie(), currentBranch, "Should be on main branch after migration")
 
 	// Count commits on main after migration
 	mainCommitsAfter := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-list", "--count", "HEAD")
@@ -582,7 +582,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 
 	// Verify that the skipping worked by checking the second commit was added only once to main
 	// Use git log on just the main branch to count occurrences
-	mainLog := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--oneline", util.GetMainBranchOrDie())
+	mainLog := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--oneline", util.GetLocalMainBranchOrDie())
 	secondCommitCount := strings.Count(mainLog, "second feature commit")
 	assert.Equal(1, secondCommitCount, "Second commit should appear exactly once on main (not duplicated)")
 }

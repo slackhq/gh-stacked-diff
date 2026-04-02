@@ -20,7 +20,7 @@ func TestSdLog_WhenRemoteHasSomeCommits_PrintsNewLogsOnly(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -49,7 +49,7 @@ func TestSdLog_WhenNotOnMain_OnlyShowsCommitsNotOnMain(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
 
@@ -194,7 +194,7 @@ func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
 
 	testutil.AddCommit("first", "")
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "my-branch")
 
 	out := new(bytes.Buffer)

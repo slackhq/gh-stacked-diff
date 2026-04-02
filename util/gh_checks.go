@@ -100,7 +100,7 @@ func getMinChecks() int {
 			jq := ".[].statusCheckRollup | length"
 			// Github sometimes returns an error for this command so retry and then fallback to default.
 			out, err := Execute(ExecuteOptions{Retries: GhRetries},
-				"gh", "pr", "list", "--state", "merged", "--base", GetMainBranchOrDie(),
+				"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
 				"--json", "statusCheckRollup", "--jq", jq)
 			if err != nil {
 				slog.Warn("Could not determine min checks so using default " + fmt.Sprint(DefaultMinChecks))

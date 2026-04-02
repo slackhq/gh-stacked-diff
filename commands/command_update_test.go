@@ -67,7 +67,7 @@ func TestSdUpdate_OnExistingRoot_UpdatesPr(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -190,7 +190,7 @@ func TestSdUpdate_WhenCherryPickFails_RestoresBranch(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommits, templates.GetAllCommits())
 		}
 	}()
@@ -212,7 +212,7 @@ func TestSdUpdate_WhenPushFails_RestoresBranches(t *testing.T) {
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
 	firstCommits := templates.GetAllCommits()
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", util.GetMainBranchOrDie())
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", util.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
 
@@ -221,7 +221,7 @@ func TestSdUpdate_WhenPushFails_RestoresBranches(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommits, templates.GetAllCommits())
 
 			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
@@ -280,7 +280,7 @@ func TestSdUpdate_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePu
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Equal(util.GetMainBranchOrDie(), util.GetCurrentBranchName())
+			assert.Equal(util.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
 			assert.Equal(allCommitsBeforeUpdate, templates.GetAllCommits())
 		}
 	}()

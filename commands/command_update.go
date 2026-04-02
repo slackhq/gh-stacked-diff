@@ -94,16 +94,16 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		if cherryPickError != nil {
 			slog.Info("First attempt at cherry-pick failed")
 			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", "--abort")
-			rebaseCommit := util.FirstOriginMainCommit(util.GetMainBranchOrDie())
-			slog.Info(fmt.Sprint("Rebasing with the base commit on "+util.GetMainBranchOrDie()+" branch, ", rebaseCommit,
-				", in case the local "+util.GetMainBranchOrDie()+" was rebased with origin/"+util.GetMainBranchOrDie()))
+			rebaseCommit := util.FirstOriginMainCommit(util.GetLocalMainBranchOrDie())
+			slog.Info(fmt.Sprint("Rebasing with the base commit on "+util.GetLocalMainBranchOrDie()+" branch, ", rebaseCommit,
+				", in case the local "+util.GetLocalMainBranchOrDie()+" was rebased with origin/"+util.GetRemoteMainBranchOrDie()))
 			util.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
 			slog.Info(fmt.Sprint("Cherry picking again ", commitsToCherryPick))
 			util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", cherryPickArgs...)
 			forcePush = true
 		}
-		slog.Info("Switching back to " + util.GetMainBranchOrDie())
-		util.GitSwitch(util.GetMainBranchOrDie())
+		slog.Info("Switching back to " + util.GetLocalMainBranchOrDie())
+		util.GitSwitch(util.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Rebasing, marking as fixup ", commitsToCherryPick, " for target ", destCommit.Commit))
 		commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
 			return commit.Commit
