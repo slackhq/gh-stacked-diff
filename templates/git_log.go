@@ -36,7 +36,7 @@ func GetAllCommits() []GitLog {
 	return newGitLogs(logsRaw)
 }
 
-func GetNewCommits(to string) []GitLog {
+func GetNewCommits(to string, gitDir string) []GitLog {
 	compareFromRemoteBranch := gitutil.GetRemoteMainBranchOrDie()
 	gitArgs := []string{"--no-pager", "log", newGitLogsFormat, "--abbrev-commit"}
 	if gitutil.RemoteHasBranch(compareFromRemoteBranch) {
@@ -44,7 +44,7 @@ func GetNewCommits(to string) []GitLog {
 	} else {
 		gitArgs = append(gitArgs, to)
 	}
-	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitArgs...)
+	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(gitDir, gitArgs...)...)
 	return newGitLogs(logsRaw)
 }
 
@@ -66,7 +66,7 @@ func RequireCommitOnMain(commit string) {
 	if commit == gitutil.GetLocalMainBranchOrDie() {
 		return
 	}
-	newCommits := GetNewCommits("HEAD")
+	newCommits := GetNewCommits("HEAD", "")
 	if !slices.ContainsFunc(newCommits, func(gitLog GitLog) bool {
 		return gitLog.Commit == commit
 	}) {

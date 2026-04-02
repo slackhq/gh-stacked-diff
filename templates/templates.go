@@ -106,7 +106,7 @@ func GetBranchInfo(commitIndicator string, indicatorType IndicatorType) GitLog {
 		slog.Info("Using commit " + info.Commit + ", branch " + info.Branch)
 	case IndicatorTypeList:
 		slog.Debug("Using commitIndicator as a list index " + commitIndicator)
-		newCommits := GetNewCommits(util.GetCurrentBranchName())
+		newCommits := GetNewCommits(util.GetCurrentBranchName(), "")
 		listIndex, err := strconv.Atoi(commitIndicator)
 		if err != nil {
 			panic("When indicator type is " + string(IndicatorTypeList) + " commit indicator must be a number, given " + commitIndicator)

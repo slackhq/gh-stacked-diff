@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 
@@ -24,26 +25,31 @@ const (
 )
 
 type CommitSelectionOptions struct {
-	CommitType  CommitType
-	MultiSelect bool
-	Prompt      string
+	CommitType       CommitType
+	MultiSelect      bool
+	Prompt           string
+	GitDir           string
+	DisabledBranches map[string]bool
 }
 
 // Returns an empty array if user cancelled.
 func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, error) {
 	appConfig := util.GetAppConfig()
 	columns := []string{"Index", "Commit", "Summary"}
-	newCommits := templates.GetNewCommits("HEAD")
+	newCommits := templates.GetNewCommits("HEAD", options.GitDir)
 	gitBranchArgs := make([]string, 0, len(newCommits)+2)
 	gitBranchArgs = append(gitBranchArgs, "branch", "-l")
 	for _, log := range newCommits {
 		gitBranchArgs = append(gitBranchArgs, log.Branch)
 	}
-	prBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
+	prBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(options.GitDir, gitBranchArgs...)...))
 
 	rows := make([][]string, 0, len(newCommits))
 
 	rowEnabled := func(row int) bool {
+		if options.DisabledBranches[newCommits[row].Branch] {
+			return false
+		}
 		if options.CommitType == CommitTypeBoth {
 			return true
 		}
@@ -85,7 +91,7 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go updateRowBranches(ctx, program, newCommits, prBranches, &wg)
+	go updateRowBranches(ctx, program, newCommits, prBranches, options.GitDir, &wg)
 	finalModel := runProgram(appConfig.Io, program)
 	cancel()
 	wg.Wait()
@@ -101,14 +107,14 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 
 // Add lines for each commit for every PR that has more than one commit.
 // Stops early when done is closed (i.e. when the interactive UI exits).
-func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []templates.GitLog, prBranches []string, wg *sync.WaitGroup) {
+func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []templates.GitLog, prBranches []string, gitDir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for i, newCommit := range newCommits {
 		if ctx.Err() != nil {
 			return
 		}
 		if slices.Contains(prBranches, newCommit.Branch) {
-			branchCommits := templates.GetNewCommits(newCommit.Branch)
+			branchCommits := templates.GetNewCommits(newCommit.Branch, gitDir)
 			summary := newCommit.Subject
 			if len(branchCommits) > 1 {
 				// Reverse the commits so that they are ordered from the earliest to more recent.

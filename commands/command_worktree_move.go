@@ -3,11 +3,11 @@ package commands
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
+	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
@@ -73,45 +73,27 @@ func resolveSecondaryWorktree(worktreeFlag string) string {
 
 func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag string) {
 	secondaryPath := resolveSecondaryWorktree(worktreeFlag)
-	selectCommitOptions := interactive.CommitSelectionOptions{
-		Prompt:      "What commits do you want to move to the main worktree?",
-		CommitType:  interactive.CommitTypeBoth,
-		MultiSelect: true,
-	}
-	// If we need to operate from a different worktree, chdir there for commit selection.
-	if secondaryPath != "" {
-		originalDir, err := os.Getwd()
-		if err != nil {
-			panic("Failed to get current directory: " + err.Error())
-		}
-		if err := os.Chdir(secondaryPath); err != nil {
-			panic("Failed to change to worktree directory: " + err.Error())
-		}
-		defer func() {
-			_ = os.Chdir(originalDir)
-		}()
-	}
-	selectedCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 	mainPath := gitutil.GetMainWorktreePath()
 	mainBranch := gitutil.GetRemoteMainBranchOrDie()
-	savedHead := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "-C", mainPath, "log", "-n", "1", "--pretty=format:%H")
+	// Build set of branches already on main so they are disabled in the selector.
+	mainCommits := templates.GetNewCommits("HEAD", mainPath)
+	disabledBranches := make(map[string]bool, len(mainCommits))
+	for _, c := range mainCommits {
+		disabledBranches[c.Branch] = true
+	}
+	selectCommitOptions := interactive.CommitSelectionOptions{
+		Prompt:           "What commits do you want to move to the main worktree?",
+		CommitType:       interactive.CommitTypeBoth,
+		MultiSelect:      true,
+		GitDir:           secondaryPath,
+		DisabledBranches: disabledBranches,
+	}
+	selectedCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 	slog.Info(fmt.Sprint("Cherry-picking ", len(selectedCommits), " commit(s) onto ", mainBranch, " in main worktree"))
-	cherryPickArgs := make([]string, 0, 3+len(selectedCommits))
-	cherryPickArgs = append(cherryPickArgs, "-C", mainPath, "cherry-pick")
-	for _, commit := range selectedCommits {
-		cherryPickArgs = append(cherryPickArgs, commit.Commit)
+	commits := make([]string, len(selectedCommits))
+	for i, commit := range selectedCommits {
+		commits[i] = commit.Commit
 	}
-	out, cherryPickErr := util.Execute(util.ExecuteOptions{}, "git", cherryPickArgs...)
-	if cherryPickErr != nil {
-		slog.Error(fmt.Sprint("Cherry-pick failed: ", out))
-		if interactive.Confirm("Cherry-pick failed. Rollback changes in main worktree?", true) {
-			_, _ = util.Execute(util.ExecuteOptions{}, "git", "-C", mainPath, "cherry-pick", "--abort")
-			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "-C", mainPath, "reset", "--hard", savedHead)
-			slog.Info("Rolled back " + mainBranch + " to " + savedHead)
-		} else {
-			slog.Info("Leaving main worktree as-is. Resolve conflicts manually in " + mainPath)
-		}
-		return
-	}
+	gitutil.CherryPickAndSkipAllEmpty(mainPath, commits)
 	slog.Info(fmt.Sprint("Successfully cherry-picked ", len(selectedCommits), " commit(s) onto ", mainBranch))
 }

@@ -380,7 +380,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					defer SendErrorOnPanic(program)
 					sem <- struct{}{}
 					defer func() { <-sem }()
-					branchCommits := templates.GetNewCommits(row.log.Branch)
+					branchCommits := templates.GetNewCommits(row.log.Branch, "")
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, generation: gen})
 					// Use 1 for minChecks as this flow does not need to have it calculated.
 					status := gitutil.GetPullRequestStatus(row.log.Branch, 1)

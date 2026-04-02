@@ -280,7 +280,7 @@ func selectBranchesToMigrate(branches []string) []string {
 func computeDisabledBranches(branches []string) map[int]bool {
 	slog.Info("Fetching commits from main for branch filtering...")
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
-	mainCommits := templates.GetNewCommits(mainBranch)
+	mainCommits := templates.GetNewCommits(mainBranch, "")
 	slog.Info(fmt.Sprintf("Found %d commits on main for branch filtering", len(mainCommits)))
 
 	branchesOnMain := make(map[string]bool)
@@ -425,7 +425,7 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	slog.Info(fmt.Sprintf("Cherry-picking %d commits to %s (oldest to newest)", len(finalCommits), mainBranch))
-	gitutil.CherryPickAndSkipAllEmpty(finalCommits)
+	gitutil.CherryPickAndSkipAllEmpty("", finalCommits)
 
 	return migrationResult{
 		branchName: branch,

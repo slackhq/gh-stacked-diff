@@ -99,18 +99,12 @@ func GetLocalMainBranch() (string, error) {
 // Returns the current branch name if running in a secondary worktree,
 // or empty string if in the main worktree or not using worktrees.
 func getSecondaryWorktreeBranch() string {
-	worktreeList, err := util.Execute(util.ExecuteOptions{}, "git", "worktree", "list")
-	if err != nil {
+	worktrees := GetWorktrees()
+	if len(worktrees) <= 1 {
 		return ""
 	}
-	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
-	if len(lines) <= 1 {
-		return ""
-	}
-	// First worktree listed is the main worktree.
-	mainWorktreePath := strings.Fields(lines[0])[0]
 	currentRoot := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--show-toplevel")
-	if currentRoot == mainWorktreePath {
+	if currentRoot == worktrees[0].Path {
 		return ""
 	}
 	if util.GetUserConfig().WorktreeMainBranchGuard == util.WorktreeMainBranchGuardNone {
@@ -121,9 +115,11 @@ func getSecondaryWorktreeBranch() string {
 
 // Returns the path of the main worktree. Panics if it cannot be determined.
 func GetMainWorktreePath() string {
-	worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
-	lines := strings.Split(worktreeList, "\n")
-	return strings.Fields(lines[0])[0]
+	worktrees := GetWorktrees()
+	if len(worktrees) == 0 {
+		panic("Could not determine main worktree path")
+	}
+	return worktrees[0].Path
 }
 
 // Returns true if running in a secondary worktree (not the main worktree).
@@ -137,19 +133,17 @@ type WorktreeInfo struct {
 	Branch string
 }
 
-// GetSecondaryWorktrees returns all secondary worktrees (excludes the main worktree).
-func GetSecondaryWorktrees() []WorktreeInfo {
+// GetWorktrees returns all worktrees. The first entry (index 0) is always the
+// main worktree. Returns nil if git worktree list fails or there are no worktrees.
+// Worktrees on a detached HEAD are skipped with a warning.
+func GetWorktrees() []WorktreeInfo {
 	worktreeList, err := util.Execute(util.ExecuteOptions{}, "git", "worktree", "list")
 	if err != nil {
 		return nil
 	}
 	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
-	if len(lines) <= 1 {
-		return nil
-	}
-	// First worktree listed is the main worktree; skip it.
 	var worktrees []WorktreeInfo
-	for _, line := range lines[1:] {
+	for _, line := range lines {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue
@@ -157,10 +151,23 @@ func GetSecondaryWorktrees() []WorktreeInfo {
 		path := fields[0]
 		// Branch is in brackets, e.g. "[secondary-branch]"
 		branchField := fields[2]
+		if !strings.HasPrefix(branchField, "[") {
+			slog.Warn(fmt.Sprint("Skipping worktree on detached head ", path))
+			continue
+		}
 		branch := strings.Trim(branchField, "[]")
 		worktrees = append(worktrees, WorktreeInfo{Path: path, Branch: branch})
 	}
 	return worktrees
+}
+
+// GetSecondaryWorktrees returns all secondary worktrees (excludes the main worktree).
+func GetSecondaryWorktrees() []WorktreeInfo {
+	worktrees := GetWorktrees()
+	if len(worktrees) <= 1 {
+		return nil
+	}
+	return worktrees[1:]
 }
 
 // Returns name of the local main branch, or panics if it cannot be determined.
@@ -285,20 +292,29 @@ func PopStash(popStash bool) {
 	}
 }
 
+// PrependGitDir prepends "-C", dir to args if dir is non-empty.
+// This causes git to run as if invoked from that directory.
+func PrependGitDir(dir string, args ...string) []string {
+	if dir == "" {
+		return args
+	}
+	return append([]string{"-C", dir}, args...)
+}
+
 // CherryPickAndSkipAllEmpty cherry-picks all commits and skips any that are empty
 // (i.e., commits that are already on main and would result in no changes).
-func CherryPickAndSkipAllEmpty(commits []string) {
+func CherryPickAndSkipAllEmpty(gitDir string, commits []string) {
 	cherryPickArgs := make([]string, 2+len(commits))
 	cherryPickArgs[0] = "cherry-pick"
 	cherryPickArgs[1] = "--ff"
 	for i, commit := range commits {
 		cherryPickArgs[i+2] = commit
 	}
-	out, err := util.Execute(util.ExecuteOptions{}, "git", cherryPickArgs...)
+	out, err := util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, cherryPickArgs...)...)
 	for err != nil {
 		if strings.Contains(out, "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")
-			out, err = util.Execute(util.ExecuteOptions{}, "git", "cherry-pick", "--skip")
+			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip")...)
 		} else {
 			slog.Error("Unexpected cherry-pick error: " + out)
 			panic("Unexpected cherry-pick error: " + out + " args: " + strings.Join(cherryPickArgs, " ") + " error: " + err.Error())
