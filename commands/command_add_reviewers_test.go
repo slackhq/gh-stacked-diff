@@ -294,7 +294,7 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 	// crashes the entire test process instead of being caught here.
 	out := new(bytes.Buffer)
 	assert.Panics(func() {
-		testParseArgumentsWithOut(out, "add-reviewers", "--min-checks", "2", "--silent", "--reviewers=mybestie", "1")
+		testParseArgumentsWithOut(out, "add-reviewers", "--min-checks", "2", "--reviewers=mybestie", "1")
 	})
 
 	assert.Contains(out.String(), "Checks failed")
