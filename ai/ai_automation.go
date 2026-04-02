@@ -26,7 +26,7 @@ func GetAiCommandInteractive() []string {
 	if len(commandAndArgs) == 0 {
 		const commandInteractivePrompt string = "What is the command to use to launch your AI CLI?"
 		commandInteractiveSuggestions := []string{"claude"}
-		prompt := interactive.PromptForStringOrDie(commandInteractivePrompt, commandInteractiveSuggestions)
+		prompt := interactive.PromptForStringOrDie(commandInteractivePrompt, "", commandInteractiveSuggestions)
 		commandAndArgs = strings.Fields(prompt)
 		aiCommandHistory.SetHistory(commandAndArgs)
 	}

@@ -131,6 +131,38 @@ func IsSecondaryWorktree() bool {
 	return getSecondaryWorktreeBranch() != ""
 }
 
+// WorktreeInfo holds the path and branch name of a git worktree.
+type WorktreeInfo struct {
+	Path   string
+	Branch string
+}
+
+// GetSecondaryWorktrees returns all secondary worktrees (excludes the main worktree).
+func GetSecondaryWorktrees() []WorktreeInfo {
+	worktreeList, err := util.Execute(util.ExecuteOptions{}, "git", "worktree", "list")
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
+	if len(lines) <= 1 {
+		return nil
+	}
+	// First worktree listed is the main worktree; skip it.
+	var worktrees []WorktreeInfo
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		path := fields[0]
+		// Branch is in brackets, e.g. "[secondary-branch]"
+		branchField := fields[2]
+		branch := strings.Trim(branchField, "[]")
+		worktrees = append(worktrees, WorktreeInfo{Path: path, Branch: branch})
+	}
+	return worktrees
+}
+
 // Returns name of the local main branch, or panics if it cannot be determined.
 // The result is cached after the first call.
 func GetLocalMainBranchOrDie() string {

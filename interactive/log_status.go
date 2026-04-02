@@ -23,7 +23,15 @@ var (
 	hidingColor = color.New(color.Italic).AddRGB(88, 88, 88)
 )
 
+// WorktreeLogSection represents commits from another worktree directory.
+type WorktreeLogSection struct {
+	DirName         string
+	Logs            []templates.GitLog
+	CheckedBranches []string
+}
+
 type logStatusRow struct {
+	sectionHeader string // if non-empty, rendered as a bold header before this row
 	log           templates.GitLog
 	hasPR         bool
 	status        *gitutil.PullRequestStatus
@@ -131,6 +139,9 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m logStatusModel) View() string {
 	var out strings.Builder
 	for _, row := range m.rows {
+		if row.sectionHeader != "" {
+			out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
+		}
 		if row.hasPR {
 			out.WriteString(row.numberPrefix + color.GreenString("✅ "))
 		} else {
@@ -281,13 +292,13 @@ func formatReviewSummary(status *gitutil.PullRequestStatus) string {
 	return strings.Join(parts, " | ")
 }
 
-// LogDataFunc returns the current logs and checked branches.
+// LogDataFunc returns the current logs, checked branches, and worktree sections.
 // It is called to refresh the log data on each poll iteration.
-type LogDataFunc func() ([]templates.GitLog, []string)
+type LogDataFunc func() ([]templates.GitLog, []string, []WorktreeLogSection)
 
-func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterval time.Duration, refreshFunc LogDataFunc) {
+func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterval time.Duration, refreshFunc LogDataFunc, worktreeSections []WorktreeLogSection) {
 	appConfig := util.GetAppConfig()
-	rows := buildRows(logs, checkedBranches)
+	rows := buildRows(logs, checkedBranches, worktreeSections)
 	polling := pollInterval > 0
 	hasAnyPR := false
 	for _, row := range rows {
@@ -315,15 +326,30 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 	runProgram(appConfig.Io, program)
 }
 
-func buildRows(logs []templates.GitLog, checkedBranches []string) []logStatusRow {
-	rows := make([]logStatusRow, len(logs))
+func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSections []WorktreeLogSection) []logStatusRow {
+	rows := make([]logStatusRow, 0, len(logs))
 	for i, log := range logs {
 		prefix := GetLogNumberPrefix(i, len(logs))
-		rows[i] = logStatusRow{
+		rows = append(rows, logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
 			numberPrefix: prefix,
 			padding:      strings.Repeat(" ", len(prefix)),
+		})
+	}
+	for _, section := range worktreeSections {
+		for i, log := range section.Logs {
+			prefix := GetLogNumberPrefix(i, len(section.Logs))
+			row := logStatusRow{
+				log:          log,
+				hasPR:        slices.Contains(section.CheckedBranches, log.Branch),
+				numberPrefix: prefix,
+				padding:      strings.Repeat(" ", len(prefix)),
+			}
+			if i == 0 {
+				row.sectionHeader = section.DirName
+			}
+			rows = append(rows, row)
 		}
 	}
 	return rows
@@ -364,8 +390,8 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 		generation++
 		program.Send(pollFetchStartMsg{})
 		// Refresh the full log data (new commits, new PRs, etc.)
-		logs, checkedBranches := refreshFunc()
-		rows = buildRows(logs, checkedBranches)
+		logs, checkedBranches, worktreeSections := refreshFunc()
+		rows = buildRows(logs, checkedBranches, worktreeSections)
 		program.Send(updateAllRowsMsg{rows: rows, generation: generation})
 	}
 }

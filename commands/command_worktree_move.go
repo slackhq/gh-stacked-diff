@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
@@ -14,28 +16,80 @@ func createWorktreeMoveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worktree-move [commitIndicator...]",
 		Short: "Cherry-pick commits from secondary worktree to main worktree",
-		Long: "Cherry-picks selected commits from the current secondary worktree\n" +
+		Long: "Cherry-picks selected commits from a secondary worktree\n" +
 			"to the main worktree. Useful for when you want to build from one\n" +
 			"directory with all of your changes.\n" +
 			"\n" +
-			"Must be run from a secondary worktree.",
+			"Can be run from a secondary worktree or the main worktree.\n" +
+			"When run from the main worktree, use --worktree to specify\n" +
+			"the source worktree, or select one interactively.",
 		Args: cobra.ArbitraryArgs,
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
+	var worktreeFlag string
+	cmd.Flags().StringVarP(&worktreeFlag, "worktree", "w", "", "Path or branch name of the secondary worktree to move commits from")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		worktreeMove(args, indicatorTypeString)
+		worktreeMove(args, indicatorTypeString, worktreeFlag)
 	}
 	return cmd
 }
 
-func worktreeMove(args []string, indicatorTypeString *string) {
-	if !gitutil.IsSecondaryWorktree() {
-		panic("Must be run from a secondary worktree")
+// resolveSecondaryWorktree determines which secondary worktree to use.
+// If already in a secondary worktree, returns empty string (use current directory).
+// Otherwise returns the path to the selected secondary worktree.
+func resolveSecondaryWorktree(worktreeFlag string) string {
+	if gitutil.IsSecondaryWorktree() {
+		return ""
 	}
+	worktrees := gitutil.GetSecondaryWorktrees()
+	if len(worktrees) == 0 {
+		panic("No secondary worktrees found")
+	}
+	if worktreeFlag != "" {
+		for _, wt := range worktrees {
+			if wt.Path == worktreeFlag || wt.Branch == worktreeFlag || filepath.Base(wt.Path) == worktreeFlag {
+				return wt.Path
+			}
+		}
+		panic("Worktree not found: " + worktreeFlag)
+	}
+	// Prompt user to select a worktree interactively.
+	if !interactive.InteractiveEnabled() {
+		panic("Not in a secondary worktree and cannot ask interactively because not a terminal. Use --worktree to specify the source worktree.")
+	}
+	options := make([]interactive.WorktreeOption, len(worktrees))
+	for i, wt := range worktrees {
+		options[i] = interactive.WorktreeOption{Branch: wt.Branch, Path: wt.Path}
+	}
+	selectedIndex, err := interactive.GetWorktreeSelection(options, "Which worktree do you want to move commits from?")
+	if err != nil {
+		panic(err.Error())
+	}
+	if selectedIndex < 0 {
+		util.GetAppConfig().Exit(0)
+	}
+	return worktrees[selectedIndex].Path
+}
+
+func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag string) {
+	secondaryPath := resolveSecondaryWorktree(worktreeFlag)
 	selectCommitOptions := interactive.CommitSelectionOptions{
 		Prompt:      "What commits do you want to move to the main worktree?",
 		CommitType:  interactive.CommitTypeBoth,
 		MultiSelect: true,
+	}
+	// If we need to operate from a different worktree, chdir there for commit selection.
+	if secondaryPath != "" {
+		originalDir, err := os.Getwd()
+		if err != nil {
+			panic("Failed to get current directory: " + err.Error())
+		}
+		if err := os.Chdir(secondaryPath); err != nil {
+			panic("Failed to change to worktree directory: " + err.Error())
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
 	}
 	selectedCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 	mainPath := gitutil.GetMainWorktreePath()

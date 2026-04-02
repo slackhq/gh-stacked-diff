@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -53,12 +54,17 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		panic("--status is only supported on the main branch")
 	}
+	userConfig := util.GetUserConfig()
+	var worktreeSections []interactive.WorktreeLogSection
 	logs, checkedBranches := getLogsAndBranches()
+	if userConfig.ShowWorktrees {
+		worktreeSections = getWorktreeSections(logs)
+	}
 	var pollInterval time.Duration
 	if poll {
-		pollInterval = util.GetUserConfig().PollInterval
+		pollInterval = userConfig.PollInterval
 	}
-	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranches)
+	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranchesWithWorktrees, worktreeSections)
 }
 
 // Prints changes in the current branch compared to the main branch to out.
@@ -74,6 +80,13 @@ func printGitLog() {
 		return
 	}
 	logs, checkedBranches := getLogsAndBranches()
+	printLogs(stdIo, logs, checkedBranches)
+	if util.GetUserConfig().ShowWorktrees {
+		printWorktreeLogs(stdIo, logs)
+	}
+}
+
+func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) {
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
@@ -94,6 +107,51 @@ func printGitLog() {
 	}
 }
 
+type worktreeInfo struct {
+	Path   string
+	Branch string
+}
+
+// Returns info about worktrees other than the current one.
+func getOtherWorktrees() []worktreeInfo {
+	worktreeList, err := util.Execute(util.ExecuteOptions{}, "git", "worktree", "list")
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
+	if len(lines) <= 1 {
+		return nil
+	}
+	currentRoot := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--show-toplevel")
+	var others []worktreeInfo
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		path := fields[0]
+		if path == currentRoot {
+			continue
+		}
+		branchField := fields[2]
+		if !strings.HasPrefix(branchField, "[") {
+			continue // detached HEAD or bare
+		}
+		branch := strings.Trim(branchField, "[]")
+		others = append(others, worktreeInfo{Path: path, Branch: branch})
+	}
+	return others
+}
+
+// Prints logs from other worktrees, excluding commits already in the current directory.
+func printWorktreeLogs(stdIo util.StdIo, currentLogs []templates.GitLog) {
+	for _, section := range getWorktreeSections(currentLogs) {
+		util.Fprintln(stdIo.Out, "")
+		util.Fprintln(stdIo.Out, color.New(color.Bold).Sprint(section.DirName))
+		printLogs(stdIo, section.Logs, section.CheckedBranches)
+	}
+}
+
 func getLogsAndBranches() ([]templates.GitLog, []string) {
 	logs := templates.GetNewCommits("HEAD")
 	gitBranchArgs := make([]string, 0, len(logs)+2)
@@ -103,4 +161,50 @@ func getLogsAndBranches() ([]templates.GitLog, []string) {
 	}
 	checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
 	return logs, checkedBranches
+}
+
+func getLogsAndBranchesWithWorktrees() ([]templates.GitLog, []string, []interactive.WorktreeLogSection) {
+	logs, checkedBranches := getLogsAndBranches()
+	worktreeSections := getWorktreeSections(logs)
+	return logs, checkedBranches, worktreeSections
+}
+
+func getWorktreeSections(currentLogs []templates.GitLog) []interactive.WorktreeLogSection {
+	otherWorktrees := getOtherWorktrees()
+	if len(otherWorktrees) == 0 {
+		return nil
+	}
+	currentSubjects := make(map[string]bool, len(currentLogs))
+	for _, log := range currentLogs {
+		currentSubjects[log.Subject] = true
+	}
+	var sections []interactive.WorktreeLogSection
+	for _, wt := range otherWorktrees {
+		wtLogs := templates.GetNewCommits(wt.Branch)
+		var uniqueLogs []templates.GitLog
+		for _, log := range wtLogs {
+			if !currentSubjects[log.Subject] {
+				uniqueLogs = append(uniqueLogs, log)
+			}
+		}
+		if len(uniqueLogs) == 0 {
+			continue
+		}
+		gitBranchArgs := make([]string, 0, len(uniqueLogs)+2)
+		gitBranchArgs = append(gitBranchArgs, "branch", "-l")
+		for _, log := range uniqueLogs {
+			gitBranchArgs = append(gitBranchArgs, log.Branch)
+		}
+		checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
+		dirName := filepath.Base(wt.Path)
+		if wt.Branch != dirName {
+			dirName += " (" + wt.Branch + ")"
+		}
+		sections = append(sections, interactive.WorktreeLogSection{
+			DirName:         dirName,
+			Logs:            uniqueLogs,
+			CheckedBranches: checkedBranches,
+		})
+	}
+	return sections
 }

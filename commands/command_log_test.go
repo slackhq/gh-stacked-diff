@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/fatih/color"
@@ -327,4 +328,113 @@ func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
 
 	assert.NotContains(out, "[open]")
 	assert.Contains(out, "[draft]")
+}
+
+func TestSdLog_WhenOtherWorktreeHasUniqueCommits_ShowsWorktreeCommits(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("main-commit", "")
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree with its own commit.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	testutil.AddCommit("secondary-commit", "secondary-file")
+
+	// Go back to main worktree.
+	if err := os.Chdir(mainPath); err != nil {
+		t.Fatal(err)
+	}
+	gitutil.ResetCacheForTesting()
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "main-commit")
+	assert.Contains(out, "secondary-commit")
+	assert.Contains(out, "secondary-worktree (secondary-branch)")
+}
+
+func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("main-commit", "")
+	testParseArguments("new", "1")
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree with its own commit.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	testutil.AddCommit("secondary-commit", "secondary-file")
+
+	// Go back to main worktree.
+	if err := os.Chdir(mainPath); err != nil {
+		t.Fatal(err)
+	}
+	gitutil.ResetCacheForTesting()
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "main-commit")
+	assert.Contains(out, "secondary-commit")
+	assert.Contains(out, "secondary-worktree (secondary-branch)")
+}
+
+func TestSdLog_WhenOtherWorktreeHasOnlySharedCommits_DoesNotShowWorktreeSection(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("shared-commit", "")
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree that has the same commits as main (no unique ones).
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+
+	gitutil.ResetCacheForTesting()
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "shared-commit")
+	assert.NotContains(out, "secondary-worktree")
 }

@@ -96,7 +96,8 @@ func createNewCommand() *cobra.Command {
 		if ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
 			ticketUrlPattern = interactive.PromptForStringOrDie(
 				"Ticket URL pattern (use {TicketNumber} as placeholder):",
-				nil,
+				util.ExampleTicketUrlPattern,
+				[]string{util.ExampleTicketUrlPattern},
 			)
 			util.SaveTicketUrlPattern(ticketUrlPattern)
 		}

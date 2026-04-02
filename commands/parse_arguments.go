@@ -84,19 +84,22 @@ func buildRootCommand() *cobra.Command {
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
 			"   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)\n"+
 			"   ticketUrlPattern=<url> URL pattern for tickets, e.g.\n"+
-			"                          https://jira.example.com/browse/{TicketNumber}\n"+
+			"                          "+util.ExampleTicketUrlPattern+"\n"+
 			"   worktreeMainBranchGuard=path|none (default: path)\n"+
 			"      What to consider the \"main\" branch when in a worktree, to guard\n"+
 			"      against incorrect use:\n"+
 			"         path: worktree directory name\n"+
 			"         none: current branch\n"+
+			"   showWorktrees=true|false (default: true)\n"+
+			"      Whether to show worktrees in log command\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
 			"   pollInterval: 1m\n"+
-			"   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}\n"+
-			"   worktreeMainBranchGuard: path")
+			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
+			"   worktreeMainBranchGuard: path\n"+
+			"   showWorktrees: true")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

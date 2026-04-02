@@ -80,13 +80,13 @@ func TestNewUserConfig_TicketUrlPatternDefault(t *testing.T) {
 }
 
 func TestNewUserConfig_TicketUrlPatternFromFlag(t *testing.T) {
-	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"ticketUrlPattern": "https://jira.example.com/browse/{TicketNumber}"})
-	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"ticketUrlPattern": util.ExampleTicketUrlPattern})
+	assert.Equal(t, util.ExampleTicketUrlPattern, config.TicketUrlPattern)
 }
 
 func TestNewUserConfig_TicketUrlPatternFromFile(t *testing.T) {
-	config := util.NewUserConfig(util.YamlConfig{TicketUrlPattern: "https://jira.example.com/browse/{TicketNumber}"}, nil)
-	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+	config := util.NewUserConfig(util.YamlConfig{TicketUrlPattern: util.ExampleTicketUrlPattern}, nil)
+	assert.Equal(t, util.ExampleTicketUrlPattern, config.TicketUrlPattern)
 }
 
 func TestNewUserConfig_TicketUrlPatternFlagOverridesFile(t *testing.T) {
@@ -123,5 +123,36 @@ func TestNewUserConfig_WorktreeMainBranchGuardFlagOverridesFile(t *testing.T) {
 func TestNewUserConfig_WorktreeMainBranchGuardInvalidValue(t *testing.T) {
 	assert.PanicsWithValue(t, "invalid worktreeMainBranchGuard value: invalid", func() {
 		util.NewUserConfig(util.YamlConfig{}, map[string]string{"worktreeMainBranchGuard": "invalid"})
+	})
+}
+
+func TestNewUserConfig_ShowWorktreesDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, true, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"showWorktrees": "false"})
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFromFile(t *testing.T) {
+	showWorktrees := false
+	config := util.NewUserConfig(util.YamlConfig{ShowWorktrees: &showWorktrees}, nil)
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesFlagOverridesFile(t *testing.T) {
+	showWorktrees := true
+	config := util.NewUserConfig(
+		util.YamlConfig{ShowWorktrees: &showWorktrees},
+		map[string]string{"showWorktrees": "false"},
+	)
+	assert.Equal(t, false, config.ShowWorktrees)
+}
+
+func TestNewUserConfig_ShowWorktreesInvalidValue(t *testing.T) {
+	assert.PanicsWithValue(t, "invalid showWorktrees value: invalid (must be true or false)", func() {
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"showWorktrees": "invalid"})
 	})
 }

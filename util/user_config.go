@@ -13,6 +13,9 @@ import (
 
 const DefaultPollInterval = 30 * time.Second
 
+// ExampleTicketUrlPattern is the example ticket URL pattern shown in help text, prompts, and tests.
+const ExampleTicketUrlPattern = "https://jira.example.com/browse/{TicketNumber}"
+
 // PromptForReviewType controls whether and how the user is prompted to mark a PR as ready for review.
 type PromptForReviewType string
 
@@ -52,6 +55,7 @@ type UserConfig struct {
 	PollInterval            time.Duration
 	TicketUrlPattern        string
 	WorktreeMainBranchGuard WorktreeMainBranchGuardType
+	ShowWorktrees           bool
 }
 
 type YamlConfig struct {
@@ -59,6 +63,7 @@ type YamlConfig struct {
 	PollInterval            string                      `yaml:"pollInterval,omitempty"`
 	TicketUrlPattern        string                      `yaml:"ticketUrlPattern,omitempty"`
 	WorktreeMainBranchGuard WorktreeMainBranchGuardType `yaml:"worktreeMainBranchGuard,omitempty"`
+	ShowWorktrees           *bool                       `yaml:"showWorktrees,omitempty"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -76,7 +81,7 @@ func LoadUserConfigFile() YamlConfig {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&cfg); err != nil {
-		panic(fmt.Sprint("Could not parse config file: ", err))
+		panic(fmt.Sprint("Could not parse config file (", configFile, "): ", err))
 	}
 	if cfg.PromptForReview != "" && !cfg.PromptForReview.IsValid() {
 		panic("invalid promptForReview value in config file: " + string(cfg.PromptForReview))
@@ -94,7 +99,7 @@ func LoadUserConfigFile() YamlConfig {
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
 func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
-	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath}
+	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath, ShowWorktrees: true}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
 	}
@@ -107,6 +112,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 	}
 	if fileConfig.WorktreeMainBranchGuard != "" {
 		config.WorktreeMainBranchGuard = fileConfig.WorktreeMainBranchGuard
+	}
+	if fileConfig.ShowWorktrees != nil {
+		config.ShowWorktrees = *fileConfig.ShowWorktrees
 	}
 	for key, value := range flagValues {
 		switch key {
@@ -130,6 +138,15 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 				panic("invalid worktreeMainBranchGuard value: " + value)
 			}
 			config.WorktreeMainBranchGuard = v
+		case "showWorktrees":
+			switch value {
+			case "true":
+				config.ShowWorktrees = true
+			case "false":
+				config.ShowWorktrees = false
+			default:
+				panic("invalid showWorktrees value: " + value + " (must be true or false)")
+			}
 		default:
 			panic("unknown --config key: " + key)
 		}
