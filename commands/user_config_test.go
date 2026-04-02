@@ -80,13 +80,13 @@ func TestNewUserConfig_TicketUrlPatternDefault(t *testing.T) {
 }
 
 func TestNewUserConfig_TicketUrlPatternFromFlag(t *testing.T) {
-	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"ticketUrlPattern": "https://jira.example.com/browse/{TicketNumber}"})
-	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"ticketUrlPattern": util.ExampleTicketUrlPattern})
+	assert.Equal(t, util.ExampleTicketUrlPattern, config.TicketUrlPattern)
 }
 
 func TestNewUserConfig_TicketUrlPatternFromFile(t *testing.T) {
-	config := util.NewUserConfig(util.YamlConfig{TicketUrlPattern: "https://jira.example.com/browse/{TicketNumber}"}, nil)
-	assert.Equal(t, "https://jira.example.com/browse/{TicketNumber}", config.TicketUrlPattern)
+	config := util.NewUserConfig(util.YamlConfig{TicketUrlPattern: util.ExampleTicketUrlPattern}, nil)
+	assert.Equal(t, util.ExampleTicketUrlPattern, config.TicketUrlPattern)
 }
 
 func TestNewUserConfig_TicketUrlPatternFlagOverridesFile(t *testing.T) {

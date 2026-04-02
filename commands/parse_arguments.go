@@ -84,7 +84,7 @@ func buildRootCommand() *cobra.Command {
 			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
 			"   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)\n"+
 			"   ticketUrlPattern=<url> URL pattern for tickets, e.g.\n"+
-			"                          https://jira.example.com/browse/{TicketNumber}\n"+
+			"                          "+util.ExampleTicketUrlPattern+"\n"+
 			"   worktreeMainBranchGuard=path|none (default: path)\n"+
 			"      What to consider the \"main\" branch when in a worktree, to guard\n"+
 			"      against incorrect use:\n"+
@@ -95,7 +95,7 @@ func buildRootCommand() *cobra.Command {
 			"Equivalent config.yaml:\n"+
 			"   promptForReview: promptY\n"+
 			"   pollInterval: 1m\n"+
-			"   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}\n"+
+			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
 			"   worktreeMainBranchGuard: path")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 

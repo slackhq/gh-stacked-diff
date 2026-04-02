@@ -30,6 +30,9 @@ func (m stringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmed = true
 			return m, tea.Quit
 		}
+	case tea.WindowSizeMsg:
+		// Leave room for the prompt prefix on the same line.
+		m.textInput.Width = msg.Width - len(m.prompt) - 2
 	}
 	var cmd tea.Cmd
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -48,11 +51,11 @@ func (m stringModel) View() string {
 		"   esc       quit\n"
 }
 
-func PromptForString(prompt string, suggestions []string) string {
+func PromptForString(prompt string, placeholder string, suggestions []string) string {
 	appConfig := util.GetAppConfig()
 	input := textinput.New()
 	input.Focus()
-	input.Width = 30
+	input.Placeholder = placeholder
 	input.ShowSuggestions = true
 	input.SetSuggestions(suggestions)
 	initialModel := stringModel{
@@ -67,8 +70,8 @@ func PromptForString(prompt string, suggestions []string) string {
 	}
 }
 
-func PromptForStringOrDie(prompt string, suggestions []string) string {
-	result := PromptForString(prompt, suggestions)
+func PromptForStringOrDie(prompt string, placeholder string, suggestions []string) string {
+	result := PromptForString(prompt, placeholder, suggestions)
 	if result == "" {
 		util.GetAppConfig().Exit(0)
 	}

@@ -13,6 +13,9 @@ import (
 
 const DefaultPollInterval = 30 * time.Second
 
+// ExampleTicketUrlPattern is the example ticket URL pattern shown in help text, prompts, and tests.
+const ExampleTicketUrlPattern = "https://jira.example.com/browse/{TicketNumber}"
+
 // PromptForReviewType controls whether and how the user is prompted to mark a PR as ready for review.
 type PromptForReviewType string
 
