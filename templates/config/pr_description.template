@@ -24,6 +24,6 @@
 
 -->
 
-#### Ticket: [{{.TicketNumber}}](https://jira.slackhq.com/browse/{{.TicketNumber}})
+#### Ticket: [{{.TicketNumber}}]({{.TicketUrlPattern}})
 
 #### Feature flag(s): `{{.FeatureFlag}}`
