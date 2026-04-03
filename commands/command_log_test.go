@@ -362,18 +362,13 @@ func TestSdLog_WhenOtherWorktreeHasUniqueCommits_ShowsWorktreeCommits(t *testing
 		t.Fatal(err)
 	}
 
-	// Create a secondary worktree with its own commit.
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
-	t.Cleanup(func() {
-		_ = os.Chdir(mainPath)
-		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
-	})
+	// Create a secondary worktree (automatically creates branch "secondary-worktree").
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree")
 
 	if err := os.Chdir("../secondary-worktree"); err != nil {
 		t.Fatal(err)
 	}
-	testutil.AddCommit("secondary-commit", "secondary-file")
+	testutil.AddCommit("secondary-commit", "")
 
 	// Go back to main worktree.
 	if err := os.Chdir(mainPath); err != nil {
@@ -385,7 +380,7 @@ func TestSdLog_WhenOtherWorktreeHasUniqueCommits_ShowsWorktreeCommits(t *testing
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
-	assert.Contains(out, "secondary-worktree (secondary-branch)")
+	assert.Contains(out, "secondary-worktree")
 }
 
 func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T) {
@@ -400,18 +395,13 @@ func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T)
 		t.Fatal(err)
 	}
 
-	// Create a secondary worktree with its own commit.
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
-	t.Cleanup(func() {
-		_ = os.Chdir(mainPath)
-		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
-	})
+	// Create a secondary worktree (automatically creates branch "secondary-worktree").
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree")
 
 	if err := os.Chdir("../secondary-worktree"); err != nil {
 		t.Fatal(err)
 	}
-	testutil.AddCommit("secondary-commit", "secondary-file")
+	testutil.AddCommit("secondary-commit", "")
 
 	// Go back to main worktree.
 	if err := os.Chdir(mainPath); err != nil {
@@ -430,7 +420,47 @@ func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T)
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
-	assert.Contains(out, "secondary-worktree (secondary-branch)")
+	assert.Contains(out, "secondary-worktree")
+}
+
+func TestSdLog_WhenOtherWorktreeCommitHasBranch_ShowsCheckAndBranchCommits(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("main-commit", "")
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a secondary worktree (automatically creates branch "secondary-worktree").
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree")
+
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	testutil.AddCommit("secondary-commit", "")
+
+	// Create a PR for the worktree commit.
+	testParseArguments("new", "1")
+
+	testutil.AddCommit("extra-on-branch", "")
+	testParseArguments("update", "2", "1")
+
+	// Go back to main worktree.
+	if err := os.Chdir(mainPath); err != nil {
+		t.Fatal(err)
+	}
+	gitutil.ResetCacheForTesting()
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "main-commit")
+	assert.Contains(out, "secondary-commit")
+	assert.Contains(out, "✅")
+	assert.Contains(out, "extra-on-branch")
+	assert.Contains(out, "secondary-worktree")
 }
 
 func TestSdLog_WhenOtherWorktreeHasOnlySharedCommits_DoesNotShowWorktreeSection(t *testing.T) {
@@ -439,18 +469,8 @@ func TestSdLog_WhenOtherWorktreeHasOnlySharedCommits_DoesNotShowWorktreeSection(
 
 	testutil.AddCommit("shared-commit", "")
 
-	mainPath, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Create a secondary worktree that has the same commits as main (no unique ones).
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "secondary-branch")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree", "secondary-branch")
-	t.Cleanup(func() {
-		_ = os.Chdir(mainPath)
-		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
-	})
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree")
 
 	gitutil.ResetCacheForTesting()
 

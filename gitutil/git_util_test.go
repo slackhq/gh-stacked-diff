@@ -21,11 +21,7 @@ func TestGetSecondaryWorktreeBranch_WhenNoWorktrees_ReturnsEmpty(t *testing.T) {
 func TestGetSecondaryWorktreeBranch_WhenInMainWorktree_ReturnsEmpty(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "feature-branch")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../feature-worktree", "feature-branch")
-	t.Cleanup(func() {
-		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../feature-worktree")
-	})
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../feature-worktree")
 
 	result := getSecondaryWorktreeBranch()
 
@@ -44,16 +40,11 @@ func TestGetSecondaryWorktreeBranch_WhenInSecondaryWorktree_ReturnsBranch(t *tes
 func TestGetSecondaryWorktreeBranch_WhenInSecondaryWorktree_ReturnsLastPathComponent(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "my-branch")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../my-custom-dir", "my-branch")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../my-custom-dir")
 
 	if err := os.Chdir("../my-custom-dir"); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		_ = os.Chdir(t.TempDir())
-	})
-
 	result := getSecondaryWorktreeBranch()
 
 	assert.Equal(t, "my-custom-dir", result)
