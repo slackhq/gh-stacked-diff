@@ -77,7 +77,7 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 		AppExecutable: appExecutable,
 		Exit:          panicOnExit,
 		UserCacheDir:  getTestAppCacheDir(),
-		ConfigHome:    getTestConfigHome(),
+		ConfigHome:    getTestConfigHome(t),
 		DemoMode:      false,
 	}
 	util.SetAppConfig(appConfig)
@@ -86,7 +86,7 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 	return testExecutor
 }
 
-func getTestConfigHome() string {
+func getTestConfigHome(t *testing.T) string {
 	wd, err := os.Getwd()
 	if err != nil {
 		panic("cannot get wd: " + err.Error())
@@ -95,13 +95,13 @@ func getTestConfigHome() string {
 	configHome := filepath.Join(parentDir, ".gh-stacked-diff")
 	// nolint:errcheck
 	os.Mkdir(configHome, os.ModePerm)
-	// Write a default config.yaml so that tests don't trigger interactive
-	// prompts for ticketUrlPattern.
 	configFile := filepath.Join(configHome, "config.yaml")
-	if _, statErr := os.Stat(configFile); os.IsNotExist(statErr) {
+	// nolint:errcheck
+	os.Remove(configFile)
+	t.Cleanup(func() {
 		// nolint:errcheck
-		os.WriteFile(configFile, []byte("ticketUrlPattern: https://example.com/browse/{TicketNumber}\n"), 0644)
-	}
+		os.Remove(configFile)
+	})
 	return configHome
 }
 

@@ -92,7 +92,7 @@ func TestSdUpdate_OnExistingRoot_UpdatesPr(t *testing.T) {
 	assert.Equal("first", allCommitsOnBranch[2].Subject)
 	assert.Equal(testutil.InitialCommitSubject, allCommitsOnBranch[3].Subject)
 
-	newCommitsOnBranch := templates.GetNewCommits("HEAD")
+	newCommitsOnBranch := templates.GetNewCommits("HEAD", "")
 
 	assert.Equal(2, len(newCommitsOnBranch))
 	assert.Equal(newCommitsOnBranch[0].Subject, "fourth")

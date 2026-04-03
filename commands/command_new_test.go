@@ -30,12 +30,12 @@ func TestSdNew_OnRepoWithPreviousCommit_CreatesPr(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	testutil.AddCommit("second", "")
-	allCommits := templates.GetNewCommits("HEAD")
+	allCommits := templates.GetNewCommits("HEAD", "")
 
 	testParseArguments("new", "1")
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", allCommits[0].Branch)
-	commitsOnNewBranch := templates.GetNewCommits("HEAD")
+	commitsOnNewBranch := templates.GetNewCommits("HEAD", "")
 	assert.Equal(1, len(commitsOnNewBranch))
 	assert.Equal(allCommits[0].Subject, commitsOnNewBranch[0].Subject)
 }
@@ -50,12 +50,12 @@ func TestSdNew_WithMiddleCommit_CreatesPr(t *testing.T) {
 	testutil.AddCommit("second", "")
 
 	testutil.AddCommit("third", "")
-	allCommits := templates.GetNewCommits("HEAD")
+	allCommits := templates.GetNewCommits("HEAD", "")
 
 	testParseArguments("new", "1")
 
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", allCommits[0].Branch)
-	commitsOnNewBranch := templates.GetNewCommits("HEAD")
+	commitsOnNewBranch := templates.GetNewCommits("HEAD", "")
 	assert.Equal(1, len(commitsOnNewBranch))
 	assert.Equal(allCommits[0].Subject, commitsOnNewBranch[0].Subject)
 }

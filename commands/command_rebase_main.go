@@ -48,7 +48,7 @@ func rebaseMain() {
 	slog.Info("Getting closed branches from Github...")
 	closedBranches := getClosedBranches()
 
-	localLogs := templates.GetNewCommits("HEAD")
+	localLogs := templates.GetNewCommits("HEAD", "")
 	mergedCommits := getDropCommits(localLogs, mergedBranches)
 	slog.Debug(fmt.Sprint("mergedBranches ", mergedBranches, " mergedCommits ", mergedCommits))
 

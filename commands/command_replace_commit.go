@@ -82,7 +82,7 @@ func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCh
 		slog.Info(fmt.Sprint("Cherry picking commits back on top ", commitsAfter))
 		cherryPickErr := func() (r any) {
 			defer func() { r = recover() }()
-			gitutil.CherryPickAndSkipAllEmpty(commitsAfter)
+			gitutil.CherryPickAndSkipAllEmpty("", commitsAfter)
 			return nil
 		}()
 		if cherryPickErr != nil {

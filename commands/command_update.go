@@ -134,7 +134,7 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 // and commitsToCherryPick. GetNewCommits returns newest-first, so the highest
 // index is the oldest commit.
 func earliestCommit(destCommit templates.GitLog, commitsToCherryPick []templates.GitLog) string {
-	newCommits := templates.GetNewCommits("HEAD")
+	newCommits := templates.GetNewCommits("HEAD", "")
 	earliest := destCommit.Commit
 	earliestIdx := slices.IndexFunc(newCommits, func(gl templates.GitLog) bool {
 		return gl.Commit == destCommit.Commit
