@@ -47,7 +47,7 @@ func resolveSecondaryWorktree(worktreeFlag string) string {
 	}
 	if worktreeFlag != "" {
 		for _, wt := range worktrees {
-			if wt.Path == worktreeFlag || wt.Branch == worktreeFlag || filepath.Base(wt.Path) == worktreeFlag {
+			if wt.Path == worktreeFlag || wt.BranchOrCommit == worktreeFlag || filepath.Base(wt.Path) == worktreeFlag {
 				return wt.Path
 			}
 		}
@@ -59,7 +59,7 @@ func resolveSecondaryWorktree(worktreeFlag string) string {
 	}
 	options := make([]interactive.WorktreeOption, len(worktrees))
 	for i, wt := range worktrees {
-		options[i] = interactive.WorktreeOption{Branch: wt.Branch, Path: wt.Path}
+		options[i] = interactive.WorktreeOption{Branch: wt.BranchOrCommit, Path: wt.Path}
 	}
 	selectedIndex, err := interactive.GetWorktreeSelection(options, "Which worktree do you want to move commits from?")
 	if err != nil {

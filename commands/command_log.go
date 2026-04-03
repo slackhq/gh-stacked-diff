@@ -156,7 +156,7 @@ func getWorktreeSections(currentLogs []templates.GitLog) []interactive.WorktreeL
 	}
 	var sections []interactive.WorktreeLogSection
 	for _, wt := range otherWorktrees {
-		wtLogs := templates.GetNewCommits(wt.Branch, "")
+		wtLogs := templates.GetNewCommits(wt.BranchOrCommit, "")
 		var uniqueLogs []templates.GitLog
 		for _, log := range wtLogs {
 			if !currentSubjects[log.Subject] {
@@ -173,8 +173,8 @@ func getWorktreeSections(currentLogs []templates.GitLog) []interactive.WorktreeL
 		}
 		checkedBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitBranchArgs...))
 		dirName := filepath.Base(wt.Path)
-		if wt.Branch != dirName {
-			dirName += " (" + wt.Branch + ")"
+		if wt.BranchOrCommit != dirName {
+			dirName += " (" + wt.BranchOrCommit + ")"
 		}
 		sections = append(sections, interactive.WorktreeLogSection{
 			DirName:         dirName,

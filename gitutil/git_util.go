@@ -24,6 +24,10 @@ var remoteMainBranchOnce *sync.Once = new(sync.Once)
 var localMainBranch string
 var localMainBranchOnce *sync.Once = new(sync.Once)
 
+// Cached worktrees.
+var cachedWorktrees []WorktreeInfo
+var cachedWorktreesOnce *sync.Once = new(sync.Once)
+
 // Returns name of the remote main branch (e.g. "main" or "master"), as determined
 // from origin/HEAD. Returns an error if it cannot be determined.
 // The result is cached after the first successful call.
@@ -127,35 +131,35 @@ func IsSecondaryWorktree() bool {
 	return getSecondaryWorktreeBranch() != ""
 }
 
-// WorktreeInfo holds the path and branch name of a git worktree.
+// WorktreeInfo holds the path and branch name (or commit hash for detached HEAD) of a git worktree.
 type WorktreeInfo struct {
-	Path   string
-	Branch string
+	Path           string
+	BranchOrCommit string
 }
 
 // GetWorktrees returns all worktrees. The first entry (index 0) is always the
 // main worktree. Panics if git worktree list fails.
-// Worktrees on a detached HEAD are skipped with a warning.
+// For worktrees on a detached HEAD, BranchOrCommit is set to the commit hash.
 func GetWorktrees() []WorktreeInfo {
-	worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
-	lines := strings.Split(worktreeList, "\n")
-	var worktrees []WorktreeInfo
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
+	cachedWorktreesOnce.Do(func() {
+		worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
+		lines := strings.Split(worktreeList, "\n")
+		for _, line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) < 3 {
+				continue
+			}
+			path := fields[0]
+			branchOrCommit := fields[1] // commit hash
+			// Branch is in brackets, e.g. "[secondary-branch]"
+			branchField := fields[2]
+			if strings.HasPrefix(branchField, "[") {
+				branchOrCommit = strings.Trim(branchField, "[]")
+			}
+			cachedWorktrees = append(cachedWorktrees, WorktreeInfo{Path: path, BranchOrCommit: branchOrCommit})
 		}
-		path := fields[0]
-		// Branch is in brackets, e.g. "[secondary-branch]"
-		branchField := fields[2]
-		if !strings.HasPrefix(branchField, "[") {
-			slog.Warn(fmt.Sprint("Skipping worktree on detached head ", path))
-			continue
-		}
-		branch := strings.Trim(branchField, "[]")
-		worktrees = append(worktrees, WorktreeInfo{Path: path, Branch: branch})
-	}
-	return worktrees
+	})
+	return cachedWorktrees
 }
 
 // GetSecondaryWorktrees returns all secondary worktrees (excludes the main worktree).

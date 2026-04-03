@@ -19,6 +19,8 @@ func ResetCacheForTesting() {
 	remoteMainBranchOnce = new(sync.Once)
 	localMainBranch = ""
 	localMainBranchOnce = new(sync.Once)
+	cachedWorktrees = nil
+	cachedWorktreesOnce = new(sync.Once)
 	mainBranchNameForHelp = ""
 	userEmail = ""
 }
