@@ -134,14 +134,11 @@ type WorktreeInfo struct {
 }
 
 // GetWorktrees returns all worktrees. The first entry (index 0) is always the
-// main worktree. Returns nil if git worktree list fails or there are no worktrees.
+// main worktree. Panics if git worktree list fails.
 // Worktrees on a detached HEAD are skipped with a warning.
 func GetWorktrees() []WorktreeInfo {
-	worktreeList, err := util.Execute(util.ExecuteOptions{}, "git", "worktree", "list")
-	if err != nil {
-		return nil
-	}
-	lines := strings.Split(strings.TrimSpace(worktreeList), "\n")
+	worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
+	lines := strings.Split(worktreeList, "\n")
 	var worktrees []WorktreeInfo
 	for _, line := range lines {
 		fields := strings.Fields(line)
