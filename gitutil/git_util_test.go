@@ -60,6 +60,20 @@ func TestGetSecondaryWorktreeBranch_WhenGuardNone_ReturnsBranchName(t *testing.T
 	assert.Equal(t, "secondary-branch", result)
 }
 
+func TestGetWorktrees_WhenDetachedHead_IncludesCommitHash(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	// Create a worktree in detached HEAD state.
+	commitHash := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--short", "HEAD")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "--detach", "../detached-worktree")
+
+	worktrees := GetWorktrees()
+
+	assert.Equal(2, len(worktrees))
+	assert.Equal(commitHash, worktrees[1].BranchOrCommit)
+}
+
 func TestGetMainWorktreePath_ReturnsMainWorktreePath(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 	mainPath := testutil.SetupSecondaryWorktree(t)
