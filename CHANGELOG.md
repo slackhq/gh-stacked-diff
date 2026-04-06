@@ -2,6 +2,14 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.0...v2.1.1) - 2026-04-06
+
+### Added 
+
+- `git worktrees` are now supported. You can `sd update` and `sd new` from secondary git worktrees, so you don't have to be on the main branch. 
+- `git worktree-move` moves a commit from one of your secondary git worktrees to your main worktree. Useful for when you want to build from one directory with all of your changes.
+- You can now customize the **ticket URL pattern** to use when creating PR descriptions. When you include a Ticket number at the beginning of your commit message, you will be prompted for the ticketUrlPattern.
+
 ## [2.1.0](https://github.com/slackhq/gh-stacked-diff/compare/v2.0.12...v2.1.0) - 2026-03-23
 
 ### Added
