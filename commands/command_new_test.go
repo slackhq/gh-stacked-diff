@@ -548,7 +548,7 @@ func TestSdNew_WithTicketUrlPattern_ReplacesTicketNumberInPrDescription(t *testi
 
 	testutil.AddCommit("CONV-1234 Add new feature", "")
 
-	testParseArguments("--config", "ticketUrlPattern=https://jira.example.com/browse/{TicketNumber}", "new", "1")
+	testParseArguments("--config", "ticketUrlPattern=https://jira.mycompany.com/browse/{TicketNumber}/description", "new", "1")
 
 	// Find the gh pr create call and verify the --body contains the resolved ticket URL.
 	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
@@ -556,7 +556,7 @@ func TestSdNew_WithTicketUrlPattern_ReplacesTicketNumberInPrDescription(t *testi
 	bodyIndex := slices.Index(prCreateCall.Args, "--body")
 	assert.Greater(bodyIndex, -1, "expected --body flag in gh pr create args")
 	body := prCreateCall.Args[bodyIndex+1]
-	assert.Contains(body, "https://jira.example.com/browse/CONV-1234", "ticket URL pattern should have {TicketNumber} replaced with actual ticket number")
+	assert.Contains(body, "https://jira.mycompany.com/browse/CONV-1234/description", "ticket URL pattern should have {TicketNumber} replaced with actual ticket number")
 	assert.Contains(body, "[CONV-1234]", "PR description should contain the ticket number as link text")
 	assert.NotContains(body, "{TicketNumber}", "PR description should not contain unreplaced {TicketNumber} placeholder")
 }
