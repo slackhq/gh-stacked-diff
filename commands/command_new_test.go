@@ -541,6 +541,35 @@ func TestSdNew_WhenRemoteBranchUpdatedConcurrently_ForceWithLeaseRejectsThePush(
 	assert.Fail("Expected push to fail due to --force-with-lease rejection")
 }
 
+func TestSdNew_WithTicketUrlPattern_ReplacesTicketNumberInPrDescription(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("CONV-1234 Add new feature", "")
+
+	testParseArguments("--config", "ticketUrlPattern=https://jira.example.com/browse/{TicketNumber}", "new", "1")
+
+	// Find the gh pr create call and verify the --body contains the resolved ticket URL.
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+	bodyIndex := slices.Index(prCreateCall.Args, "--body")
+	assert.Greater(bodyIndex, -1, "expected --body flag in gh pr create args")
+	body := prCreateCall.Args[bodyIndex+1]
+	assert.Contains(body, "https://jira.example.com/browse/CONV-1234", "ticket URL pattern should have {TicketNumber} replaced with actual ticket number")
+	assert.Contains(body, "[CONV-1234]", "PR description should contain the ticket number as link text")
+	assert.NotContains(body, "{TicketNumber}", "PR description should not contain unreplaced {TicketNumber} placeholder")
+}
+
+func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedResponse, bool) {
+	for _, r := range responses {
+		if r.ProgramName == "gh" && len(r.Args) >= 2 && r.Args[0] == "pr" && r.Args[1] == "create" {
+			return r, true
+		}
+	}
+	return util.ExecutedResponse{}, false
+}
+
 func TestSdNew_WhenNoDraft_NoReadyPromptShown(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
