@@ -14,12 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	onCherryPickErrorPrompt   = "prompt"
-	onCherryPickErrorRollback = "rollback"
-	onCherryPickErrorExit     = "exit"
-)
-
 func createReplaceCommitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace-commit [commitIndicator]",
@@ -62,7 +56,6 @@ func replaceCommit(onCherryPickError string, targetCommit templates.GitLog) {
 
 // Replaces commit gitLog.Commit with the contents of branch gitLog.Branch.
 func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCherryPickError string, gitLog templates.GitLog) {
-	appConfig := util.GetAppConfig()
 	rollbackCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H")
 	commitsAfter := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "log", gitLog.Commit+"..HEAD", "--pretty=format:%h"))
 	slices.Reverse(commitsAfter)
@@ -80,30 +73,18 @@ func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCh
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "--no-verify", "-m", strings.TrimSpace(commitSummary))
 	if len(commitsAfter) != 0 {
 		slog.Info(fmt.Sprint("Cherry picking commits back on top ", commitsAfter))
-		cherryPickErr := func() (r any) {
-			defer func() { r = recover() }()
-			gitutil.CherryPickAndSkipAllEmpty("", commitsAfter)
-			return nil
-		}()
-		if cherryPickErr != nil {
-			util.Fprintln(appConfig.Io.Out, fmt.Sprint("Cherry-pick failed: ", cherryPickErr))
-			shouldRollback := onCherryPickError == onCherryPickErrorRollback ||
-				(onCherryPickError == onCherryPickErrorPrompt && interactive.Confirm("Rollback all changes?", true))
-			if shouldRollback {
-				panic(cherryPickErr)
-			}
-			util.Fprintln(appConfig.Io.Out, "To resolve manually:")
-			util.Fprintln(appConfig.Io.Out, "  1. Fix the conflicts")
-			util.Fprintln(appConfig.Io.Out, "  2. git add <resolved files>")
-			util.Fprintln(appConfig.Io.Out, "  3. git cherry-pick --continue")
-			util.Fprintln(appConfig.Io.Out, "  Repeat steps 1-3 until cherry-pick is complete.")
-			util.Fprintln(appConfig.Io.Out, "  4. git stash pop (if you had stashed changes)")
-			util.Fprintln(appConfig.Io.Out, "To abort:")
-			util.Fprintln(appConfig.Io.Out, "  1. git cherry-pick --abort")
-			util.Fprintln(appConfig.Io.Out, "  2. git reset --hard "+rollbackCommit)
-			util.Fprintln(appConfig.Io.Out, "  3. git stash pop (if you had stashed changes)")
-			rollbackManager.SkipRestore()
-			appConfig.Exit(0)
-		}
+		cherryPickWithRecovery("", commitsAfter, cherryPickRecoveryOptions{
+			OnCherryPickError: onCherryPickError,
+			AdditionalResolveSteps: []string{
+				"  4. git stash pop (if you had stashed changes)",
+			},
+			AdditionalAbortSteps: []string{
+				"  2. git reset --hard " + rollbackCommit,
+				"  3. git stash pop (if you had stashed changes)",
+			},
+			OnContinueManually: func() {
+				rollbackManager.SkipRestore()
+			},
+		})
 	}
 }

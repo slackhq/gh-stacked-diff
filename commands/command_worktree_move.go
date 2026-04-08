@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
@@ -94,6 +95,16 @@ func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag strin
 	for i, commit := range selectedCommits {
 		commits[i] = commit.Commit
 	}
-	gitutil.CherryPickAndSkipAllEmpty(mainPath, commits)
+	cherryPickWithRecovery(mainPath, commits, cherryPickRecoveryOptions{
+		OnRollback: func() {
+			util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(mainPath, "cherry-pick", "--abort")...)
+		},
+		OnContinueManually: func() {
+			if err := os.Chdir(mainPath); err != nil {
+				panic(err)
+			}
+			slog.Info(fmt.Sprint("Changed directory to main worktree: ", mainPath))
+		},
+	})
 	slog.Info(fmt.Sprint("Successfully cherry-picked ", len(selectedCommits), " commit(s) onto ", mainBranch))
 }
