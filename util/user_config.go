@@ -13,6 +13,9 @@ import (
 
 const DefaultPollInterval = 30 * time.Second
 
+// MaxUiLegendShownCount is the number of times the UI legend is shown before it auto-disables.
+const MaxUiLegendShownCount = 3
+
 // ExampleTicketUrlPattern is the example ticket URL pattern shown in help text, prompts, and tests.
 const ExampleTicketUrlPattern = "https://jira.example.com/browse/{TicketNumber}"
 
@@ -100,7 +103,8 @@ func LoadUserConfigFile() YamlConfig {
 }
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
-func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
+// uiLegendShownCount is the number of times the UI legend has been shown (from metrics.yaml).
+func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, uiLegendShownCount int) UserConfig {
 	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath, ShowWorktrees: true, ShowUiLegend: true}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
@@ -120,6 +124,8 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 	}
 	if fileConfig.ShowUiLegend != nil {
 		config.ShowUiLegend = *fileConfig.ShowUiLegend
+	} else if uiLegendShownCount >= MaxUiLegendShownCount {
+		config.ShowUiLegend = false
 	}
 	for key, value := range flagValues {
 		switch key {
