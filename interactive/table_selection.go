@@ -152,7 +152,15 @@ func (m CommitSelector) View() string {
 		return ""
 	}
 	m.table.SetStyleFunc(m.createStyleFunc())
-	return promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n"
+	help := "\n" +
+		"   [enter]    selects row and confirms selection\n"
+	if m.multiselect {
+		help += "   [space]    adds/removes row to selected commits\n"
+	}
+	help += "   [up,k]     moves cursor up\n" +
+		"   [down,j]   moves cursor down\n" +
+		"   [q,esc]    cancels\n"
+	return promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n" + help
 }
 
 func NewCommitSelector(
