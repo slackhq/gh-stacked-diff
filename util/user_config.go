@@ -54,12 +54,14 @@ func (t WorktreeMainBranchGuardType) IsValid() bool {
 
 // UserConfig holds runtime configuration from config file and --config flag key=value entries.
 type UserConfig struct {
-	PromptForReview         PromptForReviewType
-	PollInterval            time.Duration
-	TicketUrlPattern        string
-	WorktreeMainBranchGuard WorktreeMainBranchGuardType
-	ShowWorktrees           bool
-	ShowUiLegend            bool
+	PromptForReview               PromptForReviewType
+	PollInterval                  time.Duration
+	TicketUrlPattern              string
+	WorktreeMainBranchGuard       WorktreeMainBranchGuardType
+	ShowWorktrees                 bool
+	ShowUserSelectionLegend       bool
+	ShowTableSelectionLegend      bool
+	ShowTableMultiselectionLegend bool
 }
 
 type YamlConfig struct {
@@ -103,9 +105,17 @@ func LoadUserConfigFile() YamlConfig {
 }
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
-// uiLegendShownCount is the number of times the UI legend has been shown (from metrics.yaml).
-func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, uiLegendShownCount int) UserConfig {
-	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath, ShowWorktrees: true, ShowUiLegend: true}
+// metrics provides the per-legend shown counts (from metrics.yaml).
+func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics MetricsConfig) UserConfig {
+	config := UserConfig{
+		PromptForReview:               PromptForReviewPromptN,
+		PollInterval:                  DefaultPollInterval,
+		WorktreeMainBranchGuard:       WorktreeMainBranchGuardPath,
+		ShowWorktrees:                 true,
+		ShowUserSelectionLegend:       true,
+		ShowTableSelectionLegend:      true,
+		ShowTableMultiselectionLegend: true,
+	}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
 	}
@@ -123,9 +133,20 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, uiLegend
 		config.ShowWorktrees = *fileConfig.ShowWorktrees
 	}
 	if fileConfig.ShowUiLegend != nil {
-		config.ShowUiLegend = *fileConfig.ShowUiLegend
-	} else if uiLegendShownCount >= MaxUiLegendShownCount {
-		config.ShowUiLegend = false
+		showAll := *fileConfig.ShowUiLegend
+		config.ShowUserSelectionLegend = showAll
+		config.ShowTableSelectionLegend = showAll
+		config.ShowTableMultiselectionLegend = showAll
+	} else {
+		if metrics.GetLegendShownCount(LegendUserSelection) >= MaxUiLegendShownCount {
+			config.ShowUserSelectionLegend = false
+		}
+		if metrics.GetLegendShownCount(LegendTableSelection) >= MaxUiLegendShownCount {
+			config.ShowTableSelectionLegend = false
+		}
+		if metrics.GetLegendShownCount(LegendTableMultiselection) >= MaxUiLegendShownCount {
+			config.ShowTableMultiselectionLegend = false
+		}
 	}
 	for key, value := range flagValues {
 		switch key {
@@ -161,9 +182,13 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, uiLegend
 		case "showUiLegend":
 			switch value {
 			case "true":
-				config.ShowUiLegend = true
+				config.ShowUserSelectionLegend = true
+				config.ShowTableSelectionLegend = true
+				config.ShowTableMultiselectionLegend = true
 			case "false":
-				config.ShowUiLegend = false
+				config.ShowUserSelectionLegend = false
+				config.ShowTableSelectionLegend = false
+				config.ShowTableMultiselectionLegend = false
 			default:
 				panic("invalid showUiLegend value: " + value + " (must be true or false)")
 			}

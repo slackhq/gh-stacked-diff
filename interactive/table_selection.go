@@ -153,17 +153,27 @@ func (m CommitSelector) View() string {
 	}
 	m.table.SetStyleFunc(m.createStyleFunc())
 	result := promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n"
-	if util.GetUserConfig().ShowUiLegend {
-		countUiLegendShown()
-		result += "\n" +
-			"Controls:\n" +
-			"   [enter]    selects row and confirms selection\n"
-		if m.multiselect {
-			result += "   [space]    adds/removes row to selected commits\n"
+	if m.multiselect {
+		if util.GetUserConfig().ShowTableMultiselectionLegend {
+			countLegendShown(util.LegendTableMultiselection)
+			result += "\n" +
+				"Controls:\n" +
+				"   [enter]    selects row and confirms selection\n" +
+				"   [space]    adds/removes row to selected commits\n" +
+				"   [up,k]     moves cursor up\n" +
+				"   [down,j]   moves cursor down\n" +
+				"   [q,esc]    cancels\n"
 		}
-		result += "   [up,k]     moves cursor up\n" +
-			"   [down,j]   moves cursor down\n" +
-			"   [q,esc]    cancels\n"
+	} else {
+		if util.GetUserConfig().ShowTableSelectionLegend {
+			countLegendShown(util.LegendTableSelection)
+			result += "\n" +
+				"Controls:\n" +
+				"   [enter]    selects row and confirms selection\n" +
+				"   [up,k]     moves cursor up\n" +
+				"   [down,j]   moves cursor down\n" +
+				"   [q,esc]    cancels\n"
+		}
 	}
 	return result
 }

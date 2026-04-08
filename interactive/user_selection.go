@@ -100,8 +100,8 @@ func (m userSelectionModel) View() string {
 	users = userPrefix + users + "\n"
 	result := promptStyle.Render("Reviewers to add when checks pass?") + "\n" +
 		m.textInput.View() + "\n"
-	if util.GetUserConfig().ShowUiLegend {
-		countUiLegendShown()
+	if util.GetUserConfig().ShowUserSelectionLegend {
+		countLegendShown(util.LegendUserSelection)
 		result += "\n" +
 			"Controls:\n" +
 			"   up/down   history\n" +
