@@ -9,12 +9,13 @@ var baseStyle = lipgloss.NewStyle()
 
 var promptStyle = baseStyle.Bold(true)
 
-var uiLegendCounted bool
+var legendCounted = map[util.LegendType]bool{}
 
-// countUiLegendShown increments the shown count in metrics.yaml if it has not already been shown this process.
-func countUiLegendShown() {
-	if !uiLegendCounted {
-		uiLegendCounted = true
-		util.IncrementUiLegendShownCount()
+// countLegendShown increments the shown count for the given legend type in metrics.yaml
+// if it has not already been counted this process.
+func countLegendShown(legend util.LegendType) {
+	if !legendCounted[legend] {
+		legendCounted[legend] = true
+		util.IncrementLegendShownCount(legend)
 	}
 }
