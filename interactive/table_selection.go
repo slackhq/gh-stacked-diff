@@ -152,15 +152,19 @@ func (m CommitSelector) View() string {
 		return ""
 	}
 	m.table.SetStyleFunc(m.createStyleFunc())
-	help := "\n" +
-		"   [enter]    selects row and confirms selection\n"
-	if m.multiselect {
-		help += "   [space]    adds/removes row to selected commits\n"
+	result := promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n"
+	if util.GetUserConfig().ShowUiLegend {
+		result += "\n" +
+			"Controls:\n" +
+			"   [enter]    selects row and confirms selection\n"
+		if m.multiselect {
+			result += "   [space]    adds/removes row to selected commits\n"
+		}
+		result += "   [up,k]     moves cursor up\n" +
+			"   [down,j]   moves cursor down\n" +
+			"   [q,esc]    cancels\n"
 	}
-	help += "   [up,k]     moves cursor up\n" +
-		"   [down,j]   moves cursor down\n" +
-		"   [q,esc]    cancels\n"
-	return promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n" + help
+	return result
 }
 
 func NewCommitSelector(

@@ -92,6 +92,8 @@ func buildRootCommand() *cobra.Command {
 			"         none: current branch\n"+
 			"   showWorktrees=true|false (default: true)\n"+
 			"      Whether to show worktrees in log command\n"+
+			"   showUiLegend=true|false (default: true)\n"+
+			"      Whether to show keyboard shortcut legend in interactive UIs\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
@@ -99,7 +101,8 @@ func buildRootCommand() *cobra.Command {
 			"   pollInterval: 1m\n"+
 			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
 			"   worktreeMainBranchGuard: path\n"+
-			"   showWorktrees: true")
+			"   showWorktrees: true\n"+
+			"   showUiLegend: true")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

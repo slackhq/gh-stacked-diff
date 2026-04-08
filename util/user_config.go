@@ -56,6 +56,7 @@ type UserConfig struct {
 	TicketUrlPattern        string
 	WorktreeMainBranchGuard WorktreeMainBranchGuardType
 	ShowWorktrees           bool
+	ShowUiLegend            bool
 }
 
 type YamlConfig struct {
@@ -64,6 +65,7 @@ type YamlConfig struct {
 	TicketUrlPattern        string                      `yaml:"ticketUrlPattern,omitempty"`
 	WorktreeMainBranchGuard WorktreeMainBranchGuardType `yaml:"worktreeMainBranchGuard,omitempty"`
 	ShowWorktrees           *bool                       `yaml:"showWorktrees,omitempty"`
+	ShowUiLegend            *bool                       `yaml:"showUiLegend,omitempty"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -99,7 +101,7 @@ func LoadUserConfigFile() YamlConfig {
 
 // NewUserConfig merges hardcoded defaults, file config, and --config flag entries.
 func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConfig {
-	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath, ShowWorktrees: true}
+	config := UserConfig{PromptForReview: PromptForReviewPromptN, PollInterval: DefaultPollInterval, WorktreeMainBranchGuard: WorktreeMainBranchGuardPath, ShowWorktrees: true, ShowUiLegend: true}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
 	}
@@ -115,6 +117,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 	}
 	if fileConfig.ShowWorktrees != nil {
 		config.ShowWorktrees = *fileConfig.ShowWorktrees
+	}
+	if fileConfig.ShowUiLegend != nil {
+		config.ShowUiLegend = *fileConfig.ShowUiLegend
 	}
 	for key, value := range flagValues {
 		switch key {
@@ -146,6 +151,15 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string) UserConf
 				config.ShowWorktrees = false
 			default:
 				panic("invalid showWorktrees value: " + value + " (must be true or false)")
+			}
+		case "showUiLegend":
+			switch value {
+			case "true":
+				config.ShowUiLegend = true
+			case "false":
+				config.ShowUiLegend = false
+			default:
+				panic("invalid showUiLegend value: " + value + " (must be true or false)")
 			}
 		default:
 			panic("unknown --config key: " + key)
