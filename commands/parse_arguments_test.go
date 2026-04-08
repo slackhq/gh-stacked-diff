@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"bytes"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,6 +39,22 @@ func TestFindLogLevelArg_WhenNotPresent(t *testing.T) {
 func TestFindLogLevelArg_WithInvalidLevel(t *testing.T) {
 	level := findLogLevelArg([]string{"version"})
 	assert.Equal(t, slog.LevelInfo, level)
+}
+
+func TestRepoCheck_FromNonGitDirectory_ShowsFriendlyError(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		assert.NotNil(r)
+		assert.Contains(out.String(), "Not in a git repository")
+	}()
+	testParseArgumentsWithOut(out, "log")
+	assert.Fail("did not panic")
 }
 
 func TestEarlyLogLevel_DebugOutputVisibleDuringSetup(t *testing.T) {

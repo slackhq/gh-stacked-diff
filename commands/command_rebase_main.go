@@ -28,6 +28,9 @@ func createRebaseMainCommand() *cobra.Command {
 			"but has slight variation with local main because, for example, a\n" +
 			"change was made with the Github Web UI.",
 		Args: cobra.NoArgs,
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			rebaseMain()
 		},

@@ -14,7 +14,8 @@ func createBranchNameCommand() *cobra.Command {
 			"Useful for your own custom scripting.",
 		Args: cobra.MaximumNArgs(1),
 		Annotations: map[string]string{
-			"defaultLogLevel": "error",
+			"defaultLogLevel":   "error",
+			checkRepoAnnotation: "true",
 		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)

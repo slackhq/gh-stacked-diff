@@ -21,6 +21,9 @@ func createReplaceConflictsCommand() *cobra.Command {
 			"current uncommitted changes (merge conflicts), with the contents\n" +
 			"(diff between origin/" + gitutil.GetMainBranchForHelp() + " and HEAD) of its associated branch.",
 		Args: cobra.NoArgs,
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	confirmed := cmd.Flags().BoolP("confirm", "y", false, "Whether to automatically confirm to do this rather than ask for y/n input")
 	cmd.Run = func(cmd *cobra.Command, args []string) {

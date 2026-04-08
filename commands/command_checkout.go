@@ -19,6 +19,9 @@ func createCheckoutCommand() *cobra.Command {
 			"\n" +
 			"After modifying the branch you can use \"sd replace-commit\" to sync local " + gitutil.GetMainBranchForHelp() + ".",
 		Args: cobra.MaximumNArgs(1),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	cmd.Run = func(cmd *cobra.Command, args []string) {

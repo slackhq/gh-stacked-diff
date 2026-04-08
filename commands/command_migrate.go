@@ -30,6 +30,9 @@ Examples:
   sd migrate
   sd migrate --help`,
 		Args: cobra.NoArgs,
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			executeMigrate()
 		},

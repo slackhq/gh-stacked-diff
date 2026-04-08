@@ -15,7 +15,8 @@ func createPrsCommand() *cobra.Command {
 			"You must be logged-in, via \"gh auth login\"",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
-			"defaultLogLevel": "error",
+			"defaultLogLevel":   "error",
+			checkRepoAnnotation: "true",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries, EnvironmentVariables: []string{"GH_PAGER=", "GH_FORCE_TTY=true"}},

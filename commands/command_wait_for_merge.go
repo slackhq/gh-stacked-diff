@@ -19,6 +19,9 @@ func createWaitForMergeCommand() *cobra.Command {
 			"\n" +
 			"Useful for your own custom scripting.",
 		Args: cobra.MaximumNArgs(1),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	silent := addSilentFlag(cmd, "the PR has been merged")

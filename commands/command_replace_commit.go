@@ -25,6 +25,9 @@ func createReplaceCommitCommand() *cobra.Command {
 			"fix a problem found on CI, and want to bring the changes over to your\n" +
 			"local " + gitutil.GetMainBranchForHelp() + " branch.",
 		Args: cobra.MaximumNArgs(1),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	onCherryPickError := cmd.Flags().String("on-cherry-pick-error", onCherryPickErrorPrompt,

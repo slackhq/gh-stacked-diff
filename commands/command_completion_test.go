@@ -2,6 +2,7 @@ package commands
 
 import (
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,4 +35,15 @@ func TestSdCompletion_Fish(t *testing.T) {
 	out := testParseArguments("completion", "fish")
 
 	assert.Contains(out, "fish completion")
+}
+
+func TestSdCompletion_FromNonGitDirectory(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelDebug)
+	// Move to a non-git directory to verify completion works without a repo.
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	out := testParseArguments("completion", "bash")
+	assert.Contains(out, "bash completion V2")
 }

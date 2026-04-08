@@ -22,6 +22,9 @@ func createUpdateCommand() *cobra.Command {
 		Long: "Add commits from local " + gitutil.GetMainBranchForHelp() + " branch to an existing PR.\n" +
 			"\n" +
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)

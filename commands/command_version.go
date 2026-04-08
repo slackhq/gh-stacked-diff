@@ -15,7 +15,6 @@ func createVersionCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			"defaultLogLevel": "error",
-			"skipRepoCheck":   "true",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			var stableSuffix string
