@@ -68,7 +68,9 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 	//       namely `git diff | git apply`.`
 	stringOut := b.String()
 	if err != nil && options.Retries > 0 {
-		slog.Warn("Retrying: " + "\"" + programName + " " + strings.Join(args, " ") + "\": " + err.Error())
+		fullCommand := programName + " " + strings.Join(args, " ")
+		firstLine, _, _ := strings.Cut(fullCommand, "\n")
+		slog.Warn("Retrying: " + "\"" + firstLine + "\": " + err.Error())
 		Sleep(RetryDelay)
 		options.Retries = options.Retries - 1
 		return defaultExecutor.Execute(options, programName, args...)
