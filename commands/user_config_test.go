@@ -156,3 +156,34 @@ func TestNewUserConfig_ShowWorktreesInvalidValue(t *testing.T) {
 		util.NewUserConfig(util.YamlConfig{}, map[string]string{"showWorktrees": "invalid"})
 	})
 }
+
+func TestNewUserConfig_ShowUiLegendDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil)
+	assert.Equal(t, true, config.ShowUiLegend)
+}
+
+func TestNewUserConfig_ShowUiLegendFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"showUiLegend": "false"})
+	assert.Equal(t, false, config.ShowUiLegend)
+}
+
+func TestNewUserConfig_ShowUiLegendFromFile(t *testing.T) {
+	showUiLegend := false
+	config := util.NewUserConfig(util.YamlConfig{ShowUiLegend: &showUiLegend}, nil)
+	assert.Equal(t, false, config.ShowUiLegend)
+}
+
+func TestNewUserConfig_ShowUiLegendFlagOverridesFile(t *testing.T) {
+	showUiLegend := true
+	config := util.NewUserConfig(
+		util.YamlConfig{ShowUiLegend: &showUiLegend},
+		map[string]string{"showUiLegend": "false"},
+	)
+	assert.Equal(t, false, config.ShowUiLegend)
+}
+
+func TestNewUserConfig_ShowUiLegendInvalidValue(t *testing.T) {
+	assert.PanicsWithValue(t, "invalid showUiLegend value: invalid (must be true or false)", func() {
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"showUiLegend": "invalid"})
+	})
+}

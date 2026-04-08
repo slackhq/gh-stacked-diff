@@ -98,16 +98,18 @@ func (m userSelectionModel) View() string {
 		users = users[0:min(max(0, m.windowWidth-len(userPrefix)), len(users))]
 	}
 	users = userPrefix + users + "\n"
-	return promptStyle.Render("Reviewers to add when checks pass?") + "\n" +
-		m.textInput.View() + "\n" +
-		"\n" +
-		"Controls:\n" +
-		"   up/down   history\n" +
-		"   tab       select auto-complete\n" +
-		"   enter     confirm\n" +
-		"   esc       quit\n" +
-		"   comma     use comma or space to separate reviewers\n" +
-		users
+	result := promptStyle.Render("Reviewers to add when checks pass?") + "\n" +
+		m.textInput.View() + "\n"
+	if util.GetUserConfig().ShowUiLegend {
+		result += "\n" +
+			"Controls:\n" +
+			"   up/down   history\n" +
+			"   tab       select auto-complete\n" +
+			"   enter     confirm\n" +
+			"   esc       quit\n" +
+			"   comma     use comma or space to separate reviewers\n"
+	}
+	return result + users
 }
 
 // Returns the suggestions that match the current wip text.
