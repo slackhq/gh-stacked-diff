@@ -87,7 +87,12 @@ func (m userSelectionModel) View() string {
 	if m.confirmed {
 		return ""
 	}
-	userPrefix := "   users   "
+	var userPrefix string
+	if util.GetUserConfig().ShowUserSelectionLegend {
+		userPrefix = "   users   "
+	} else {
+		userPrefix = "\n  Users: "
+	}
 	if m.loadedSuggestions {
 		userPrefix += "  "
 	} else {
