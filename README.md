@@ -79,17 +79,33 @@ Available Commands:
   replace-conflicts   For failed rebase: replace changes with its associated branch
   update              Add commits from main to an existing PR
   wait-for-merge      Waits for a pull request to be merged
+  worktree-move       Cherry-pick commits from secondary worktree to main worktree
 
 Flags:
   -c, --config stringToString   Set a config value as key=value. Overrides values from
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
                                    pollInterval=<duration> (default: 30s, e.g. 1m, 10s)
+                                   ticketUrlPattern=<url> URL pattern for tickets, e.g.
+                                                          https://jira.example.com/browse/{TicketNumber}
+                                   worktreeMainBranchGuard=path|none (default: path)
+                                      What to consider the "main" branch when in a worktree, to guard
+                                      against incorrect use:
+                                         path: worktree directory name
+                                         none: current branch
+                                   showWorktrees=true|false (default: true)
+                                      Whether to show worktrees in log command
+                                   showUiLegend=true|false (default: true)
+                                      Whether to show keyboard shortcut legend in interactive UIs
                                 Can be specified multiple times for different keys.
 
                                 Equivalent config.yaml:
                                    promptForReview: promptY
                                    pollInterval: 1m
+                                   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}
+                                   worktreeMainBranchGuard: path
+                                   showWorktrees: true
+                                   showUiLegend: true
   -h, --help                    help for sd
   -l, --log-level string        Possible log levels:
                                    debug
@@ -180,6 +196,9 @@ The possible values for the templates are:
                                 the prefix of the ticket number
    FeatureFlag                  Value passed to feature-flag flag
    TicketNumber                 Jira ticket as parsed from the commit summary
+   TicketUrlPattern             URL for the ticket, with {TicketNumber}
+                                replaced by the actual ticket number.
+                                Configured via config.yaml or --config.
    Username                     Name as parsed from git config email.
    UsernameCleaned              Username with dots (.) converted to dashes (-).
 
@@ -445,6 +464,30 @@ This command is useful when first adopting sd in an existing repository with fea
 usage: sd migrate
 ```
 
+#### worktree-move
+
+Cherry-picks selected commits from a secondary worktree to the main worktree. Useful for when you want to build from one directory with all of your changes.
+
+Can be run from a secondary worktree or the main worktree. When run from the main worktree, use `--worktree` to specify the source worktree, or select one interactively.
+
+```
+usage: sd worktree-move [commitIndicator...] [flags]
+
+flags:
+
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
+  -w, --worktree string    Path or branch name of the secondary worktree to move commits from
+```
+
 #### completion
 
 Generate the autocompletion script for the specified shell. Supports bash, zsh, fish, and powershell.
@@ -464,11 +507,26 @@ The following flags are available on all commands:
                                 ~/.gh-stacked-diff/config.yaml. Supported keys:
                                    promptForReview=never|promptY|promptN (default: promptN)
                                    pollInterval=<duration> (default: 30s, e.g. 1m, 10s)
+                                   ticketUrlPattern=<url> URL pattern for tickets, e.g.
+                                                          https://jira.example.com/browse/{TicketNumber}
+                                   worktreeMainBranchGuard=path|none (default: path)
+                                      What to consider the "main" branch when in a worktree, to guard
+                                      against incorrect use:
+                                         path: worktree directory name
+                                         none: current branch
+                                   showWorktrees=true|false (default: true)
+                                      Whether to show worktrees in log command
+                                   showUiLegend=true|false (default: true)
+                                      Whether to show keyboard shortcut legend in interactive UIs
                                 Can be specified multiple times for different keys.
 
                                 Equivalent config.yaml:
                                    promptForReview: promptY
                                    pollInterval: 1m
+                                   ticketUrlPattern: https://jira.example.com/browse/{TicketNumber}
+                                   worktreeMainBranchGuard: path
+                                   showWorktrees: true
+                                   showUiLegend: true
   -l, --log-level string        Possible log levels:
                                    debug
                                    info
