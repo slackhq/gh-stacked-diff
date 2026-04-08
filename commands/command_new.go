@@ -89,8 +89,12 @@ func createNewCommand() *cobra.Command {
 		userConfig := util.GetUserConfig()
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
+		var remoteBaseBranch string
 		if *baseBranch == "" {
 			*baseBranch = gitutil.GetLocalMainBranchOrDie()
+			remoteBaseBranch = gitutil.GetRemoteMainBranchOrDie()
+		} else {
+			remoteBaseBranch = *baseBranch
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
 		if ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
@@ -102,7 +106,7 @@ func createNewCommand() *cobra.Command {
 			util.SaveTicketUrlPattern(ticketUrlPattern)
 		}
 		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig, *merge)
-		createNewPr(*draft, *featureFlag, ticketUrlPattern, *baseBranch, targetCommits[0])
+		createNewPr(*draft, *featureFlag, ticketUrlPattern, *baseBranch, remoteBaseBranch, targetCommits[0])
 		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
 			WhenChecksPass: true,
 			Silent:         *silent,
@@ -116,11 +120,11 @@ func createNewCommand() *cobra.Command {
 }
 
 // Creates a new pull request via Github CLI.
-func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBranch string, gitLog templates.GitLog) {
+func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog) {
 	templates.RequireCommitOnMain(gitLog.Commit)
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog)
-		pushAndCreateGhPr(draft, featureFlag, ticketUrlPattern, baseBranch, gitLog)
+		pushAndCreateGhPr(draft, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
 		rollbackManager.Clear()
 		openPrAndSwitchBack(gitLog)
 	})
@@ -142,13 +146,13 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", gitLog.Commit)
 }
 
-func pushAndCreateGhPr(draft bool, featureFlag string, ticketUrlPattern string, baseBranch string, gitLog templates.GitLog) {
+func pushAndCreateGhPr(draft bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
 	slog.Info("Pushing to remote")
 	// -u is required because in newer versions of Github CLI the upstream must be set.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "-c", "push.default=current", "push", "--force-with-lease", "-u")
 	prText := templates.GetPullRequestText(gitLog.Commit, featureFlag, ticketUrlPattern)
 	slog.Info("Creating PR via gh")
-	createPrOutput := createPr(prText, baseBranch, draft)
+	createPrOutput := createPr(prText, remoteBaseBranch, draft)
 	slog.Info(fmt.Sprint("Created PR ", createPrOutput))
 }
 
@@ -160,8 +164,8 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
 }
 
-func createPr(prText templates.PullRequestText, baseBranch string, draft bool) string {
-	createPrArgsNoDraft := []string{"pr", "create", "--title", prText.Title, "--body", prText.Description, "--fill", "--base", baseBranch}
+func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft bool) string {
+	createPrArgsNoDraft := []string{"pr", "create", "--title", prText.Title, "--body", prText.Description, "--fill", "--base", remoteBaseBranch}
 	createPrArgs := createPrArgsNoDraft
 	if draft {
 		createPrArgs = append(createPrArgs, "--draft")

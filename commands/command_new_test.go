@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 
@@ -568,6 +569,42 @@ func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedRespons
 		}
 	}
 	return util.ExecutedResponse{}, false
+}
+
+func TestSdNew_WhenInSecondaryWorktree_UsesRemoteMainForBaseBranch(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", util.GetCurrentBranchName())
+
+	mainPath, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Create a secondary worktree (branch name matches directory name).
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "worktree", "add", "../secondary-worktree")
+	t.Cleanup(func() {
+		_ = os.Chdir(mainPath)
+		_, _ = util.Execute(util.ExecuteOptions{}, "git", "worktree", "remove", "--force", "../secondary-worktree")
+	})
+	if err := os.Chdir("../secondary-worktree"); err != nil {
+		t.Fatal(err)
+	}
+	gitutil.ResetCacheForTesting()
+
+	testutil.AddCommit("worktree-commit", "worktree-file")
+
+	testParseArguments("new", "1")
+
+	// Verify that gh pr create used the remote main branch ("main"), not the local worktree branch ("secondary-worktree").
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+	baseIndex := slices.Index(prCreateCall.Args, "--base")
+	assert.Greater(baseIndex, -1, "expected --base flag in gh pr create args")
+	baseBranch := prCreateCall.Args[baseIndex+1]
+	assert.Equal(gitutil.GetRemoteMainBranchOrDie(), baseBranch, "gh pr create --base should use remote main branch, not the worktree branch")
 }
 
 func TestSdNew_WhenNoDraft_NoReadyPromptShown(t *testing.T) {
