@@ -54,20 +54,17 @@ Follow the steps in golang docs
 # 2. Update the stable version so that it is equal to current version [util/stable_version.txt]
 # 3. Update README.md so it matches latest commands and options.
 # Then...
-make build
-# See that the [README.md] is updated with stable version.
-# merge changes, `sd rebase-main`, and then:
-git checkout main
-go mod tidy
-make test
+# create PR, merge changes, and then:
+sd rebase-main
 # Make sure all changes merged into main, git status and sd log should
 # be empty. Otherwise save your changes, "git reset --hard origin/main",
 # create tag, then restore your changes
 git status && sd log
+# Then make the release:
 export RELEASE_VERSION=`cat util/stable_version.txt`
 git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
-# Update [util/current_version.txt]
+# Increment [util/current_version.txt] so that the version lists as preview until next release.
 ```
 
 For bubbles and bubbletea forks:
