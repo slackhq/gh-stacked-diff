@@ -120,7 +120,8 @@ func buildRootCommand() *cobra.Command {
 			panic(err.Error())
 		}
 		fileConfig := util.LoadUserConfigFile()
-		util.SetUserConfig(util.NewUserConfig(fileConfig, configValues))
+		metrics := util.LoadMetricsFile()
+		util.SetUserConfig(util.NewUserConfig(fileConfig, configValues, metrics.UiLegendShownCount))
 		if cmd.Annotations["skipRepoCheck"] != "true" {
 			// Note: call GetLocalMainBranchOrDie early as it has useful error messages.
 			slog.Debug("Using main branch " + gitutil.GetLocalMainBranchOrDie())

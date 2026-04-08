@@ -154,6 +154,7 @@ func (m CommitSelector) View() string {
 	m.table.SetStyleFunc(m.createStyleFunc())
 	result := promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n"
 	if util.GetUserConfig().ShowUiLegend {
+		countUiLegendShown()
 		result += "\n" +
 			"Controls:\n" +
 			"   [enter]    selects row and confirms selection\n"
