@@ -2,6 +2,18 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.1...v2.1.2) - 2026-04-08
+
+### Added 
+
+- Tables now have a legend at the bottom with instructions on how to navigate and select items. Legends now only show up 3 times for your learning and then are not displayed anymore.
+- Rollback on worktree-move failures.
+
+### Fixed
+
+- Running `sd completion` now works when not running in a git repository.
+- `sd new` on a worktree branch now uses `main` as the base branch for PRs instead of your worktree branch.
+
 ## [2.1.1](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.0...v2.1.1) - 2026-04-06
 
 ### Added 
