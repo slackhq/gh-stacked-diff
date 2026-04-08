@@ -66,6 +66,9 @@ func createNewCommand() *cobra.Command {
 			"   Username                     Name as parsed from git config email.\n" +
 			"   UsernameCleaned              Username with dots (.) converted to dashes (-).\n",
 		Args: cobra.MaximumNArgs(1),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 
 	draft := cmd.Flags().BoolP("draft", "d", true, "Whether to create the PR as draft")

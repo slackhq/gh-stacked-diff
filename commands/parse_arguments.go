@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const checkRepoAnnotation = "checkRepo"
+
 func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 	util.SetAppConfig(appConfig)
 
@@ -122,7 +124,10 @@ func buildRootCommand() *cobra.Command {
 		fileConfig := util.LoadUserConfigFile()
 		metrics := util.LoadMetricsFile()
 		util.SetUserConfig(util.NewUserConfig(fileConfig, configValues, metrics))
-		if cmd.Annotations["skipRepoCheck"] != "true" {
+		if cmd.Annotations[checkRepoAnnotation] == "true" {
+			if _, err := util.Execute(util.ExecuteOptions{}, "git", "rev-parse", "--is-inside-work-tree"); err != nil {
+				panic("Not in a git repository. Must be run from a git repository")
+			}
 			// Note: call GetLocalMainBranchOrDie early as it has useful error messages.
 			slog.Debug("Using main branch " + gitutil.GetLocalMainBranchOrDie())
 		}

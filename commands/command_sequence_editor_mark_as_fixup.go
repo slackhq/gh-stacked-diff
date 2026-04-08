@@ -16,6 +16,9 @@ func createMarkAsFixupCommand() *cobra.Command {
 		Long:   "For use as a sequence editor during an interactive git rebase. Marks commits as fixup commits.",
 		Hidden: true,
 		Args:   cobra.MinimumNArgs(3),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			targetCommit := args[0]
 			fixupCommits := args[1 : len(args)-1]

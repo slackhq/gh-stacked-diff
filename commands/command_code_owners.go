@@ -22,7 +22,8 @@ func createCodeOwnersCommand() *cobra.Command {
 			"in the current local branch when compared to the remote main branch",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
-			"defaultLogLevel": "error",
+			"defaultLogLevel":   "error",
+			checkRepoAnnotation: "true",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			util.Fprint(util.GetAppConfig().Io.Out, changedFilesOwnersString())

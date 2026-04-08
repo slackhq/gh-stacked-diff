@@ -31,7 +31,8 @@ func createLogCommand() *cobra.Command {
 			"their associated commit summary).",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
-			"defaultLogLevel": "error",
+			"defaultLogLevel":   "error",
+			checkRepoAnnotation: "true",
 		},
 	}
 	status := cmd.Flags().BoolP("status", "s", false,

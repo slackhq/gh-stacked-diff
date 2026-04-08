@@ -22,6 +22,9 @@ func createDropAlreadyMergedCommand() *cobra.Command {
 		Long:   "Drops any commits passed as arguments.",
 		Hidden: true,
 		Args:   cobra.MinimumNArgs(2),
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			dropCommits := args[0 : len(args)-1]
 			rebaseFilename := args[len(args)-1]

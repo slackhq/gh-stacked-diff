@@ -25,6 +25,9 @@ func createWorktreeMoveCommand() *cobra.Command {
 			"When run from the main worktree, use --worktree to specify\n" +
 			"the source worktree, or select one interactively.",
 		Args: cobra.ArbitraryArgs,
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 	var worktreeFlag string

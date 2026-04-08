@@ -24,6 +24,9 @@ func createAddReviewersCommand() *cobra.Command {
 		Long: "Add reviewers to Pull Request on Github once its checks have passed.\n" +
 			"\n" +
 			"If PR is marked as a Draft, it is first marked as \"Ready for Review\".",
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
 

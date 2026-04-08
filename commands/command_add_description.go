@@ -22,10 +22,13 @@ const GENERATED_CLAUDE_SUMMARY_END = "\n\n</details>\n"
 
 func createAddDescriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "add-description [commitIndicator...]",
-		Short:  "Adds a Claude generated summary to a PR description",
-		Long:   "Asks Claude to generate a description for a PR, and then adds the summary to the PR description.\nIf the PR description already has a Claude summary, this replaces it.",
-		Args:   cobra.NoArgs,
+		Use:   "add-description [commitIndicator...]",
+		Short: "Adds a Claude generated summary to a PR description",
+		Long:  "Asks Claude to generate a description for a PR, and then adds the summary to the PR description.\nIf the PR description already has a Claude summary, this replaces it.",
+		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			checkRepoAnnotation: "true",
+		},
 		Hidden: true, // WIP: This command is not yet ready for general use. It requires an AI CLI tool to be configured.
 	}
 	indicatorTypeString := addIndicatorFlag(cmd)
