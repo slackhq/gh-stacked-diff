@@ -22,6 +22,7 @@ func TestRetryLogOnlyIncludesFirstLineOfCommand(t *testing.T) {
 	defer SetDefaultSleep(time.Sleep)
 
 	// Use a command that doesn't exist so it always fails, with a multiline argument.
+	// nolint:errcheck
 	DefaultExecutor{}.Execute(
 		ExecuteOptions{Retries: 1},
 		"nonexistent-program-sd-test",
