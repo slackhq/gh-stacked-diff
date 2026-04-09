@@ -16,12 +16,14 @@ const (
 	LegendUserSelection       LegendType = "userSelection"
 	LegendTableSelection      LegendType = "tableSelection"
 	LegendTableMultiselection LegendType = "tableMultiselection"
+	LegendDuplicateSubject    LegendType = "duplicateSubject"
 )
 
 type MetricsConfig struct {
 	UserSelectionLegendShownCount       int `yaml:"userSelectionLegendShownCount,omitempty"`
 	TableSelectionLegendShownCount      int `yaml:"tableSelectionLegendShownCount,omitempty"`
 	TableMultiselectionLegendShownCount int `yaml:"tableMultiselectionLegendShownCount,omitempty"`
+	DuplicateSubjectLegendShownCount    int `yaml:"duplicateSubjectLegendShownCount,omitempty"`
 }
 
 // LoadMetricsFile reads metrics.yaml from ConfigHome if it exists.
@@ -51,6 +53,8 @@ func (m MetricsConfig) GetLegendShownCount(legend LegendType) int {
 		return m.TableSelectionLegendShownCount
 	case LegendTableMultiselection:
 		return m.TableMultiselectionLegendShownCount
+	case LegendDuplicateSubject:
+		return m.DuplicateSubjectLegendShownCount
 	default:
 		panic(fmt.Sprint("unknown legend type: ", legend))
 	}
@@ -66,6 +70,8 @@ func IncrementLegendShownCount(legend LegendType) {
 		metrics.TableSelectionLegendShownCount++
 	case LegendTableMultiselection:
 		metrics.TableMultiselectionLegendShownCount++
+	case LegendDuplicateSubject:
+		metrics.DuplicateSubjectLegendShownCount++
 	default:
 		panic(fmt.Sprint("unknown legend type: ", legend))
 	}

@@ -58,12 +58,16 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 	}
 
 	hasEnabledRow := false
+	hasDuplicates := false
 	for i, commit := range newCommits {
 		hasLocalBranch := slices.Contains(prBranches, commit.Branch)
 		indexString := fmt.Sprint(i + 1)
 		paddingLen := len(fmt.Sprint(len(newCommits))) - len(indexString)
 		indexString = strings.Repeat(" ", paddingLen) + indexString
-		if hasLocalBranch {
+		if commit.HasDuplicate {
+			hasDuplicates = true
+			indexString += " 🟡"
+		} else if hasLocalBranch {
 			indexString += " ✅"
 		}
 		row := []string{indexString, commit.Commit, commit.Subject}
@@ -86,7 +90,12 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 		}
 	}
 
-	commitSelector := NewCommitSelector(options.Prompt, columns, rows, options.MultiSelect, rowEnabled)
+	var footer string
+	if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
+		countLegendShown(util.LegendDuplicateSubject)
+		footer = templates.DuplicateSubjectLegend
+	}
+	commitSelector := NewCommitSelector(options.Prompt, columns, rows, options.MultiSelect, rowEnabled, footer)
 	program := newProgram(commitSelector, appConfig.Io)
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -167,7 +176,7 @@ func GetBranchSelectionWithFilter(branches []string, prompt string, rowEnabled f
 		}
 	}
 
-	branchSelector := NewCommitSelector(prompt, columns, rows, true, rowEnabled)
+	branchSelector := NewCommitSelector(prompt, columns, rows, true, rowEnabled, "")
 	program := newProgram(branchSelector, appConfig.Io)
 	finalModel := runProgram(appConfig.Io, program)
 	selected := finalModel.(CommitSelector).SelectedRows
@@ -205,7 +214,7 @@ func GetWorktreeSelection(worktrees []WorktreeOption, prompt string) (int, error
 	for i, wt := range worktrees {
 		rows[i] = []string{fmt.Sprintf("%d", i+1), wt.Path, wt.Branch}
 	}
-	selector := NewCommitSelector(prompt, columns, rows, false, func(row int) bool { return true })
+	selector := NewCommitSelector(prompt, columns, rows, false, func(row int) bool { return true }, "")
 	program := newProgram(selector, appConfig.Io)
 	finalModel := runProgram(appConfig.Io, program)
 	selected := finalModel.(CommitSelector).SelectedRows

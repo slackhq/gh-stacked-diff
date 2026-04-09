@@ -8,6 +8,9 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+// DuplicateSubjectLegend is the warning shown when multiple commits share the same subject.
+const DuplicateSubjectLegend = "🟡 indicates that multiple commits have the same subject. Change the subjects to differentiate commits"
+
 // Returned by some of the Get*Commit functions.
 type GitLog struct {
 	// Abbreviated commit hash.
@@ -16,6 +19,8 @@ type GitLog struct {
 	Subject string
 	// Associated branch name. Branch might not exist.
 	Branch string
+	// Whether another commit in the same log has the same subject.
+	HasDuplicate bool
 }
 
 func (g GitLog) String() string {
@@ -51,13 +56,22 @@ func GetNewCommits(to string, gitDir string) []GitLog {
 func newGitLogs(logsRaw string) []GitLog {
 	logLines := strings.Split(strings.TrimSpace(logsRaw), "\n")
 	var logs []GitLog
+	// Track the first index where each subject was seen to mark duplicates in a single pass.
+	firstSeen := make(map[string]int, len(logLines))
 	for _, logLine := range logLines {
 		components := strings.Split(logLine, formatDelimiter)
 		if len(components) != 3 {
 			// No git logs.
 			continue
 		}
-		logs = append(logs, GitLog{Commit: components[0], Subject: components[1], Branch: getBranchForSantizedSubject(components[2])})
+		log := GitLog{Commit: components[0], Subject: components[1], Branch: getBranchForSantizedSubject(components[2])}
+		if prevIndex, seen := firstSeen[log.Subject]; seen {
+			log.HasDuplicate = true
+			logs[prevIndex].HasDuplicate = true
+		} else {
+			firstSeen[log.Subject] = len(logs)
+		}
+		logs = append(logs, log)
 	}
 	return logs
 }
