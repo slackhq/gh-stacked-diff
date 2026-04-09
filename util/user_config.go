@@ -62,6 +62,7 @@ type UserConfig struct {
 	ShowUserSelectionLegend       bool
 	ShowTableSelectionLegend      bool
 	ShowTableMultiselectionLegend bool
+	ShowDuplicateSubjectLegend    bool
 }
 
 type YamlConfig struct {
@@ -115,6 +116,7 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 		ShowUserSelectionLegend:       true,
 		ShowTableSelectionLegend:      true,
 		ShowTableMultiselectionLegend: true,
+		ShowDuplicateSubjectLegend:    true,
 	}
 	if fileConfig.PromptForReview != "" {
 		config.PromptForReview = fileConfig.PromptForReview
@@ -137,6 +139,7 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 		config.ShowUserSelectionLegend = showAll
 		config.ShowTableSelectionLegend = showAll
 		config.ShowTableMultiselectionLegend = showAll
+		config.ShowDuplicateSubjectLegend = showAll
 	} else {
 		if metrics.GetLegendShownCount(LegendUserSelection) >= MaxUiLegendShownCount {
 			config.ShowUserSelectionLegend = false
@@ -146,6 +149,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 		}
 		if metrics.GetLegendShownCount(LegendTableMultiselection) >= MaxUiLegendShownCount {
 			config.ShowTableMultiselectionLegend = false
+		}
+		if metrics.GetLegendShownCount(LegendDuplicateSubject) >= MaxUiLegendShownCount {
+			config.ShowDuplicateSubjectLegend = false
 		}
 	}
 	for key, value := range flagValues {
@@ -185,10 +191,12 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 				config.ShowUserSelectionLegend = true
 				config.ShowTableSelectionLegend = true
 				config.ShowTableMultiselectionLegend = true
+				config.ShowDuplicateSubjectLegend = true
 			case "false":
 				config.ShowUserSelectionLegend = false
 				config.ShowTableSelectionLegend = false
 				config.ShowTableMultiselectionLegend = false
+				config.ShowDuplicateSubjectLegend = false
 			default:
 				panic("invalid showUiLegend value: " + value + " (must be true or false)")
 			}

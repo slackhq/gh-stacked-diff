@@ -28,7 +28,10 @@ func createLogCommand() *cobra.Command {
 			"means there is a branch, but having a branch means there is a PR when\n" +
 			"using this workflow). If there is more than one commit on the\n" +
 			"associated branch, those commits are also listed (indented under\n" +
-			"their associated commit summary).",
+			"their associated commit summary).\n" +
+			"\n" +
+			"A " + color.YellowString("🟡") + " means that multiple commits have the same subject.\n" +
+			"Change the subjects to differentiate commits.",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
 			"defaultLogLevel":   "error",
@@ -81,17 +84,28 @@ func printGitLog() {
 		return
 	}
 	logs, checkedBranches := getLogsAndBranches()
-	printLogs(stdIo, logs, checkedBranches)
+	hasDuplicates := printLogs(stdIo, logs, checkedBranches)
 	if util.GetUserConfig().ShowWorktrees {
-		printWorktreeLogs(stdIo, logs)
+		if printWorktreeLogs(stdIo, logs) {
+			hasDuplicates = true
+		}
+	}
+	if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
+		util.IncrementLegendShownCount(util.LegendDuplicateSubject)
+		util.Fprintln(stdIo.Out, color.YellowString(templates.DuplicateSubjectLegend))
 	}
 }
 
-func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) {
+// printLogs prints commit logs and returns true if any duplicate subjects were found.
+func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) bool {
+	hasDuplicates := false
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
-		if hasPR {
+		if log.HasDuplicate {
+			hasDuplicates = true
+			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("🟡 "))
+		} else if hasPR {
 			// Use color for ✅ otherwise in Git Bash on Windows it will appear as black and white.
 			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✅ "))
 		} else {
@@ -106,6 +120,7 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 			}
 		}
 	}
+	return hasDuplicates
 }
 
 // Returns info about worktrees other than the current one.
@@ -121,12 +136,17 @@ func getOtherWorktrees() []gitutil.WorktreeInfo {
 }
 
 // Prints logs from other worktrees, excluding commits already in the current directory.
-func printWorktreeLogs(stdIo util.StdIo, currentLogs []templates.GitLog) {
+// Returns true if any duplicate subjects were found.
+func printWorktreeLogs(stdIo util.StdIo, currentLogs []templates.GitLog) bool {
+	hasDuplicates := false
 	for _, section := range getWorktreeSections(currentLogs) {
 		util.Fprintln(stdIo.Out, "")
 		util.Fprintln(stdIo.Out, color.New(color.Bold).Sprint(section.DirName))
-		printLogs(stdIo, section.Logs, section.CheckedBranches)
+		if printLogs(stdIo, section.Logs, section.CheckedBranches) {
+			hasDuplicates = true
+		}
 	}
+	return hasDuplicates
 }
 
 func getLogsAndBranches() ([]templates.GitLog, []string) {

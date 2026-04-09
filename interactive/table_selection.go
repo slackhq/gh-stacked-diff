@@ -33,6 +33,7 @@ type CommitSelector struct {
 	rowEnabled   func(row int) bool
 	completed    bool
 	prompt       string
+	footer       string
 }
 
 var _ tea.Model = CommitSelector{}
@@ -153,6 +154,9 @@ func (m CommitSelector) View() string {
 	}
 	m.table.SetStyleFunc(m.createStyleFunc())
 	result := promptStyle.Render(m.prompt) + "\n" + m.table.View() + "\n"
+	if m.footer != "" {
+		result += m.footer + "\n"
+	}
 	if m.multiselect {
 		if util.GetUserConfig().ShowTableMultiselectionLegend {
 			countLegendShown(util.LegendTableMultiselection)
@@ -184,6 +188,7 @@ func NewCommitSelector(
 	rows [][]string,
 	multiselect bool,
 	rowEnabled func(row int) bool,
+	footer string,
 ) CommitSelector {
 	tableColumns := util.MapSlice(columns, func(columnName string) table.Column {
 		return table.Column{Title: columnName}
@@ -212,5 +217,6 @@ func NewCommitSelector(
 		multiselect:  multiselect,
 		rowEnabled:   rowEnabled,
 		prompt:       prompt,
+		footer:       footer,
 	}
 }

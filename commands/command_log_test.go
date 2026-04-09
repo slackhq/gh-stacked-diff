@@ -45,6 +45,33 @@ func TestSdLog_WhenPrCreatedForSomeCommits_PrintsCheckForCommitsWithPrs(t *testi
 	assert.Contains(out, "✅")
 }
 
+func TestSdLog_WhenDuplicateSubjects_PrintsYellowCircle(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("same subject", "file1")
+	testutil.AddCommit("same subject", "file2")
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "🟡")
+	assert.NotContains(out, "✅")
+	assert.Contains(out, "indicates that multiple commits have the same subject")
+}
+
+func TestSdLog_WhenUniqueSubjects_DoesNotPrintYellowCircle(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	out := testParseArguments("log")
+
+	assert.NotContains(out, "🟡")
+	assert.NotContains(out, "indicates that multiple commits have the same subject")
+}
+
 func TestSdLog_WhenNotOnMain_OnlyShowsCommitsNotOnMain(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)

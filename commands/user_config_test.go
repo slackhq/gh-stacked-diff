@@ -268,7 +268,7 @@ func TestShowUiLegend_ShownCountStopsAtMax(t *testing.T) {
 	tempDir := t.TempDir()
 	util.SetAppConfig(util.AppConfig{ConfigHome: tempDir})
 
-	for _, legend := range []util.LegendType{util.LegendUserSelection, util.LegendTableSelection, util.LegendTableMultiselection} {
+	for _, legend := range []util.LegendType{util.LegendUserSelection, util.LegendTableSelection, util.LegendTableMultiselection, util.LegendDuplicateSubject} {
 		shownCount := 0
 		// Simulate more runs than MaxUiLegendShownCount to verify the count stops incrementing.
 		for range util.MaxUiLegendShownCount + 2 {
@@ -282,6 +282,8 @@ func TestShowUiLegend_ShownCountStopsAtMax(t *testing.T) {
 				show = config.ShowTableSelectionLegend
 			case util.LegendTableMultiselection:
 				show = config.ShowTableMultiselectionLegend
+			case util.LegendDuplicateSubject:
+				show = config.ShowDuplicateSubjectLegend
 			}
 			if show {
 				shownCount++

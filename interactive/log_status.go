@@ -138,11 +138,15 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m logStatusModel) View() string {
 	var out strings.Builder
+	hasDuplicates := false
 	for _, row := range m.rows {
 		if row.sectionHeader != "" {
 			out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
 		}
-		if row.hasPR {
+		if row.log.HasDuplicate {
+			hasDuplicates = true
+			out.WriteString(row.numberPrefix + color.YellowString("🟡 "))
+		} else if row.hasPR {
 			out.WriteString(row.numberPrefix + color.GreenString("✅ "))
 		} else {
 			out.WriteString(row.numberPrefix + "   ")
@@ -161,6 +165,10 @@ func (m logStatusModel) View() string {
 		if row.hasPR && len(row.branchCommits) > 1 {
 			out.WriteString(FormatBranchCommits(row.branchCommits, row.padding))
 		}
+	}
+	if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
+		countLegendShown(util.LegendDuplicateSubject)
+		out.WriteString(color.YellowString(templates.DuplicateSubjectLegend) + "\n")
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
 		// Note: do not use eol here.
