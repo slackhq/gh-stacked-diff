@@ -16,11 +16,9 @@ Once you experience the efficiency of stacked diffs you can't imagine going back
 
 This project is a Command Line Interface (`sd`) that manages git commits and branches to allow you to quickly use a stacked diff workflow. It uses the Github CLI to interact with Github.
 
-## Installation
+# Installation
 
-### Installation as Github CLI Plugin
-
-#### Mac
+## Mac
 
 *Optional: As this is a CLI, do yourself a favor and install [iTerm](https://iterm2.com/) and [zsh](https://ohmyz.sh/), as they make working from the command line more pleasant.*
 
@@ -39,7 +37,7 @@ echo 'eval "$(sd completion zsh)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-#### Windows
+## Windows
 
 1. Install [Git and Git Bash](https://gitforwindows.org/)
 2. Install [Github CLI](https://cli.github.com/). Winget is possible: `winget install --id GitHub.cli`
@@ -57,7 +55,7 @@ source ~/.zshrc
       source ~/.bashrc
       ```
 
-## Command Line Interface
+# Command Line Interface
 
 | Command | Description |
 | --- | --- |
@@ -79,9 +77,9 @@ source ~/.zshrc
 
 See [Global Flags](#global-flags) for flags available on all commands.
 
-### Basic Commands
+## Basic Commands
 
-#### log
+### log
 
 Displays summary of the git commits on current branch that are not in the remote branch.
 
@@ -127,7 +125,7 @@ Global Flags:
 
 </details>
 
-#### new
+### new
 
 Create a new PR with a cherry-pick of the given commit indicator.
 
@@ -224,13 +222,13 @@ Global Flags:
 
 </details>
 
-###### Note on Commit Messages
+##### Note on Commit Messages
 
 Keep your commit summary to a [reasonable length](https://www.midori-global.com/blog/2018/04/02/git-50-72-rule). The commit summary is used as the branch name. To add more detail, use the [commit description](https://stackoverflow.com/questions/40505643/how-to-do-a-git-commit-with-a-subject-line-and-message-body/40506149#40506149). The
 created branch name is truncated to 120 chars as Github has problems with very long
 branch names.
 
-#### update
+### update
 
 Add commits from local main branch to an existing PR.
 
@@ -279,7 +277,7 @@ Global Flags:
 
 </details>
 
-#### add-reviewers
+### add-reviewers
 
 Add reviewers to Pull Request on Github once its checks have passed.
 
@@ -327,9 +325,9 @@ Global Flags:
 
 </details>
 
-### Commands for Rebasing and Fixing Merge Conflicts
+## Commands for Rebasing and Fixing Merge Conflicts
 
-#### rebase-main
+### rebase-main
 
 Rebase with origin/main, dropping any commits whose associated branches have been merged or closed.
 
@@ -365,7 +363,7 @@ Global Flags:
 
 </details>
 
-#### checkout
+### checkout
 
 Checks out the branch associated with commit indicator.
 
@@ -408,7 +406,7 @@ Global Flags:
 
 </details>
 
-#### replace-commit
+### replace-commit
 
 Replaces a commit on main branch with the squashed contents of its associated branch.
 
@@ -449,7 +447,7 @@ Global Flags:
 
 </details>
 
-#### replace-conflicts
+### replace-conflicts
 
 During a rebase that failed because of merge conflicts, replace the current uncommitted changes (merge conflicts), with the contents (diff between origin/main and HEAD) of its associated branch.
 
@@ -475,9 +473,9 @@ Global Flags:
 
 </details>
 
-### Commands for Custom Scripting
+## Commands for Custom Scripting
 
-#### branch-name
+### branch-name
 
 Outputs the branch name for a given commit indicator. Useful for your own custom scripting.
 
@@ -511,7 +509,7 @@ Global Flags:
 
 </details>
 
-#### wait-for-merge
+### wait-for-merge
 
 Waits for a pull request to be merged. Poll interval is configurable via `--config pollInterval`.
 
@@ -549,9 +547,9 @@ Global Flags:
 
 </details>
 
-### Other Commands
+## Other Commands
 
-#### code-owners
+### code-owners
 
 Outputs code owners for each file that has been modified in the current local branch when compared to the remote main branch.
 
@@ -575,7 +573,7 @@ Global Flags:
 
 </details>
 
-#### prs
+### prs
 
 Lists all Pull Requests you have open.
 
@@ -602,7 +600,7 @@ Global Flags:
 
 </details>
 
-#### migrate
+### migrate
 
 Migrates work-in-progress branches to main, preparing your local repository for stacked diff workflow.
 
@@ -635,7 +633,7 @@ Global Flags:
 
 </details>
 
-#### worktree-move
+### worktree-move
 
 Cherry-picks selected commits from a secondary worktree to the main worktree. Useful for when you want to build from one directory with all of your changes.
 
@@ -677,7 +675,7 @@ Global Flags:
 
 </details>
 
-#### completion
+### completion
 
 Generate the autocompletion script for the specified shell. Supports bash, zsh, fish, and powershell.
 
@@ -709,7 +707,7 @@ Global Flags:
 
 </details>
 
-### Global Flags
+## Global Flags
 
 The following flags are available on all commands:
 
@@ -747,13 +745,13 @@ The following flags are available on all commands:
                                 (namely branch-name and log), which have a default of error.
 ```
 
-## Example Workflow
+# Example Workflow
 
-### Creating and Updating PRs
+## Creating and Updating PRs
 
 Use **sd new** and **sd update** to create and update PR's while always staying on `main` branch.
 
-### To Update Main
+## To Update Main
 
 *Note: This process is automated by the `sd rebase-main` command. There is no need to follow these steps manually.*
 
@@ -769,9 +767,9 @@ If you run into conflicts with a commit that has already been merged you can jus
 git reset --hard head && git rebase --continue
 ```
 
-#### To Fix Merge Conflicts
+### To Fix Merge Conflicts
 
-##### Easy Flow
+#### Easy Flow
 
 If you just are rebasing with `main` and the commit with merge conflict has already been **merged**, then the process is simpler.
 
@@ -789,7 +787,7 @@ If you just are rebasing with `main` and the commit with merge conflict has alre
 2. Merge PR via Github
 3. [Update your Main Branch](#to-update-main)
 
-##### Advanced Flow
+#### Advanced Flow
 
 If you want to update your main branch *before* you merge your PR, you can use **replace-conflicts** to keep your local `main` up to date.
 
@@ -812,29 +810,29 @@ git add . && git rebase --continue
 # and the merge conflicts only had to be fixed once
 ```
 
-## Building Source and Contributing
+# Building Source and Contributing
 
 See the [Developer Guide](DEVELOPER_GUIDE.md), which includes instructions on how to build the source, as well as an overview of the code.
 
-## Stacked Pull Requests?
+# Stacked Pull Requests?
 
 Note: these scripts do *not* facilitate Stacked *Pull Requests*. Github does some things that add friction to using Stacked PR's, even with support from third party software. For example, after merging one of the PR's in the stack, the other PR's will require a re-review. Instead of Stacked PRs, it's recommended to organize your PR's, as much as reasonably possible, so that they can all be rebased against main at the same time. When there are dependencies, wait for dependant PR to be merged before putting up the next one. You may find that often you are still working on the next commit while the other is being reviewed/merged.
 
-## Acknowledgments
+# Acknowledgments
 
 - Thanks to [Dave Lee](https://x.com/kastiglione) for publishing [this article](https://kastiglione.github.io/git/2020/09/11/git-stacked-commits.html) that inspired the first version of the scripts.
 
 - Thanks to the Github team for creating [their CLI](https://cli.github.com/) that is leveraged here.
 
-## Version Compatibility
+# Version Compatibility
 
 | Stacked Diff version | gh CLI versions tested | git versions tested |
 | -------------------- | ---------------------- | ------------------- |
 | [2.0.0](CHANGELOG.md#200---2025-02-28) | 2.38.0, 2.64.0, 2.66.1, 2.86.0 | 2.38.1, 2.47.1, 2.48.1, 2.51.1 |
 
-## Troubleshooting
+# Troubleshooting
 
-### Can push but not create a Pull Request
+## Can push but not create a Pull Request
 
 If you were added as a contributor to a project after you have already been logged in to `gh`, you will need to refresh your credentials.
 
