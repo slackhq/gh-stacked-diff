@@ -87,6 +87,8 @@ Useful to view list indexes, or copy commit hashes, to use for the commitIndicat
 
 A ✅ means that there is a PR associated with the commit (actually it means there is a branch, but having a branch means there is a PR when using this workflow). If there is more than one commit on the associated branch, those commits are also listed (indented under their associated commit summary).
 
+If using git worktrees will also list differing commits from you worktree directories in separate sections.
+
 <img width="663" alt="image" src="docs/README-sd-log.png">
 
 <details>
