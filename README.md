@@ -4,17 +4,15 @@
     alt="Stacked Diff Workflow. Stay on main, skip the branches. Put up pull requests in slices.">
 </p>
 
-Using a [stacked diff workflow](https://newsletter.pragmaticengineer.com/p/stacked-diffs) and `sd` allows you to:
+`sd` is a CLI for [stacked diff workflows](https://newsletter.pragmaticengineer.com/p/stacked-diffs) on GitHub. It manages git commits, branches, and PRs through the GitHub CLI so you can:
 
-- Break down a pull request into several smaller PRs.
-- Work on separate streams of work without the overhead of changing branches.
-- Have local commits that are always present and are never pushed. For example, logging that helps you debug your changes but is too noisy for others.
-- Quickly create and update pull requests.
-- Add reviewers only once PR checks have passed.
+- Break down large changes into several small, focused PRs.
+- Work on multiple streams of work without switching branches.
+- Keep local-only commits (e.g. debug logging) that are never pushed.
+- Create and update pull requests quickly.
+- Automatically add reviewers once PR checks pass.
 
-Once you experience the efficiency of stacked diffs you can't imagine going back to your old workflow.
-
-This project is a Command Line Interface (`sd`) that manages git commits and branches to allow you to quickly use a stacked diff workflow. It uses the Github CLI to interact with Github.
+Once you experience stacked diffs, you won't want to go back.
 
 # Installation
 
@@ -81,13 +79,11 @@ See [Global Flags](#global-flags) for flags available on all commands.
 
 ### log
 
-Displays summary of the git commits on current branch that are not in the remote branch.
+Shows your local commits that haven't been pushed to remote. Each entry includes a list index and commit hash that other commands accept as a commit indicator (alternative to using their interactive UI).
 
-Useful to view list indexes, or copy commit hashes, to use for the commitIndicator required by other commands.
-
-A ✅ means that there is a PR associated with the commit (actually it means there is a branch, but having a branch means there is a PR when using this workflow). If there is more than one commit on the associated branch, those commits are also listed (indented under their associated commit summary).
-
-If using git worktrees will also list differing commits from you worktree directories in separate sections.
+- ✅ indicates the commit has an associated PR.
+- Indented lines show additional commits on the same branch.
+- With git worktrees, each worktree's commits are shown in a separate section.
 
 <img width="663" alt="image" src="docs/README-sd-log.png">
 
@@ -129,11 +125,9 @@ Global Flags:
 
 ### new
 
-Create a new PR with a cherry-pick of the given commit indicator.
+Creates a PR from a commit on your local main branch. It cherry-picks the commit onto a new branch (named after the commit summary) and opens a PR via the GitHub CLI.
 
-This command first creates an associated branch, (with a name based on the commit summary), and then uses Github CLI to create a PR.
-
-Can also add reviewers once PR checks have passed, see "--reviewers" flag.
+Use `--reviewers` to automatically add reviewers once checks pass.
 
 <img width="663" alt="image" src="docs/README-sd-new.gif">
 
@@ -226,15 +220,13 @@ Global Flags:
 
 ##### Note on Commit Messages
 
-Keep your commit summary to a [reasonable length](https://www.midori-global.com/blog/2018/04/02/git-50-72-rule). The commit summary is used as the branch name. To add more detail, use the [commit description](https://stackoverflow.com/questions/40505643/how-to-do-a-git-commit-with-a-subject-line-and-message-body/40506149#40506149). The
-created branch name is truncated to 120 chars as Github has problems with very long
-branch names.
+Keep commit summaries to a [reasonable length](https://www.midori-global.com/blog/2018/04/02/git-50-72-rule) since they become the branch name (truncated to 120 characters). Use the [commit body](https://stackoverflow.com/questions/40505643/how-to-do-a-git-commit-with-a-subject-line-and-message-body/40506149#40506149) for additional detail.
 
 ### update
 
-Add commits from local main branch to an existing PR.
+Adds commits from your local main branch to an existing PR.
 
-Can also add reviewers once PR checks have passed, see "--reviewers" flag.
+Use `--reviewers` to automatically add reviewers once checks pass.
 
 <img width="663" alt="image" src="docs/README-sd-update.gif">
 
@@ -281,9 +273,7 @@ Global Flags:
 
 ### add-reviewers
 
-Add reviewers to Pull Request on Github once its checks have passed.
-
-If PR is marked as a Draft, it is first marked as "Ready for Review".
+Adds reviewers to a PR once its checks pass. If the PR is a draft, it is automatically marked as "Ready for Review" first.
 
 <details>
 <summary><code>sd add-reviewers --help</code></summary>
@@ -331,11 +321,9 @@ Global Flags:
 
 ### rebase-main
 
-Rebase with origin/main, dropping any commits whose associated branches have been merged or closed.
+Rebases your local main with origin/main, automatically dropping commits whose PRs have already been merged. For closed (but not merged) PRs, you are prompted before dropping.
 
-Commits from merged PRs are automatically dropped. For commits from closed (not merged) PRs, you will be prompted to confirm before dropping them.
-
-This avoids having to manually call "git reset --hard head" whenever you have merge conflicts with a commit that has already been merged but has slight variation with local main because, for example, a change was made with the Github Web UI.
+This saves you from manually resolving conflicts with commits that have already been merged but differ slightly from your local copy (e.g. due to edits made in the GitHub web UI).
 
 <details>
 <summary><code>sd rebase-main --help</code></summary>
@@ -367,11 +355,9 @@ Global Flags:
 
 ### checkout
 
-Checks out the branch associated with commit indicator.
+Checks out the branch associated with a commit. Useful when you need to merge just one branch with origin/main, investigate a CI failure, or make fixes directly on the branch.
 
-For when you want to merge only the branch with origin/main, rather than your entire local main branch, verify why CI is failing on that particular branch, or for any other reason.
-
-After modifying the branch you can use "sd replace-commit" to sync local main.
+After making changes, use `sd replace-commit` to sync them back to your local main.
 
 <details>
 <summary><code>sd checkout --help</code></summary>
@@ -410,9 +396,7 @@ Global Flags:
 
 ### replace-commit
 
-Replaces a commit on main branch with the squashed contents of its associated branch.
-
-This is useful when you make changes within a branch, for example to fix a problem found on CI, and want to bring the changes over to your local main branch.
+Replaces a commit on your local main branch with the squashed contents of its associated branch. Use this after making changes on a branch (e.g. fixing a CI failure) to bring those changes back to main.
 
 <details>
 <summary><code>sd replace-commit --help</code></summary>
@@ -451,7 +435,7 @@ Global Flags:
 
 ### replace-conflicts
 
-During a rebase that failed because of merge conflicts, replace the current uncommitted changes (merge conflicts), with the contents (diff between origin/main and HEAD) of its associated branch.
+During a failed rebase, replaces the conflicting uncommitted changes with the contents of the associated branch (diff between origin/main and HEAD).
 
 <details>
 <summary><code>sd replace-conflicts --help</code></summary>
@@ -479,7 +463,7 @@ Global Flags:
 
 ### branch-name
 
-Outputs the branch name for a given commit indicator. Useful for your own custom scripting.
+Outputs the branch name for a given commit. Useful for custom scripts.
 
 <details>
 <summary><code>sd branch-name --help</code></summary>
@@ -513,9 +497,7 @@ Global Flags:
 
 ### wait-for-merge
 
-Waits for a pull request to be merged. Poll interval is configurable via `--config pollInterval`.
-
-Useful for your own custom scripting.
+Blocks until a pull request is merged. Poll interval is configurable via `--config pollInterval`. Useful for custom scripts.
 
 <details>
 <summary><code>sd wait-for-merge --help</code></summary>
@@ -553,7 +535,7 @@ Global Flags:
 
 ### code-owners
 
-Outputs code owners for each file that has been modified in the current local branch when compared to the remote main branch.
+Lists the code owners for every file modified on your local branch compared to remote main.
 
 <details>
 <summary><code>sd code-owners --help</code></summary>
@@ -577,9 +559,7 @@ Global Flags:
 
 ### prs
 
-Lists all Pull Requests you have open.
-
-You must be logged-in, via "gh auth login"
+Lists all of your open Pull Requests. Requires `gh auth login`.
 
 <details>
 <summary><code>sd prs --help</code></summary>
@@ -604,9 +584,7 @@ Global Flags:
 
 ### migrate
 
-Migrates work-in-progress branches to main, preparing your local repository for stacked diff workflow.
-
-This command is useful when first adopting sd in an existing repository with feature branches. It will help you move commits from feature branches onto your main branch so they can be managed as a stack.
+Moves commits from existing feature branches onto main, preparing your repository for the stacked diff workflow. Useful when first adopting `sd` in a repo that already has feature branches.
 
 <details>
 <summary><code>sd migrate --help</code></summary>
@@ -637,9 +615,9 @@ Global Flags:
 
 ### worktree-move
 
-Cherry-picks selected commits from a secondary worktree to the main worktree. Useful for when you want to build from one directory with all of your changes.
+Cherry-picks commits from a secondary worktree into the main worktree, so you can build from one directory with all your changes.
 
-Can be run from a secondary worktree or the main worktree. When run from the main worktree, use `--worktree` to specify the source worktree, or select one interactively.
+Works from either worktree. From the main worktree, use `--worktree` to specify the source or select one interactively.
 
 <details>
 <summary><code>sd worktree-move --help</code></summary>
@@ -679,9 +657,7 @@ Global Flags:
 
 ### completion
 
-Generate the autocompletion script for the specified shell. Supports bash, zsh, fish, and powershell.
-
-See the [Installation](#installation-as-github-cli-plugin) section for how to enable shell completions.
+Generates shell completions for bash, zsh, fish, or powershell. See [Installation](#installation) for setup.
 
 <details>
 <summary><code>sd completion --help</code></summary>
@@ -751,19 +727,19 @@ The following flags are available on all commands:
 
 ## Creating and Updating PRs
 
-Use **sd new** and **sd update** to create and update PR's while always staying on `main` branch.
+Use `sd new` and `sd update` to create and update PRs while staying on `main`.
 
 ## To Update Main
 
-*Note: This process is automated by the `sd rebase-main` command. There is no need to follow these steps manually.*
+*This process is automated by `sd rebase-main`. The manual steps below are only needed if you prefer to do it yourself.*
 
-Once a PR has been merged, just rebase main normally. The local PR commit will be replaced by the one that Github created when squashing and merging.
+After a PR is merged, rebase main to pick up the squash-merged commit from GitHub:
 
 ```bash
 git fetch && git rebase origin/main
 ```
 
-If you run into conflicts with a commit that has already been merged you can just ignore it. This can happen, for example, if a change was made on github.com and it is not reflected in your local commit. Obviously, only do this if the PR has actually already been merged into main! The error message from rebase will let you know which commit has conflicts.
+If you hit conflicts with an already-merged commit (e.g. due to edits made on github.com), you can skip it. Only do this if the PR is actually merged -- the rebase error message tells you which commit has conflicts.
 
 ```bash
 git reset --hard head && git rebase --continue
@@ -773,52 +749,47 @@ git reset --hard head && git rebase --continue
 
 #### Easy Flow
 
-If you just are rebasing with `main` and the commit with merge conflict has already been **merged**, then the process is simpler.
+If the conflicting commit has already been **merged**, the process is straightforward:
 
-1. Fix Merge Conflict
+1. Fix the conflict on the feature branch:
 
       ```bash
-      # switch to feature branch that has a merge conflict
       sd checkout <commitIndicator>
       git fetch && git merge origin/main
-      # ... and address any merge conflicts
-      # Update your PR
+      # resolve conflicts
       git push origin xxx
       ```
 
-2. Merge PR via Github
-3. [Update your Main Branch](#to-update-main)
+2. Merge the PR via GitHub.
+3. [Update your main branch](#to-update-main).
 
 #### Advanced Flow
 
-If you want to update your main branch *before* you merge your PR, you can use **replace-conflicts** to keep your local `main` up to date.
+If you want to update your local main *before* merging the PR, use `sd replace-conflicts` to avoid resolving the same conflicts twice:
 
 ```bash
-# switch to feature branch that has a merge conflict
+# Fix conflicts on the feature branch
 sd checkout <commitIndicator>
-# rebase or merge
 git fetch && git merge origin/main
-# ... and address any merge conflicts
-# Update your PR
+# resolve conflicts, then push
 git push origin xxx
-# Rebase your local main branch.
+
+# Now rebase local main
 git switch main
 git rebase origin/main
-# hit same merge conflicts, use replace-conflicts to copy the fixes you just made
-replace-conflicts <commitIndicator>
-# continue with the rebase
+# Same conflicts appear -- reuse the fixes you just made
+sd replace-conflicts <commitIndicator>
 git add . && git rebase --continue
-# All done... now both the feature branch and your local main are rebased with main,
-# and the merge conflicts only had to be fixed once
+# Done: both the feature branch and local main are up to date
 ```
 
 # Building Source and Contributing
 
-See the [Developer Guide](DEVELOPER_GUIDE.md), which includes instructions on how to build the source, as well as an overview of the code.
+See the [Developer Guide](DEVELOPER_GUIDE.md) for build instructions and a code overview.
 
 # Stacked Pull Requests?
 
-Note: these scripts do *not* facilitate Stacked *Pull Requests*. Github does some things that add friction to using Stacked PR's, even with support from third party software. For example, after merging one of the PR's in the stack, the other PR's will require a re-review. Instead of Stacked PRs, it's recommended to organize your PR's, as much as reasonably possible, so that they can all be rebased against main at the same time. When there are dependencies, wait for dependant PR to be merged before putting up the next one. You may find that often you are still working on the next commit while the other is being reviewed/merged.
+This tool does *not* facilitate Stacked *Pull Requests*. GitHub adds friction to stacked PRs -- for example, merging one PR in a stack forces the others to require re-review. Instead, organize your PRs so they can each be rebased against main independently. When PRs depend on each other, wait for the dependency to merge before putting up the next one. In practice, you'll often be working on the next commit while the previous one is being reviewed.
 
 # Acknowledgments
 
@@ -836,9 +807,7 @@ Note: these scripts do *not* facilitate Stacked *Pull Requests*. Github does som
 
 ## Can push but not create a Pull Request
 
-If you were added as a contributor to a project after you have already been logged in to `gh`, you will need to refresh your credentials.
-
-You know you have push access, but `sd` fails with a message like this:
+If you were added as a contributor after your initial `gh` login, your credentials need to be refreshed. You know you have push access, but `sd` fails with:
 ```
 gh: Must have push access to view repository collaborators. (HTTP 403)
 ```
@@ -848,4 +817,4 @@ To fix:
 gh auth refresh
 ```
 
-Note that this only refreshes the **active** account, so if you are logged into more than one account on `github.com` you will have to `gh auth switch` to make sure the right account is active.
+This only refreshes the **active** account. If you have multiple accounts on `github.com`, run `gh auth switch` first to select the correct one.
