@@ -1,7 +1,9 @@
 package util
 
 import (
+	"fmt"
 	"io"
+	"os"
 )
 
 // Allows unit testing the use of standard i/o.
@@ -18,8 +20,28 @@ type AppConfig struct {
 	AppExecutable string         // Path of this executable.
 	Exit          func(code int) // Call os.Exit with the given code, or panic during unit tests.
 	UserCacheDir  string         // os.UserCacheDir or a dir specific for each test in unit tests.
-	ConfigHome    string         // Path to ~/.gh-stacked-diff/ or a test-specific dir in unit tests.
+	configHome    string         // Path to ~/.gh-stacked-diff/ or a test-specific dir in unit tests.
 	DemoMode      bool
+}
+
+// NewAppConfig creates a new AppConfig, ensuring the configHome directory exists.
+func NewAppConfig(io StdIo, appExecutable string, exit func(code int), userCacheDir string, configHome string, demoMode bool) AppConfig {
+	if err := os.MkdirAll(configHome, 0700); err != nil {
+		panic(fmt.Sprint("Could not create config directory: ", err))
+	}
+	return AppConfig{
+		Io:            io,
+		AppExecutable: appExecutable,
+		Exit:          exit,
+		UserCacheDir:  userCacheDir,
+		configHome:    configHome,
+		DemoMode:      demoMode,
+	}
+}
+
+// ConfigHome returns the path to the config directory.
+func (c AppConfig) ConfigHome() string {
+	return c.configHome
 }
 
 var globalAppConfig *AppConfig

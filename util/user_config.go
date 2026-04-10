@@ -227,7 +227,7 @@ func GetUserConfig() UserConfig {
 func SaveTicketUrlPattern(pattern string) {
 	fileConfig := LoadUserConfigFile()
 	fileConfig.TicketUrlPattern = pattern
-	configPath := filepath.Join(GetAppConfig().ConfigHome, "config.yaml")
+	configPath := filepath.Join(GetAppConfig().ConfigHome(), "config.yaml")
 	data, err := yaml.Marshal(fileConfig)
 	if err != nil {
 		panic(fmt.Sprint("Could not marshal config: ", err))
