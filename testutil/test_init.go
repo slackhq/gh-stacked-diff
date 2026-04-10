@@ -72,14 +72,14 @@ func InitTest(t *testing.T, logLevel slog.Level) *util.TestExecutor {
 	// To fake user input use interactive.SendToProgram.
 	stdin := strings.NewReader("")
 
-	appConfig := util.AppConfig{
-		Io:            util.StdIo{Out: os.Stdout, Err: os.Stdout, In: stdin},
-		AppExecutable: appExecutable,
-		Exit:          panicOnExit,
-		UserCacheDir:  getTestAppCacheDir(),
-		ConfigHome:    getTestConfigHome(t),
-		DemoMode:      false,
-	}
+	appConfig := util.NewAppConfig(
+		util.StdIo{Out: os.Stdout, Err: os.Stdout, In: stdin},
+		appExecutable,
+		panicOnExit,
+		getTestAppCacheDir(),
+		getTestConfigHome(t),
+		false,
+	)
 	util.SetAppConfig(appConfig)
 
 	util.RunTestInitHooks(t)
@@ -93,8 +93,6 @@ func getTestConfigHome(t *testing.T) string {
 	}
 	parentDir, _ := filepath.Split(wd)
 	configHome := filepath.Join(parentDir, ".gh-stacked-diff")
-	// nolint:errcheck
-	os.Mkdir(configHome, os.ModePerm)
 	configFile := filepath.Join(configHome, "config.yaml")
 	// nolint:errcheck
 	os.Remove(configFile)

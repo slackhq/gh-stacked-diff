@@ -75,7 +75,7 @@ func IncrementLegendShownCount(legend LegendType) {
 	default:
 		panic(fmt.Sprint("unknown legend type: ", legend))
 	}
-	metricsPath := filepath.Join(GetAppConfig().ConfigHome, "metrics.yaml")
+	metricsPath := filepath.Join(GetAppConfig().ConfigHome(), "metrics.yaml")
 	data, err := yaml.Marshal(metrics)
 	if err != nil {
 		panic(fmt.Sprint("Could not marshal metrics: ", err))
