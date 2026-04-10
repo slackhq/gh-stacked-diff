@@ -238,6 +238,10 @@ Add commits from local main branch to an existing PR.
 
 Can also add reviewers once PR checks have passed, see "--reviewers" flag.
 
+Note: git hooks (pre-commit, etc.) are bypassed during the local rebase. This
+is safe because the resulting commits are cherry-picked onto the PR branch and
+pushed, which runs hooks normally.
+
 Usage:
   sd update [PR commitIndicator [fixup commitIndicator...]] [flags]
 
@@ -339,6 +343,10 @@ This avoids having to manually call "git reset --hard head" whenever
 you have merge conflicts with a commit that has already been merged
 but has slight variation with local main because, for example, a
 change was made with the Github Web UI.
+
+Note: git hooks (pre-commit, etc.) are bypassed during the rebase. This is
+safe because commits must be cherry-picked onto a PR branch via "sd new" or
+"sd update" before they can be pushed, which runs hooks normally.
 
 Usage:
   sd rebase-main [flags]
@@ -706,7 +714,7 @@ The following flags are available on all commands:
                                    showUiLegend=true|false (default: true)
                                       Whether to show keyboard shortcut legend in interactive UIs
                                 Can be specified multiple times for different keys.
-
+                                
                                 Equivalent config.yaml:
                                    promptForReview: promptY
                                    pollInterval: 1m
