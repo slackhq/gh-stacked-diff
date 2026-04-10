@@ -34,7 +34,9 @@ func GetRepoNameWithOwner() string {
 func GetLoggedInUsername() string {
 	if loggedInUsername == "" {
 		loggedInUsernameOnce.Do(func() {
-			jq := ".hosts | to_entries[] | select(.key == \"" + GetRepoHostname() + "\") | .value[].login"
+			hostname := GetRepoHostname()
+			util.RequireHostname(hostname)
+			jq := ".hosts | to_entries[] | select(.key == \"" + hostname + "\") | .value[].login"
 			out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 				"gh", "auth", "status", "--active", "--json", "hosts", "--jq", jq)
 			slog.Debug("loggedInUsername " + loggedInUsername)

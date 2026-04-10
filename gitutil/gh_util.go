@@ -98,6 +98,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	// Note: technically it is possible to query for more than one PR at a time but requires knowing a commit hash so not as reliable.
 	// gh pr list --search "429bb20,0ff019b" --state all
 	lastCommit := GetBranchLatestCommit(branchName)
+	util.RequireHexString(lastCommit)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq)

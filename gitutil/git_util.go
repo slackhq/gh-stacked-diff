@@ -357,6 +357,9 @@ func RebaseAndSkipAllEmptyOrDie(options util.ExecuteOptions, otherRebaseArgs ...
 // Arguments to git that specify rebase with no-verify that works.
 // --no-verify on its own does not propagate to commits that are done,
 // so set the hooksPath to /dev/null.
+// Bypassing hooks during rebase is safe because the resulting commits must
+// be cherry-picked onto the PR branch via `sd new“ or `sd update` before
+// they can be pushed, which would go through the git hooks.
 // Modified from https://superuser.com/a/1827815/681646
 func rebaseNoVerify() []string {
 	// Also use commit.cleanup=strip to avoid having conflict comments added to commit message.
