@@ -177,6 +177,7 @@ func (m logStatusModel) View() string {
 	if m.polling && m.loading && !m.hasInlineSpinner() {
 		reservedLines++
 	}
+	showLegend := util.GetUserConfig().ShowDuplicateSubjectLegend
 	maxLines := m.terminalHeight - reservedLines
 	totalLines := 0
 	hiddenRows := 0
@@ -186,10 +187,9 @@ func (m logStatusModel) View() string {
 		}
 		rendered := m.renderRow(row)
 		lineCount := strings.Count(rendered, "\n")
-		// Check if adding duplicate legend would be needed.
 		legendLines := 0
-		if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
-			legendLines = strings.Count(templates.DuplicateSubjectLegend, "\n") + 1
+		if hasDuplicates && showLegend {
+			legendLines = 1 // DuplicateSubjectLegend is a single line
 		}
 		if m.terminalHeight > 0 && totalLines+lineCount+legendLines > maxLines {
 			hiddenRows = len(m.rows) - i

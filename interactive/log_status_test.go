@@ -1,11 +1,13 @@
 package interactive
 
 import (
+	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
+	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,6 +104,78 @@ func TestLogStatusModel_UpdateBranchCommits_IgnoresStaleGeneration(t *testing.T)
 	updated, _ := m.Update(updateLogStatusBranchCommitsMsg{index: 0, branchCommits: []templates.GitLog{{Subject: "stale"}}, generation: 1})
 	model := updated.(logStatusModel)
 	assert.Nil(t, model.rows[0].branchCommits)
+}
+
+func newTestRows(count int) []logStatusRow {
+	rows := make([]logStatusRow, count)
+	for i := range count {
+		rows[i] = logStatusRow{
+			log:          templates.GitLog{Commit: fmt.Sprintf("abc%d", i), Subject: fmt.Sprintf("commit %d", i), Branch: fmt.Sprintf("branch-%d", i)},
+			numberPrefix: fmt.Sprintf("%d. ", i+1),
+			padding:      "   ",
+		}
+	}
+	return rows
+}
+
+func TestLogStatusModel_View_TruncatesWhenExceedingTerminalHeight(t *testing.T) {
+	util.SetUserConfig(util.UserConfig{})
+	// Each non-PR row renders as 1 line. With terminalHeight=5 and 2 reserved
+	// lines (hiding message + trailing newline), we can fit 3 rows.
+	m := logStatusModel{
+		rows:           newTestRows(5),
+		terminalHeight: 5,
+	}
+	view := m.View()
+	assert.Contains(t, view, "commit 0")
+	assert.Contains(t, view, "commit 1")
+	assert.Contains(t, view, "commit 2")
+	assert.NotContains(t, view, "commit 3")
+	assert.NotContains(t, view, "commit 4")
+	assert.Contains(t, view, "[hiding 2 more...]")
+}
+
+func TestLogStatusModel_View_NoTruncationWhenAllRowsFit(t *testing.T) {
+	util.SetUserConfig(util.UserConfig{})
+	m := logStatusModel{
+		rows:           newTestRows(3),
+		terminalHeight: 10,
+	}
+	view := m.View()
+	assert.Contains(t, view, "commit 0")
+	assert.Contains(t, view, "commit 1")
+	assert.Contains(t, view, "commit 2")
+	assert.NotContains(t, view, "hiding")
+}
+
+func TestLogStatusModel_View_NoTruncationWhenTerminalHeightUnknown(t *testing.T) {
+	util.SetUserConfig(util.UserConfig{})
+	m := logStatusModel{
+		rows:           newTestRows(5),
+		terminalHeight: 0,
+	}
+	view := m.View()
+	assert.Contains(t, view, "commit 0")
+	assert.Contains(t, view, "commit 4")
+	assert.NotContains(t, view, "hiding")
+}
+
+func TestLogStatusModel_View_TruncatesWithPRStatusRows(t *testing.T) {
+	util.SetUserConfig(util.UserConfig{})
+	// PR rows render as 2 lines (commit + status), so they consume more space.
+	rows := newTestRows(4)
+	rows[0].hasPR = true
+	rows[1].hasPR = true
+	m := logStatusModel{
+		rows:           rows,
+		terminalHeight: 6,
+	}
+	view := m.View()
+	// Row 0 takes 2 lines, row 1 takes 2 lines = 4 lines, maxLines = 4.
+	assert.Contains(t, view, "commit 0")
+	assert.Contains(t, view, "commit 1")
+	assert.NotContains(t, view, "commit 2")
+	assert.Contains(t, view, "[hiding 2 more...]")
 }
 
 func TestFormatBranchCommits_EmptySlice(t *testing.T) {
