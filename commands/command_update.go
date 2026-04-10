@@ -21,7 +21,11 @@ func createUpdateCommand() *cobra.Command {
 		Short: "Add commits from " + gitutil.GetMainBranchForHelp() + " to an existing PR",
 		Long: "Add commits from local " + gitutil.GetMainBranchForHelp() + " branch to an existing PR.\n" +
 			"\n" +
-			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.",
+			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.\n" +
+			"\n" +
+			"Note: git hooks (pre-commit, etc.) are bypassed during the local rebase. This\n" +
+			"is safe because the resulting commits are cherry-picked onto the PR branch and\n" +
+			"pushed, which runs hooks normally.",
 		Annotations: map[string]string{
 			checkRepoAnnotation: "true",
 		},

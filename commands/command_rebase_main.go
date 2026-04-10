@@ -26,7 +26,11 @@ func createRebaseMainCommand() *cobra.Command {
 			"This avoids having to manually call \"git reset --hard head\" whenever\n" +
 			"you have merge conflicts with a commit that has already been merged\n" +
 			"but has slight variation with local main because, for example, a\n" +
-			"change was made with the Github Web UI.",
+			"change was made with the Github Web UI.\n" +
+			"\n" +
+			"Note: git hooks (pre-commit, etc.) are bypassed during the rebase. This is\n" +
+			"safe because commits must be cherry-picked onto a PR branch via \"sd new\" or\n" +
+			"\"sd update\" before they can be pushed, which runs hooks normally.",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
 			checkRepoAnnotation: "true",
@@ -163,6 +167,9 @@ func getBranchesByPRState(mergedState bool) []string {
 		if len(fields) != 2 {
 			break
 		}
+		// Validate refs from GitHub API before passing to git commands.
+		util.RequireGitRef(fields[0])
+		util.RequireHexString(fields[1])
 
 		// For closed PRs, skip ancestry check and include all branches
 		if !mergedState {
