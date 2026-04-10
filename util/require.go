@@ -19,6 +19,19 @@ func RequireHexString(s string) {
 	}
 }
 
+// RequireGitRef panics if s is empty or starts with a hyphen.
+// Git interprets arguments starting with "-" as flags, so passing an
+// unvalidated ref (branch name, commit hash) from an external source
+// (e.g. GitHub API) could cause git to treat it as an option.
+func RequireGitRef(s string) {
+	if s == "" {
+		panic("expected git ref, got empty string")
+	}
+	if s[0] == '-' {
+		panic("git ref must not start with '-': " + s)
+	}
+}
+
 var hostnamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]*$`)
 
 // RequireHostname panics if s contains characters outside the set allowed

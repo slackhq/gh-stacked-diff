@@ -413,7 +413,7 @@ func TestSdUpdate_WhenBranchAlreadyMergedAndUserDoesNotConfirm_Cancels(t *testin
 
 	// Are you sure you want to update this PR?
 	interactive.SendToProgram(0, interactive.NewMessageRune('n'))
-	testExecutor.SetResponse(allCommits[1].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
 
 	defer func() {
@@ -438,7 +438,7 @@ func TestSdUpdate_WhenBranchAlreadyMergedAndUserConfirms_Updates(t *testing.T) {
 	testutil.AddCommit("second", "")
 
 	allCommits := templates.GetAllCommits()
-	testExecutor.SetResponse(allCommits[1].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", util.MatchAnyRemainingArgs)
 
 	// Are you sure you want to update this PR?

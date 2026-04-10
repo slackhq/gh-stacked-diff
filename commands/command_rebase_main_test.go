@@ -35,7 +35,7 @@ func TestSdRebaseMain_WithDifferentCommits_DropsCommits(t *testing.T) {
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
 
 	// Mock merged PRs response
-	testExecutor.SetResponse(allOriginalCommits[0].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	testParseArguments("rebase-main")
@@ -74,8 +74,8 @@ func TestSdRebaseMain_WithMulitpleMergedBranches_DropsCommits(t *testing.T) {
 
 	// Mock merged PRs response
 	testExecutor.SetResponse(
-		allOriginalCommits[0].Branch+" fakeMergeCommit\n"+
-			allOriginalCommits[1].Branch+" fakeMergeCommit",
+		allOriginalCommits[0].Branch+" abcd1234\n"+
+			allOriginalCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	testParseArguments("rebase-main")
@@ -107,7 +107,7 @@ func TestSdRebaseMain_WithDuplicateBranches_Panics(t *testing.T) {
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
 
 	// Mock merged PRs response
-	testExecutor.SetResponse(allOriginalCommits[0].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	// Return on panic
@@ -139,7 +139,7 @@ func TestSdRebaseMain_WhenRebaseFails_DropsBranches(t *testing.T) {
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
 
 	// Mock merged PRs response
-	testExecutor.SetResponse(allCommits[1].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	branches := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch")
@@ -213,7 +213,7 @@ func TestSdRebaseMain_WithDroppedCommits_DropsBranches(t *testing.T) {
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
 
 	// Mock merged PRs response
-	testExecutor.SetResponse(allOriginalCommits[0].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	testParseArguments("rebase-main")
@@ -329,7 +329,7 @@ func TestSdRebaseMain_WithMergedAndClosedPRs_DropsBothWhenConfirmed(t *testing.T
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
 
 	// Mock merged PRs response - "second" is merged
-	testExecutor.SetResponse(allOriginalCommits[1].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allOriginalCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	// Simulate user confirming (y) to drop closed PR commits
@@ -364,7 +364,7 @@ func TestSdRebaseMain_WhenCommitAlreadyCherryPickedToBranch_SkipsEmptyCommit(t *
 
 	allCommits := templates.GetAllCommits()
 
-	testExecutor.SetResponse(allCommits[1].Branch+" fakeMergeCommit",
+	testExecutor.SetResponse(allCommits[1].Branch+" abcd1234",
 		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
 
 	testParseArguments("rebase-main")
