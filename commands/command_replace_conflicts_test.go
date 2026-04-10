@@ -31,7 +31,7 @@ func TestSdReplaceConflicts_WhenConflictOnLastCommit_ReplacesCommit(t *testing.T
 	_, mergeErr := util.Execute(util.ExecuteOptions{}, "git", "merge", "origin/"+gitutil.GetRemoteMainBranchOrDie())
 	assert.NotNil(mergeErr)
 
-	if writeErr := os.WriteFile("file-with-conflicts", []byte("1\n2"), 0); writeErr != nil {
+	if writeErr := os.WriteFile("file-with-conflicts", []byte("1\n2"), 0644); writeErr != nil {
 		panic(writeErr)
 	}
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
