@@ -107,9 +107,21 @@ func promptForReviewers(shouldPrompt bool, userConfig util.UserConfig, autoMerge
 
 // sequenceEditorEnvVar builds the GIT_SEQUENCE_EDITOR environment variable string
 // that invokes the app executable with the given subcommand and arguments.
+// Arguments are shell-quoted to prevent interpretation of special characters,
+// since git invokes GIT_SEQUENCE_EDITOR through the shell.
+// AppExecutable is not quoted here because it is already shell-safe
+// (production wraps it in double quotes, tests use a bare program name).
 func sequenceEditorEnvVar(subcommand string, args ...string) string {
 	appConfig := util.GetAppConfig()
-	parts := []string{appConfig.AppExecutable, subcommand}
-	parts = append(parts, args...)
+	parts := []string{appConfig.AppExecutable, shellQuote(subcommand)}
+	for _, a := range args {
+		parts = append(parts, shellQuote(a))
+	}
 	return "GIT_SEQUENCE_EDITOR=" + strings.Join(parts, " ")
+}
+
+// shellQuote wraps s in single quotes, escaping any embedded single quotes.
+// This produces a string safe for inclusion in a POSIX shell command line.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
