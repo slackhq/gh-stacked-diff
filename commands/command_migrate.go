@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -337,22 +338,14 @@ func findMostRecentMainCommit(branches []string) string {
 		panic("No valid merge-base commits found")
 	}
 
-	// Find the most recent commit (highest timestamp)
-	mostRecent := commits[0]
-	for _, commit := range commits[1:] {
-		if commit.timestamp > mostRecent.timestamp {
-			mostRecent = commit
-		}
-	}
-
-	return mostRecent.name
+	return slices.MaxFunc(commits, func(a, b itemWithTimestamp) int {
+		return cmp.Compare(a.timestamp, b.timestamp)
+	}).name
 }
 
 // getCommitsAhead returns a list of commit hashes between baseCommit and toRef (exclusive of baseCommit).
 // The commits are returned in chronological order (oldest first).
 func getCommitsAhead(baseCommit string, toRef string) []string {
-	// Use git rev-list to get commits in reverse chronological order (newest first)
-	// We'll reverse the list later to get oldest first
 	output := util.ExecuteOrDieTrimmed(
 		util.ExecuteOptions{},
 		"git",
