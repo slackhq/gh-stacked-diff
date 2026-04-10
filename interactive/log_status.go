@@ -421,10 +421,12 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 				go func() {
 					defer wg.Done()
 					defer SendErrorOnPanic(program)
-					sem <- struct{}{}
-					defer func() { <-sem }()
+					// Branch commits are a local git operation — fetch without semaphore.
 					branchCommits := templates.GetNewCommits(row.log.Branch, "")
 					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, generation: gen})
+					// API calls are rate-limited by semaphore.
+					sem <- struct{}{}
+					defer func() { <-sem }()
 					// Use 1 for minChecks as this flow does not need to have it calculated.
 					status := gitutil.GetPullRequestStatus(row.log.Branch, 1)
 					program.Send(updateLogStatusRowMsg{index: i, status: status, generation: gen})

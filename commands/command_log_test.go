@@ -217,6 +217,65 @@ func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
 	testutil.WaitForDone(t, done)
 }
 
+func TestSdLog_WhenStatusFlag_BranchCommitsAppearBeforeApiCalls(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Create 3 commits with PRs, each with an extra branch commit.
+	// maxParallelAPICalls is 2, so the 3rd PR's API call must wait
+	// for a semaphore slot. Branch commits should still appear immediately
+	// since they are fetched outside the semaphore.
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+	testutil.AddCommit("first-extra", "")
+	testParseArguments("update", "2", "1")
+
+	testutil.AddCommit("second", "")
+	testParseArguments("new", "1")
+	testutil.AddCommit("second-extra", "")
+	testParseArguments("update", "2", "1")
+
+	testutil.AddCommit("third", "")
+	testParseArguments("new", "1")
+	testutil.AddCommit("third-extra", "")
+	testParseArguments("update", "2", "1")
+
+	// Block gh pr view calls until we release them.
+	apiGate := make(chan struct{})
+	prResponse := "state,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
+	testExecutor.SetResponseFunc(prResponse, nil, func(programName string, args ...string) bool {
+		if programName == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" {
+			<-apiGate
+			return true
+		}
+		return false
+	})
+
+	out := util.NewWriteRecorder(new(bytes.Buffer))
+	done := make(chan struct{})
+	go func() {
+		testParseArgumentsWithOut(out, "log", "--status")
+		close(done)
+	}()
+
+	// All branch commits should appear even though API calls are blocked,
+	// because GetNewCommits runs outside the semaphore.
+	testutil.WaitForOutput(t, out, "first-extra")
+	testutil.WaitForOutput(t, out, "second-extra")
+	testutil.WaitForOutput(t, out, "third-extra")
+
+	// No status info should be present yet since API calls are blocked.
+	assert.NotContains(out.String(), "[open]")
+
+	// Release the API calls.
+	close(apiGate)
+
+	testutil.WaitForOutput(t, out, "[open]")
+
+	interactive.SendToProgram(0, interactive.NewMessageRune('q'))
+	testutil.WaitForDone(t, done)
+}
+
 func TestSdLog_WhenStatusFlagNotOnMain_Panics(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
