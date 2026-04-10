@@ -84,10 +84,12 @@ func GetBranchInfo(commitIndicator string, indicatorType IndicatorType) GitLog {
 		slog.Debug("Using commitIndicator as a pull request number " + commitIndicator)
 
 		branchName := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "headRefName", "-q", ".headRefName")
+		util.RequireGitRef(branchName)
 		// Fetch the branch in case the lastest commit is only on GitHub.
 		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branchName)
 		// Get the first commit of the branch on Github.
 		prCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", commitIndicator, "--json", "commits", "-q", "[.commits[].oid] | first")
+		util.RequireHexString(prCommit)
 		gitLogs := newGitLogs(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", "--no-patch", newGitLogsFormat, "--abbrev-commit", prCommit))
 		if len(gitLogs) == 0 {
 			panic(fmt.Sprint("Could not find first commit (", prCommit, ") of PR ", commitIndicator))
