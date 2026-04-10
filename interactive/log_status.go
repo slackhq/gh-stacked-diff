@@ -41,12 +41,13 @@ type logStatusRow struct {
 }
 
 type logStatusModel struct {
-	spinner    spinner.Model
-	rows       []logStatusRow
-	polling    bool
-	loading    bool
-	error      any
-	generation int
+	spinner        spinner.Model
+	rows           []logStatusRow
+	polling        bool
+	loading        bool
+	error          any
+	generation     int
+	terminalHeight int
 }
 
 var _ failableModel = logStatusModel{}
@@ -127,6 +128,9 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
+	case tea.WindowSizeMsg:
+		m.terminalHeight = msg.Height
+		return m, nil
 	case errorMsg:
 		m.error = msg.error
 		return m, tea.Quit
@@ -136,39 +140,70 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m logStatusModel) renderRow(row logStatusRow) string {
+	var out strings.Builder
+	if row.sectionHeader != "" {
+		out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
+	}
+	if row.log.HasDuplicate {
+		out.WriteString(row.numberPrefix + color.YellowString("🟡 "))
+	} else if row.hasPR {
+		out.WriteString(row.numberPrefix + color.GreenString("✅ "))
+	} else {
+		out.WriteString(row.numberPrefix + "   ")
+	}
+	out.WriteString(coloredCommit(row) + " " + row.log.Subject + "\n")
+	if row.hasPR {
+		statusLine := row.padding + "   " + m.formatStatus(row.status)
+		if row.status != nil {
+			reviewInfo := formatReviewSummary(row.status)
+			if reviewInfo != "" {
+				statusLine += " " + reviewInfo
+			}
+		}
+		out.WriteString(statusLine + "\n")
+	}
+	if row.hasPR && len(row.branchCommits) > 1 {
+		out.WriteString(FormatBranchCommits(row.branchCommits, row.padding))
+	}
+	return out.String()
+}
+
 func (m logStatusModel) View() string {
 	var out strings.Builder
 	hasDuplicates := false
-	for _, row := range m.rows {
-		if row.sectionHeader != "" {
-			out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
-		}
+	// Reserve lines for footer elements (hiding message, legend, spinner).
+	reservedLines := 2 // hiding message + trailing newline
+	if m.polling && m.loading && !m.hasInlineSpinner() {
+		reservedLines++
+	}
+	showLegend := util.GetUserConfig().ShowDuplicateSubjectLegend
+	maxLines := m.terminalHeight - reservedLines
+	totalLines := 0
+	hiddenRows := 0
+	for i, row := range m.rows {
 		if row.log.HasDuplicate {
 			hasDuplicates = true
-			out.WriteString(row.numberPrefix + color.YellowString("🟡 "))
-		} else if row.hasPR {
-			out.WriteString(row.numberPrefix + color.GreenString("✅ "))
-		} else {
-			out.WriteString(row.numberPrefix + "   ")
 		}
-		out.WriteString(coloredCommit(row) + " " + row.log.Subject + "\n")
-		if row.hasPR {
-			statusLine := row.padding + "   " + m.formatStatus(row.status)
-			if row.status != nil {
-				reviewInfo := formatReviewSummary(row.status)
-				if reviewInfo != "" {
-					statusLine += " " + reviewInfo
-				}
-			}
-			out.WriteString(statusLine + "\n")
+		rendered := m.renderRow(row)
+		lineCount := strings.Count(rendered, "\n")
+		legendLines := 0
+		if hasDuplicates && showLegend {
+			legendLines = 1 // DuplicateSubjectLegend is a single line
 		}
-		if row.hasPR && len(row.branchCommits) > 1 {
-			out.WriteString(FormatBranchCommits(row.branchCommits, row.padding))
+		if m.terminalHeight > 0 && totalLines+lineCount+legendLines > maxLines {
+			hiddenRows = len(m.rows) - i
+			break
 		}
+		totalLines += lineCount
+		out.WriteString(rendered)
 	}
 	if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
 		countLegendShown(util.LegendDuplicateSubject)
 		out.WriteString(color.YellowString(templates.DuplicateSubjectLegend) + "\n")
+	}
+	if hiddenRows > 0 {
+		out.WriteString(hidingColor.Sprint(fmt.Sprintf("[hiding %d more...]", hiddenRows)) + "\n")
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
 		// Note: do not use eol here.
