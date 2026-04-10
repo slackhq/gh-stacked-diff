@@ -26,14 +26,14 @@ type MetricsConfig struct {
 	DuplicateSubjectLegendShownCount    int `yaml:"duplicateSubjectLegendShownCount,omitempty"`
 }
 
-// LoadMetricsFile reads metrics.yaml from ConfigHome if it exists.
+// LoadMetricsFile reads metrics.yaml from the cache directory if it exists.
 func LoadMetricsFile() MetricsConfig {
-	configFile := GetConfigFile("metrics.yaml")
-	if configFile == "" {
-		return MetricsConfig{}
-	}
-	data, err := os.ReadFile(configFile)
+	metricsPath := filepath.Join(GetAppConfig().CacheDir(), "metrics.yaml")
+	data, err := os.ReadFile(metricsPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return MetricsConfig{}
+		}
 		panic(fmt.Sprint("Could not read metrics file: ", err))
 	}
 	var cfg MetricsConfig
@@ -75,7 +75,7 @@ func IncrementLegendShownCount(legend LegendType) {
 	default:
 		panic(fmt.Sprint("unknown legend type: ", legend))
 	}
-	metricsPath := filepath.Join(GetAppConfig().ConfigHome(), "metrics.yaml")
+	metricsPath := filepath.Join(GetAppConfig().CacheDir(), "metrics.yaml")
 	data, err := yaml.Marshal(metrics)
 	if err != nil {
 		panic(fmt.Sprint("Could not marshal metrics: ", err))

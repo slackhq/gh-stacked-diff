@@ -38,7 +38,7 @@ func ExecuteCommand(appConfig util.AppConfig, commandLineArgs []string) {
 	setSlogLogger(appConfig.Io.Out, findLogLevelArg(commandLineArgs))
 
 	slog.Debug("App executable: " + appConfig.AppExecutable)
-	slog.Debug("User cache dir: " + appConfig.UserCacheDir)
+	slog.Debug("User cache dir: " + appConfig.CacheDir())
 
 	rootCmd := buildRootCommand()
 	rootCmd.SetArgs(commandLineArgs)

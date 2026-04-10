@@ -62,8 +62,7 @@ func (d HistoricalData) SetHistory(history []string) {
 }
 
 func getHistoryFile(historyFilename string) string {
-	appConfig := GetAppConfig()
-	appCacheDir := filepath.Join(appConfig.UserCacheDir, "gh-stacked-diff", GetRepoName())
+	appCacheDir := filepath.Join(GetAppConfig().CacheDir(), GetRepoName())
 	if err := os.MkdirAll(appCacheDir, 0700); err != nil {
 		panic("Could not create cache directory: " + err.Error())
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // Allows unit testing the use of standard i/o.
@@ -19,21 +20,25 @@ type AppConfig struct {
 	Io            StdIo
 	AppExecutable string         // Path of this executable.
 	Exit          func(code int) // Call os.Exit with the given code, or panic during unit tests.
-	UserCacheDir  string         // os.UserCacheDir or a dir specific for each test in unit tests.
+	cacheDir      string         // os.UserCacheDir + repoName or a dir specific for each test in unit tests.
 	configHome    string         // Path to ~/.gh-stacked-diff/ or a test-specific dir in unit tests.
 	DemoMode      bool
 }
 
-// NewAppConfig creates a new AppConfig, ensuring the configHome directory exists.
+// NewAppConfig creates a new AppConfig, ensuring the config and cache directories exist.
 func NewAppConfig(io StdIo, appExecutable string, exit func(code int), userCacheDir string, configHome string, demoMode bool) AppConfig {
+	cacheDir := filepath.Join(userCacheDir, "gh-stacked-diff")
 	if err := os.MkdirAll(configHome, 0700); err != nil {
 		panic(fmt.Sprint("Could not create config directory: ", err))
+	}
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		panic(fmt.Sprint("Could not create cache directory: ", err))
 	}
 	return AppConfig{
 		Io:            io,
 		AppExecutable: appExecutable,
 		Exit:          exit,
-		UserCacheDir:  userCacheDir,
+		cacheDir:      cacheDir,
 		configHome:    configHome,
 		DemoMode:      demoMode,
 	}
@@ -42,6 +47,11 @@ func NewAppConfig(io StdIo, appExecutable string, exit func(code int), userCache
 // ConfigHome returns the path to the config directory.
 func (c AppConfig) ConfigHome() string {
 	return c.configHome
+}
+
+// CacheDir returns the path to the app cache directory.
+func (c AppConfig) CacheDir() string {
+	return c.cacheDir
 }
 
 var globalAppConfig *AppConfig

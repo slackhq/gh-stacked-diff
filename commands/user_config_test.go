@@ -266,7 +266,7 @@ func TestNewUserConfig_ShowUiLegendFlagOverridesShownCount(t *testing.T) {
 
 func TestShowUiLegend_ShownCountStopsAtMax(t *testing.T) {
 	tempDir := t.TempDir()
-	util.SetAppConfig(util.NewAppConfig(util.StdIo{}, "", nil, "", tempDir, false))
+	util.SetAppConfig(util.NewAppConfig(util.StdIo{}, "", nil, tempDir, tempDir, false))
 
 	for _, legend := range []util.LegendType{util.LegendUserSelection, util.LegendTableSelection, util.LegendTableMultiselection, util.LegendDuplicateSubject} {
 		shownCount := 0
