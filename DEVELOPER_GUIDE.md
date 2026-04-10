@@ -50,21 +50,21 @@ Follow the steps in golang docs
 [Publishing a module](https://go.dev/doc/modules/publishing):
 
 ```bash
-# 1. Make addition to [CHANGELOG.md], including Contributors section.
-# 2. Update the stable version so that it is equal to current version [util/stable_version.txt]
-# 3. Update README.md so it matches latest commands and options.
+make update-readme
+# - Make addition to [CHANGELOG.md], including Contributors section.
+# - Update the stable version so that it is equal to current version [util/stable_version.txt]
 # Then...
-# create PR, merge changes, and then:
+# - create PR, merge changes, and then:
 sd rebase-main
-# Make sure all changes merged into main, git status and sd log should
-# be empty. Otherwise save your changes, "git reset --hard origin/main",
-# create tag, then restore your changes
+# - Make sure all changes merged into main, git status and sd log should
+#   be empty. Otherwise save your changes, "git reset --hard origin/main",
+#   create tag, then restore your changes
 git status && sd log
 # Then make the release:
 export RELEASE_VERSION=`cat util/stable_version.txt`
 git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
-# Increment [util/current_version.txt] so that the version lists as preview until next release.
+# - Increment [util/current_version.txt] so that the version lists as preview until next release.
 ```
 
 For bubbles and bubbletea forks:

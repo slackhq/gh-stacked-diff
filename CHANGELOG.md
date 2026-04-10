@@ -2,6 +2,23 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.2...v2.1.3) - 2026-04-10
+
+### Added 
+
+- `log` and the commit selection tables show a yellow circle 🟡 next to commits that share the same subject.
+- update-readme script.
+
+### Changed
+
+- Faster display of branch commits with `log --status`.
+- `log --status` shows the top commits instead of the bottom commits when fetching status.
+
+### Fixed
+
+- Security Audit: hardening to limit potential security vulnerabilities.
+- Bug on first install where ~./gh-stacked-diff was not created.
+
 ## [2.1.2](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.1...v2.1.2) - 2026-04-08
 
 ### Added 
