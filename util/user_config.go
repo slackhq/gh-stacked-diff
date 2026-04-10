@@ -232,7 +232,7 @@ func SaveTicketUrlPattern(pattern string) {
 	if err != nil {
 		panic(fmt.Sprint("Could not marshal config: ", err))
 	}
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
 		panic(fmt.Sprint("Could not write config file: ", err))
 	}
 	slog.Info(fmt.Sprint("Saved ticketUrlPattern to ", configPath))

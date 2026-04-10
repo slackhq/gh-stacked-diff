@@ -56,7 +56,7 @@ func (d HistoricalData) SetHistory(history []string) {
 		history = history[len(history)-d.maxHistory:]
 	}
 	data := strings.Join(history, "\n")
-	if writeErr := os.WriteFile(getHistoryFile(d.filename), []byte(data), os.ModePerm); writeErr != nil {
+	if writeErr := os.WriteFile(getHistoryFile(d.filename), []byte(data), 0600); writeErr != nil {
 		panic("Could not write file: " + writeErr.Error())
 	}
 }
@@ -64,6 +64,8 @@ func (d HistoricalData) SetHistory(history []string) {
 func getHistoryFile(historyFilename string) string {
 	appConfig := GetAppConfig()
 	appCacheDir := filepath.Join(appConfig.UserCacheDir, "gh-stacked-diff", GetRepoName())
-	ExecuteOrDie(ExecuteOptions{}, "mkdir", "-p", appCacheDir)
+	if err := os.MkdirAll(appCacheDir, 0700); err != nil {
+		panic("Could not create cache directory: " + err.Error())
+	}
 	return filepath.Join(appCacheDir, historyFilename)
 }
