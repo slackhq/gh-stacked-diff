@@ -28,6 +28,10 @@ build: format
 lint: build
 	golangci-lint run
 
+.PHONY: update-readme
+update-readme: build
+	./update-readme-help.sh
+
 # Example TEST_ARGS:
 # make TEST_ARGS="-timeout 10s -run TestSdUpdate_WhenDestinationCommitNotSpecified_UpdatesSelectedPr" -o lint test
 # Note: timeout is cumulative for all tests to run.
