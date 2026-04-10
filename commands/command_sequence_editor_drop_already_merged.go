@@ -58,7 +58,7 @@ func dropAlreadyMerged(dropCommits []string, rebaseFilename string) {
 		}
 	}
 
-	err = os.WriteFile(rebaseFilename, []byte(newText.String()), 0)
+	err = os.WriteFile(rebaseFilename, []byte(newText.String()), 0644)
 	if err != nil {
 		panic(err)
 	}

@@ -66,7 +66,7 @@ func markAsFixup(targetCommit string, fixupCommits []string, rebaseFilename stri
 		}
 	}
 
-	err = os.WriteFile(rebaseFilename, []byte(newText.String()), 0)
+	err = os.WriteFile(rebaseFilename, []byte(newText.String()), 0644)
 	if err != nil {
 		panic(err)
 	}

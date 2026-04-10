@@ -232,7 +232,7 @@ func SetupSecondaryWorktree(t *testing.T) string {
 
 func CommitFileChange(commitMessage string, filename string, fileContents string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", filename)
-	if writeErr := os.WriteFile(filename, []byte(fileContents), 0); writeErr != nil {
+	if writeErr := os.WriteFile(filename, []byte(fileContents), 0644); writeErr != nil {
 		panic(writeErr)
 	}
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
