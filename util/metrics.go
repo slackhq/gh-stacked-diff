@@ -80,7 +80,7 @@ func IncrementLegendShownCount(legend LegendType) {
 	if err != nil {
 		panic(fmt.Sprint("Could not marshal metrics: ", err))
 	}
-	if err := os.WriteFile(metricsPath, data, 0644); err != nil {
+	if err := os.WriteFile(metricsPath, data, 0600); err != nil {
 		panic(fmt.Sprint("Could not write metrics file: ", err))
 	}
 }
