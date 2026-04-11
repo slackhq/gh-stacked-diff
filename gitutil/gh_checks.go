@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -26,9 +25,6 @@ type PullRequestChecksStatus struct {
 	Passing   int
 	MinChecks int
 }
-
-var cachedMinChecks int = -1
-var cachedMinChecksOnce *sync.Once = new(sync.Once)
 
 func (s PullRequestChecksStatus) PercentageComplete() float32 {
 	if s.Total() == 0 || s.Total() < s.MinChecks {
@@ -92,49 +88,46 @@ func updatePullRequestChecksStatus(checks *PullRequestChecksStatus, status strin
 }
 
 func getMinChecks() int {
-	if cachedMinChecks == -1 {
-		cachedMinChecksOnce.Do(func() {
-			minChecksFromHistory := getMinChecksFromHistory()
-			if minChecksFromHistory != -1 {
-				cachedMinChecks = minChecksFromHistory
-				return
-			}
-			jq := ".[].statusCheckRollup | length"
-			// Github sometimes returns an error for this command so retry and then fallback to default.
-			out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
-				"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
-				"--json", "statusCheckRollup", "--jq", jq)
+	cache.minChecksOnce.Do(func() {
+		minChecksFromHistory := getMinChecksFromHistory()
+		if minChecksFromHistory != -1 {
+			cache.minChecks = minChecksFromHistory
+			return
+		}
+		jq := ".[].statusCheckRollup | length"
+		// Github sometimes returns an error for this command so retry and then fallback to default.
+		out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
+			"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
+			"--json", "statusCheckRollup", "--jq", jq)
+		if err != nil {
+			slog.Warn("Could not determine min checks so using default " + fmt.Sprint(DefaultMinChecks))
+			cache.minChecks = DefaultMinChecks
+			return
+		}
+		allNumChecks := util.MapSlice(strings.Fields(out), func(next string) int {
+			numChecks, err := strconv.Atoi(next)
 			if err != nil {
-				slog.Warn("Could not determine min checks so using default " + fmt.Sprint(DefaultMinChecks))
-				cachedMinChecks = DefaultMinChecks
-				return
+				panic(err)
 			}
-			allNumChecks := util.MapSlice(strings.Fields(out), func(next string) int {
-				numChecks, err := strconv.Atoi(next)
-				if err != nil {
-					panic(err)
-				}
-				return numChecks
-			})
-			if len(allNumChecks) == 0 {
-				cachedMinChecks = 0
-				return
-			}
-
-			minChecks := slices.Min(allNumChecks)
-			slog.Debug(fmt.Sprint("Checks from PRs are ", allNumChecks, " min is ", minChecks))
-			cachedMinChecks = min(minChecks, MaxChecks)
-			setMinChecksToHistory(cachedMinChecks)
+			return numChecks
 		})
-	}
-	return cachedMinChecks
+		if len(allNumChecks) == 0 {
+			return
+		}
+
+		minChecks := slices.Min(allNumChecks)
+		slog.Debug(fmt.Sprint("Checks from PRs are ", allNumChecks, " min is ", minChecks))
+		cache.minChecks = min(minChecks, MaxChecks)
+		setMinChecksToHistory(cache.minChecks)
+	})
+	return cache.minChecks
 }
 
 func getMinChecksFromHistory() int {
 	history := minChecksHistory.ReadHistory()
 	if len(history) == 2 {
-		when, timePaseErr := time.Parse(time.RFC3339, history[0])
-		if timePaseErr == nil {
+		when, timeParseErr := time.Parse(time.RFC3339, history[0])
+		if timeParseErr == nil {
 			if time.Since(when) < minChecksCacheDuration {
 				numChecks, intConvErr := strconv.Atoi(history[1])
 				if intConvErr == nil {
@@ -148,6 +141,6 @@ func getMinChecksFromHistory() int {
 
 func setMinChecksToHistory(minChecks int) {
 	minChecksHistory.SetHistory(
-		[]string{time.Now().Format(time.RFC3339), fmt.Sprint(cachedMinChecks)},
+		[]string{time.Now().Format(time.RFC3339), fmt.Sprint(minChecks)},
 	)
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-var GhDelim = "|stackeddiff-delim|"
+const GhDelim = "|stackeddiff-delim|"
 
 // PrInfo holds information about a pull request
 type PrInfo struct {
@@ -23,7 +23,7 @@ type PrInfo struct {
 func GetMergedPR(branchName string) *PrInfo {
 	// Check for merged PRs with this branch as the head
 	slog.Debug(fmt.Sprintf("Checking for merged PR with head branch: %s", branchName))
-	output := util.ExecuteOrDie(
+	output := util.ExecuteOrDieTrimmed(
 		util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "list",
 		"--head", branchName,
@@ -32,7 +32,6 @@ func GetMergedPR(branchName string) *PrInfo {
 		"--jq", ".[0] | \"\\(.number)|\\(.title)|\\(.state)\"",
 	)
 
-	output = strings.TrimSpace(output)
 	slog.Debug(fmt.Sprintf("gh pr list output for branch %s: '%s'", branchName, output))
 
 	if output == "" || output == "null" || output == "||" || output == "null|null|null" {
@@ -66,7 +65,7 @@ func GetMergedPR(branchName string) *PrInfo {
 // Returns the PR information if found, nil otherwise.
 func GetUnmergedPR(branchName string) *PrInfo {
 	// Check for open PRs with this branch as the head
-	output := util.ExecuteOrDie(
+	output := util.ExecuteOrDieTrimmed(
 		util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "list",
 		"--head", branchName,

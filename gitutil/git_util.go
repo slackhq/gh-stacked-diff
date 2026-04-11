@@ -21,6 +21,8 @@ type gitCache struct {
 	worktreesOnce     sync.Once
 	mainBranchForHelp string
 	userEmail         string
+	minChecks         int
+	minChecksOnce     sync.Once
 }
 
 var cache = &gitCache{}
@@ -45,35 +47,29 @@ func GetRemoteMainBranch() (string, error) {
 // Handles initial repository setup (setting origin/HEAD) if needed.
 // The result is cached after the first call.
 func GetRemoteMainBranchOrDie() string {
-	if cache.remoteMainBranch == "" {
-		cache.remoteMainOnce.Do(func() {
-			out, err := GetRemoteMainBranch()
-			if err == nil {
-				cache.remoteMainBranch = out
-				return
-			}
-			out, err = util.Execute(util.ExecuteOptions{}, "git", "rev-parse")
-			if err != nil {
-				panic("Not in a git repository. Must be run from a git repository.\n" + out + ": " + err.Error())
-			}
+	cache.remoteMainOnce.Do(func() {
+		if _, err := GetRemoteMainBranch(); err == nil {
+			return
+		}
+		out, err := util.Execute(util.ExecuteOptions{}, "git", "rev-parse")
+		if err != nil {
+			panic("Not in a git repository. Must be run from a git repository.\n" + out + ": " + err.Error())
+		}
 
-			out, err = util.Execute(util.ExecuteOptions{}, "git", "rev-list", "--max-parents=0", "HEAD")
-			if err != nil {
-				panic("Remote repository is empty.\n" +
-					"Push an initial inconsequential commit to origin/main and try again. \n" +
-					"Using a repository without an initial remote commit is not recommended because git \n" +
-					"requires special handling for the root commit, and you might accidentally \n" +
-					"create more than one root commit.\n" + out + ": " + err.Error())
-			}
+		out, err = util.Execute(util.ExecuteOptions{}, "git", "rev-list", "--max-parents=0", "HEAD")
+		if err != nil {
+			panic("Remote repository is empty.\n" +
+				"Push an initial inconsequential commit to origin/main and try again. \n" +
+				"Using a repository without an initial remote commit is not recommended because git \n" +
+				"requires special handling for the root commit, and you might accidentally \n" +
+				"create more than one root commit.\n" + out + ": " + err.Error())
+		}
 
-			setRemoteHead()
-			out, err = GetRemoteMainBranch()
-			if err != nil {
-				panic("Remote repository not setup.\n" + out + ": " + err.Error())
-			}
-			cache.remoteMainBranch = out
-		})
-	}
+		setRemoteHead()
+		if _, err = GetRemoteMainBranch(); err != nil {
+			panic("Remote repository not setup: " + err.Error())
+		}
+	})
 	return cache.remoteMainBranch
 }
 
@@ -171,23 +167,17 @@ func GetSecondaryWorktrees() []WorktreeInfo {
 // Returns name of the local main branch, or panics if it cannot be determined.
 // The result is cached after the first call.
 func GetLocalMainBranchOrDie() string {
-	if cache.localMainBranch == "" {
-		cache.localMainOnce.Do(func() {
-			out, err := GetLocalMainBranch()
-			if err == nil {
-				cache.localMainBranch = out
-				return
-			}
-			// Fall through to GetRemoteMainBranchOrDie which handles setup.
-			GetRemoteMainBranchOrDie()
-			// Retry now that remote is set up.
-			result, err := GetLocalMainBranch()
-			if err != nil {
-				panic("Could not determine local main branch: " + err.Error())
-			}
-			cache.localMainBranch = result
-		})
-	}
+	cache.localMainOnce.Do(func() {
+		if _, err := GetLocalMainBranch(); err == nil {
+			return
+		}
+		// Fall through to GetRemoteMainBranchOrDie which handles setup.
+		GetRemoteMainBranchOrDie()
+		// Retry now that remote is set up.
+		if _, err := GetLocalMainBranch(); err != nil {
+			panic("Could not determine local main branch: " + err.Error())
+		}
+	})
 	return cache.localMainBranch
 }
 
