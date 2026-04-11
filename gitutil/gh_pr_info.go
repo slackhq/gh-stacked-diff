@@ -42,7 +42,7 @@ func GetMergedPR(branchName string) *PrInfo {
 	}
 
 	// Parse the output: "number<delim>title<delim>state"
-	parts := strings.SplitN(output, GhDelim, 4)
+	parts := strings.SplitN(output, GhDelim, 3)
 	if len(parts) != 3 {
 		slog.Warn(fmt.Sprint("Unexpected PR output format for branch ", branchName, ": ", output))
 		return nil
@@ -78,7 +78,7 @@ func GetUnmergedPR(branchName string) *PrInfo {
 
 	// Parse the output: "number|title|state|body"
 	// Check if status is not present (which means the PR data was incomplete/missing)
-	parts := strings.SplitN(output, GhDelim, 5)
+	parts := strings.SplitN(output, GhDelim, 4)
 	if len(parts) != 4 || strings.ToUpper(parts[2]) != "OPEN" {
 		return nil
 	}

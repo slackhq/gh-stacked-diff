@@ -140,7 +140,7 @@ func TestSdMigrate_RebaseSingleBranch(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
 
 	// Get the most recent main commit
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	// Perform rebase
 	_, err := util.Execute(util.ExecuteOptions{}, "git", "rebase", mostRecentMainCommit)
@@ -177,7 +177,7 @@ func TestSdMigrate_RebaseMultipleBranches(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	// Get the most recent main commit
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	// Save current branch
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -220,7 +220,7 @@ func TestSdMigrate_RebaseFailure(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	// Get the most recent main commit
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	// Try to rebase - should fail due to conflict
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
@@ -260,7 +260,7 @@ func TestSdMigrate_EndsOnMainBranch(t *testing.T) {
 	assert.Equal("feature-2", originalBranch)
 
 	// Get the most recent main commit
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	// Simulate the migrate process: checkout feature-1, rebase it
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "feature-1")
@@ -483,7 +483,7 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 
 	// Get the most recent main commit
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	// Record current branch before processing
 	currentBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "--show-current")
@@ -529,7 +529,7 @@ func TestSdMigrate_SkipsDuplicateCommitsWhenMigratingBranchWithoutPR(t *testing.
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 
 	// Get the base commit for the feature branch
-	mostRecentMainCommit := gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+	mostRecentMainCommit := gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 
 	appConfig := util.GetAppConfig()
 	appConfig.Io.In = strings.NewReader("My Feature PR\n\n") // PR name, then empty string for prefix (press enter to skip)

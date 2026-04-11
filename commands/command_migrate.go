@@ -134,6 +134,15 @@ func processBranch(branch string, baseCommit string) migrationResult {
 
 	// Re-check commits after rebase (hashes may have changed)
 	commitsAhead = getCommitsAhead(baseCommit, "HEAD")
+	if len(commitsAhead) == 0 {
+		slog.Info(fmt.Sprint("Branch ", branch, " has no commits after rebase - skipping"))
+		return migrationResult{
+			branchName: branch,
+			success:    false,
+			reason:     "no commits after rebase",
+			numCommits: 0,
+		}
+	}
 	slog.Debug(fmt.Sprint("Found ", len(commitsAhead), " commits ahead of main for branch ", branch))
 	for _, commit := range commitsAhead {
 		slog.Debug(fmt.Sprint("  - ", commit))
@@ -204,7 +213,7 @@ func findUserBranches() []string {
 		result[i] = b.name
 	}
 
-	slog.Info(fmt.Sprint("Found ", len(result), " branches with your commits"))
+	slog.Debug(fmt.Sprint("Found ", len(result), " branches with your commits"))
 	return result
 }
 
@@ -261,18 +270,18 @@ func selectBranchesToMigrate(branches []string) []string {
 	}
 
 	if len(disabledBranches) == len(branches) {
-		slog.Info("All branches already exist on main - nothing to migrate")
+		slog.Debug("All branches already exist on main - nothing to migrate")
 		util.Fprintln(appConfig.Io.Out, "All branches have already been migrated to main")
 		return []string{}
 	}
 
-	slog.Info("Starting interactive branch selection...")
+	slog.Debug("Starting interactive branch selection...")
 	selectedBranches, err := interactive.GetBranchSelectionWithFilter(
 		branches,
 		"Select branches to migrate (use space to select/deselect, enter to confirm):",
 		rowEnabled,
 	)
-	slog.Info("Interactive selection completed")
+	slog.Debug("Interactive selection completed")
 	if err != nil {
 		slog.Warn("Failed to get branch selection: " + err.Error())
 		return []string{}
@@ -284,10 +293,10 @@ func selectBranchesToMigrate(branches []string) []string {
 // computeDisabledBranches returns a set of branch indices that already have their
 // commits on main and should be disabled in the interactive selector.
 func computeDisabledBranches(branches []string) map[int]bool {
-	slog.Info("Fetching commits from main for branch filtering...")
+	slog.Debug("Fetching commits from main for branch filtering...")
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	mainCommits := templates.GetNewCommits(mainBranch, "")
-	slog.Info(fmt.Sprint("Found ", len(mainCommits), " commits on main for branch filtering"))
+	slog.Debug(fmt.Sprint("Found ", len(mainCommits), " commits on main for branch filtering"))
 
 	branchesOnMain := make(map[string]bool)
 	for _, commit := range mainCommits {
@@ -296,12 +305,12 @@ func computeDisabledBranches(branches []string) map[int]bool {
 		}
 	}
 
-	slog.Info("Building branch filter...")
+	slog.Debug("Building branch filter...")
 	disabledBranches := make(map[int]bool)
 	for i, branch := range branches {
 		if branchesOnMain[branch] {
 			disabledBranches[i] = true
-			slog.Info(fmt.Sprint("Branch ", branch, " already exists on main - will be disabled"))
+			slog.Debug(fmt.Sprint("Branch ", branch, " already exists on main - will be disabled"))
 		}
 	}
 	return disabledBranches
@@ -319,7 +328,7 @@ func findMostRecentMainCommit(branches []string) string {
 
 	// For each branch, find its merge-base with origin/main
 	for _, branch := range allBranches {
-		mergeBase := gitutil.FirstOriginMainCommit(branch)
+		mergeBase := gitutil.GetMergeBaseWithOriginMain(branch)
 		slog.Debug(fmt.Sprint("Merge-base for ", branch, " with origin/main: ", mergeBase))
 
 		// Get the timestamp of this commit

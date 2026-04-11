@@ -13,16 +13,18 @@ import (
 // gitCache holds all cached values that are expensive to recompute.
 // Replaced atomically in tests via ResetCacheForTesting.
 type gitCache struct {
-	remoteMainBranch  string
-	remoteMainOnce    sync.Once
-	localMainBranch   string
-	localMainOnce     sync.Once
-	worktrees         []WorktreeInfo
-	worktreesOnce     sync.Once
-	mainBranchForHelp string
-	userEmail         string
-	minChecks         int
-	minChecksOnce     sync.Once
+	remoteMainBranch      string
+	remoteMainOnce        sync.Once
+	localMainBranch       string
+	localMainOnce         sync.Once
+	worktrees             []WorktreeInfo
+	worktreesOnce         sync.Once
+	mainBranchForHelp     string
+	mainBranchForHelpOnce sync.Once
+	emailLocalPart        string
+	emailLocalPartOnce    sync.Once
+	minChecks             int
+	minChecksOnce         sync.Once
 	// gh_repo.go caches
 	repoNameWithOwner     string
 	repoNameWithOwnerOnce sync.Once
@@ -37,7 +39,7 @@ var cache = &gitCache{}
 // Returns name of the remote main branch (e.g. "main" or "master"), as determined
 // from origin/HEAD. Returns an error if it cannot be determined.
 // The result is cached after the first successful call.
-func GetRemoteMainBranch() (string, error) {
+func getRemoteMainBranch() (string, error) {
 	if cache.remoteMainBranch != "" {
 		return cache.remoteMainBranch, nil
 	}
@@ -59,7 +61,7 @@ func GetRemoteMainBranch() (string, error) {
 // The result is cached after the first call.
 func GetRemoteMainBranchOrDie() string {
 	cache.remoteMainOnce.Do(func() {
-		if _, err := GetRemoteMainBranch(); err == nil {
+		if _, err := getRemoteMainBranch(); err == nil {
 			return
 		}
 		out, err := util.Execute(util.ExecuteOptions{}, "git", "rev-parse")
@@ -77,7 +79,7 @@ func GetRemoteMainBranchOrDie() string {
 		}
 
 		setRemoteHead()
-		if _, err = GetRemoteMainBranch(); err != nil {
+		if _, err = getRemoteMainBranch(); err != nil {
 			panic("Remote repository not setup: " + err.Error())
 		}
 	})
@@ -88,7 +90,7 @@ func GetRemoteMainBranchOrDie() string {
 // this is the same as the remote main branch. In a secondary worktree, this is the
 // worktree's branch (the branch it was created with).
 // The result is cached after the first successful call.
-func GetLocalMainBranch() (string, error) {
+func getLocalMainBranch() (string, error) {
 	if cache.localMainBranch != "" {
 		return cache.localMainBranch, nil
 	}
@@ -96,7 +98,7 @@ func GetLocalMainBranch() (string, error) {
 		cache.localMainBranch = branch
 		return cache.localMainBranch, nil
 	}
-	branch, err := GetRemoteMainBranch()
+	branch, err := getRemoteMainBranch()
 	if err != nil {
 		return "", err
 	}
@@ -179,13 +181,13 @@ func GetSecondaryWorktrees() []WorktreeInfo {
 // The result is cached after the first call.
 func GetLocalMainBranchOrDie() string {
 	cache.localMainOnce.Do(func() {
-		if _, err := GetLocalMainBranch(); err == nil {
+		if _, err := getLocalMainBranch(); err == nil {
 			return
 		}
 		// Fall through to GetRemoteMainBranchOrDie which handles setup.
 		GetRemoteMainBranchOrDie()
 		// Retry now that remote is set up.
-		if _, err := GetLocalMainBranch(); err != nil {
+		if _, err := getLocalMainBranch(); err != nil {
 			panic("Could not determine local main branch: " + err.Error())
 		}
 	})
@@ -194,15 +196,14 @@ func GetLocalMainBranchOrDie() string {
 
 // Returns name of main branch, or "main" if cannot be determined. For use by CLI help.
 func GetMainBranchForHelp() string {
-	if cache.mainBranchForHelp != "" {
-		return cache.mainBranchForHelp
-	}
-	branch, err := GetRemoteMainBranch()
-	if err != nil {
-		cache.mainBranchForHelp = "main"
-	} else {
-		cache.mainBranchForHelp = branch
-	}
+	cache.mainBranchForHelpOnce.Do(func() {
+		branch, err := getRemoteMainBranch()
+		if err != nil {
+			cache.mainBranchForHelp = "main"
+		} else {
+			cache.mainBranchForHelp = branch
+		}
+	})
 	return cache.mainBranchForHelp
 }
 
@@ -226,20 +227,31 @@ func setRemoteHead() {
 	}
 }
 
-func GetUsername() string {
-	if cache.userEmail == "" {
+// GetEmailLocalPart returns the local-part (before the @) of the git user.email config value.
+func GetEmailLocalPart() string {
+	cache.emailLocalPartOnce.Do(func() {
 		raw := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "config", "user.email")
 		name, _, found := strings.Cut(raw, "@")
 		if !found {
 			panic("git config user.email does not contain '@': " + raw)
 		}
-		cache.userEmail = name
-	}
-	return cache.userEmail
+		cache.emailLocalPart = name
+	})
+	return cache.emailLocalPart
 }
 
-// Returns most recent commit of the given branch that is on origin/main.
-func FirstOriginMainCommit(branchName string) string {
+// ApplyDiffFromRef diffs fromRef..toRef, applies the result to the working tree, and stages all changes.
+func ApplyDiffFromRef(fromRef string, toRef string) {
+	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", fromRef, toRef)
+	util.ExecuteOrDie(
+		util.ExecuteOptions{Io: util.StdIo{In: strings.NewReader(diff), Out: nil, Err: nil}},
+		"git", "apply",
+	)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+}
+
+// GetMergeBaseWithOriginMain returns the merge-base (divergence point) between branchName and origin/main.
+func GetMergeBaseWithOriginMain(branchName string) string {
 	if !GetLocalHasBranchOrDie(branchName) {
 		panic("Branch does not exist " + branchName)
 	}

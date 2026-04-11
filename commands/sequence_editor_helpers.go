@@ -31,13 +31,21 @@ func rewriteRebaseFile(filename string, transform func(line string) string) {
 	}
 }
 
-// isPickLineForCommits returns true if the line is a "pick" line for any of the given commits.
+// isPickLineForCommits returns true if the line is a "pick <hash> ..." line
+// where <hash> matches one of the given commits. Uses prefix matching on the
+// hash field to handle different abbreviation lengths between git log and
+// git rebase todo files.
 func isPickLineForCommits(line string, commits []string) bool {
 	if !strings.HasPrefix(line, "pick ") {
 		return false
 	}
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return false
+	}
+	hash := fields[1]
 	for _, commit := range commits {
-		if strings.Contains(line, commit) {
+		if strings.HasPrefix(hash, commit) || strings.HasPrefix(commit, hash) {
 			return true
 		}
 	}

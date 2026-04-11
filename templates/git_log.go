@@ -77,9 +77,6 @@ func newGitLogs(logsRaw string) []GitLog {
 }
 
 func RequireCommitOnMain(commit string) {
-	if commit == gitutil.GetLocalMainBranchOrDie() {
-		return
-	}
 	newCommits := GetNewCommits("HEAD", "")
 	if !slices.ContainsFunc(newCommits, func(gitLog GitLog) bool {
 		return gitLog.Commit == commit

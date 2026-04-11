@@ -100,6 +100,7 @@ func createNewCommand() *cobra.Command {
 			*baseBranch = gitutil.GetLocalMainBranchOrDie()
 			remoteBaseBranch = gitutil.GetRemoteMainBranchOrDie()
 		} else {
+			util.RequireGitRef(*baseBranch)
 			remoteBaseBranch = *baseBranch
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
@@ -139,7 +140,7 @@ func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPatte
 func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
 	var commitToBranchFrom string
 	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
-		commitToBranchFrom = gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+		commitToBranchFrom = gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Switching to branch ", gitLog.Branch, " based off commit ", commitToBranchFrom))
 	} else {
 		commitToBranchFrom = baseBranch

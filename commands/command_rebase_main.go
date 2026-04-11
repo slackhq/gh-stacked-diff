@@ -106,10 +106,13 @@ func rebaseMain() {
 		_, rebaseError = gitutil.RebaseAndSkipAllEmpty(options, "origin/"+gitutil.GetRemoteMainBranchOrDie())
 	}
 	if rebaseError != nil {
+		if shouldPopStash {
+			slog.Info("Your changes are still stashed. Run `git stash pop` after resolving the rebase.")
+		}
 		panic("Rebase failed, check output ^^ for details. Continue rebase manually.")
-	} else {
-		gitutil.PopStash(shouldPopStash)
 	}
+	// Only pop stash on success — popping onto merge conflicts would be a problem.
+	gitutil.PopStash(shouldPopStash)
 }
 
 // getMergedBranches returns branches from merged PRs that were merged AFTER our branch diverged.

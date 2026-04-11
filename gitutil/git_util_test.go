@@ -108,10 +108,10 @@ func TestIsSecondaryWorktree_WhenInSecondaryWorktree_ReturnsTrue(t *testing.T) {
 func TestGetLocalMainBranch_WhenInMainWorktree_ReturnsRemoteMainBranch(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
-	branch, err := GetLocalMainBranch()
+	branch, err := getLocalMainBranch()
 
 	assert.NoError(t, err)
-	remoteBranch, remoteErr := GetRemoteMainBranch()
+	remoteBranch, remoteErr := getRemoteMainBranch()
 	assert.NoError(t, remoteErr)
 	assert.Equal(t, remoteBranch, branch)
 }
@@ -120,7 +120,7 @@ func TestGetLocalMainBranch_WhenInSecondaryWorktree_ReturnsWorktreeBranch(t *tes
 	testutil.InitTest(t, slog.LevelError)
 	testutil.SetupSecondaryWorktree(t)
 
-	branch, err := GetLocalMainBranch()
+	branch, err := getLocalMainBranch()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "secondary-worktree", branch)
@@ -129,8 +129,8 @@ func TestGetLocalMainBranch_WhenInSecondaryWorktree_ReturnsWorktreeBranch(t *tes
 func TestGetLocalMainBranch_CachesResult(t *testing.T) {
 	testutil.InitTest(t, slog.LevelError)
 
-	branch1, err1 := GetLocalMainBranch()
-	branch2, err2 := GetLocalMainBranch()
+	branch1, err1 := getLocalMainBranch()
+	branch2, err2 := getLocalMainBranch()
 
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
@@ -141,7 +141,7 @@ func TestGetRemoteMainBranch_WhenInSecondaryWorktree_StillReturnsRemoteMain(t *t
 	testutil.InitTest(t, slog.LevelError)
 	testutil.SetupSecondaryWorktree(t)
 
-	remoteBranch, err := GetRemoteMainBranch()
+	remoteBranch, err := getRemoteMainBranch()
 
 	assert.NoError(t, err)
 	assert.NotEqual(t, "secondary-branch", remoteBranch)

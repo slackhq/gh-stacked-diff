@@ -38,12 +38,12 @@ type CommitSelector struct {
 
 var _ tea.Model = CommitSelector{}
 
-type UpdateCommitSelectorSummaryMsg struct {
+type updateCommitSelectorSummaryMsg struct {
 	Index   int
 	Summary string
 }
 
-var _ tea.Msg = UpdateCommitSelectorSummaryMsg{}
+var _ tea.Msg = updateCommitSelectorSummaryMsg{}
 
 func (m CommitSelector) Init() tea.Cmd { return nil }
 
@@ -89,7 +89,7 @@ func (m CommitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.table.SetHeight(min(max(msg.Height-10, 5), 20))
 		return m, nil
-	case UpdateCommitSelectorSummaryMsg:
+	case updateCommitSelectorSummaryMsg:
 		rows := m.table.Rows()
 		rows[msg.Index][2] = msg.Summary
 		m.table.SetRows(rows)

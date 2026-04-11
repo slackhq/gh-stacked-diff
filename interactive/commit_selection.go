@@ -138,7 +138,7 @@ func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []t
 					summary += "\n- " + branchCommit.Subject
 				}
 			}
-			program.Send(UpdateCommitSelectorSummaryMsg{Index: i, Summary: summary})
+			program.Send(updateCommitSelectorSummaryMsg{Index: i, Summary: summary})
 		}
 	}
 }
