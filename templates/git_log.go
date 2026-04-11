@@ -64,7 +64,7 @@ func newGitLogs(logsRaw string) []GitLog {
 			// No git logs.
 			continue
 		}
-		log := GitLog{Commit: components[0], Subject: components[1], Branch: getBranchForSantizedSubject(components[2])}
+		log := GitLog{Commit: components[0], Subject: components[1], Branch: getBranchForSanitizedSubject(components[2])}
 		if prevIndex, seen := firstSeen[log.Subject]; seen {
 			log.HasDuplicate = true
 			logs[prevIndex].HasDuplicate = true

@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fatih/color"
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -132,7 +131,6 @@ func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []t
 				branchCommits = branchCommits[1:]
 				// Only include the three most recent commits, if there are more than three commits use a "hiding xx" message
 				if len(branchCommits) > 3 {
-					hidingColor := color.New(color.Italic).AddRGB(88, 88, 88) // Dark gray
 					hidingMessage := hidingColor.Sprint("\n- [hiding ", (len(branchCommits) - 2), " previous...]")
 					summary += hidingMessage
 					branchCommits = branchCommits[len(branchCommits)-2:]

@@ -112,6 +112,7 @@ func getMinChecks() int {
 			return numChecks
 		})
 		if len(allNumChecks) == 0 {
+			cache.minChecks = DefaultMinChecks
 			return
 		}
 

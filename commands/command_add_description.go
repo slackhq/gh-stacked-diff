@@ -39,7 +39,7 @@ func createAddDescriptionCommand() *cobra.Command {
 			MultiSelect: true,
 		}
 		aiCommand := ai.GetAiCommandInteractive()
-		slog.Info(fmt.Sprint("commands", aiCommand))
+		slog.Info(fmt.Sprint("command: ", aiCommand))
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectPrsOptions)
 		executeAddDescription(targetCommits)
 	}
@@ -90,9 +90,12 @@ func parseDescription(aiOutput string) string {
 			break
 		}
 	}
+	beginLen := 0
 	if start == -1 {
 		slog.Warn("Missing markdown start (" + fmt.Sprint(begins) + ") in claude output")
 		start = 0
+	} else {
+		beginLen = len(begins[beginIndex])
 	}
 	end := -1
 	for _, nextEnd := range ends {
@@ -105,7 +108,7 @@ func parseDescription(aiOutput string) string {
 		slog.Debug("Missing markdown end (" + fmt.Sprint(ends) + ") in claude output")
 		end = len(aiOutput[start:])
 	}
-	return string(aiOutput[start+len(begins[beginIndex]) : start+end])
+	return string(aiOutput[start+beginLen : start+end])
 }
 
 func getNewPrBody(pr gitutil.PrInfo, description string) string {

@@ -234,11 +234,12 @@ func UserSelection() string {
 	return normalizeReviewers(selected)
 }
 
+var consecutiveHashRegex = regexp.MustCompile("#+")
+
 func normalizeReviewers(selected string) string {
 	selected = strings.ReplaceAll(selected, " ", "#")
 	selected = strings.ReplaceAll(selected, ",", "#")
-	expression := regexp.MustCompile("#+")
-	selected = expression.ReplaceAllString(selected, ",")
+	selected = consecutiveHashRegex.ReplaceAllString(selected, ",")
 	return selected
 }
 
