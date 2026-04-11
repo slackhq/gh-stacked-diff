@@ -93,12 +93,6 @@ func ExecuteOrDie(options ExecuteOptions, programName string, args ...string) st
 	return out
 }
 
-// Executes a shell program with arguments and trims whitespace from output.
-func ExecuteTrimmed(options ExecuteOptions, programName string, args ...string) (string, error) {
-	out, err := Execute(options, programName, args...)
-	return strings.TrimSpace(out), err
-}
-
 // Executes a shell program with arguments, trims whitespace from output, and panics if there is an error.
 func ExecuteOrDieTrimmed(options ExecuteOptions, programName string, args ...string) string {
 	return strings.TrimSpace(ExecuteOrDie(options, programName, args...))

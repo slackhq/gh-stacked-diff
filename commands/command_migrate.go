@@ -116,17 +116,8 @@ func processBranch(branch string, baseCommit string) migrationResult {
 		}
 	}
 
-	// Checkout and rebase the branch
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", branch)
-	rebaseBranch(branch, baseCommit)
-
-	// Get commits ahead of base
-	commitsAhead := getCommitsAhead(baseCommit, "HEAD")
-	slog.Debug(fmt.Sprint("Found ", len(commitsAhead), " commits ahead of main for branch ", branch))
-	for _, commit := range commitsAhead {
-		slog.Debug(fmt.Sprint("  - ", commit))
-	}
-
+	// Check commits ahead before checkout/rebase to avoid unnecessary git state changes
+	commitsAhead := getCommitsAhead(baseCommit, branch)
 	if len(commitsAhead) == 0 {
 		slog.Info(fmt.Sprint("Branch ", branch, " has no commits ahead of main - skipping"))
 		return migrationResult{
@@ -135,6 +126,17 @@ func processBranch(branch string, baseCommit string) migrationResult {
 			reason:     "no commits ahead of main",
 			numCommits: 0,
 		}
+	}
+
+	// Checkout and rebase the branch
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", branch)
+	rebaseBranch(branch, baseCommit)
+
+	// Re-check commits after rebase (hashes may have changed)
+	commitsAhead = getCommitsAhead(baseCommit, "HEAD")
+	slog.Debug(fmt.Sprint("Found ", len(commitsAhead), " commits ahead of main for branch ", branch))
+	for _, commit := range commitsAhead {
+		slog.Debug(fmt.Sprint("  - ", commit))
 	}
 
 	// Step 4e: Handle branch without PR

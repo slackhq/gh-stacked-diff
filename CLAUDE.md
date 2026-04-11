@@ -44,9 +44,9 @@ Commands follow this structure:
 2. Each command file exports a `create<CommandName>Command(appConfig util.AppConfig)` function that returns `*cobra.Command`
 3. Common flag helpers: `addIndicatorFlag(cmd)`, `addReviewersFlags(cmd)` for reusable functionality
 4. Commands use `getTargetCommits()` for interactive commit selection
-5. **Annotations**: `DefaultLogLevel` and `SkipRepoCheck` are stored in `cobra.Command.Annotations` map:
+5. **Annotations**: `DefaultLogLevel` and `CheckRepo` are stored in `cobra.Command.Annotations` map:
    - `"defaultLogLevel"`: `"error"` for output commands, omit for default `"info"`
-   - `"skipRepoCheck"`: `"true"` if command doesn't need a git repo
+   - `"checkRepo"`: `"true"` if command needs a git repo (omit annotation if command doesn't need a repo)
 6. **Short flags**: Common flags use short forms (e.g. `-i`, `-r`, `-l`). Run `sd <command> --help` to see available flags and their short forms
 
 ### Key Modules
@@ -115,7 +115,7 @@ To add a new command:
    - Use `addReviewersFlags(cmd)` if command works with PRs
    - Use `getTargetCommits()` for interactive commit selection
    - Set `Annotations: map[string]string{"defaultLogLevel": "error"}` for output commands
-   - Set `Annotations: map[string]string{"skipRepoCheck": "true"}` if command doesn't need a git repo
+   - Set `Annotations: map[string]string{"checkRepo": "true"}` if command needs a git repo (omit for commands that don't)
    - Use `Args: cobra.NoArgs`, `cobra.MaximumNArgs(1)`, `cobra.MinimumNArgs(2)`, etc. for argument validation
 
 ## Important Conventions

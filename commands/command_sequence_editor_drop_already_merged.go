@@ -9,7 +9,6 @@ package commands
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -36,42 +35,10 @@ func createDropAlreadyMergedCommand() *cobra.Command {
 func dropAlreadyMerged(dropCommits []string, rebaseFilename string) {
 	slog.Debug(fmt.Sprint("Got dropCommits ", dropCommits, " rebaseFilename ", rebaseFilename))
 
-	data, err := os.ReadFile(rebaseFilename)
-	if err != nil {
-		panic(fmt.Sprint("Could not open ", rebaseFilename, err))
-	}
-
-	originalText := string(data)
-	var newText strings.Builder
-	// yeah the only way I can do that is via a bash script?
-	i := 0
-	lines := strings.Split(strings.TrimSuffix(originalText, "\n"), "\n")
-	for _, line := range lines {
-		if isDropLine(line, dropCommits) {
-			dropLine := strings.Replace(line, "pick", "drop", 1)
-			newText.WriteString(dropLine)
-			newText.WriteString("\n")
-			i++
-		} else {
-			newText.WriteString(line)
-			newText.WriteString("\n")
+	rewriteRebaseFile(rebaseFilename, func(line string) string {
+		if isPickLineForCommits(line, dropCommits) {
+			return strings.Replace(line, "pick", "drop", 1)
 		}
-	}
-
-	err = os.WriteFile(rebaseFilename, []byte(newText.String()), 0644)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func isDropLine(line string, dropCommits []string) bool {
-	if !strings.HasPrefix(line, "pick ") {
-		return false
-	}
-	for _, commit := range dropCommits {
-		if strings.Contains(line, commit) {
-			return true
-		}
-	}
-	return false
+		return line
+	})
 }

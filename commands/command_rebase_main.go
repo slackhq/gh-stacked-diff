@@ -93,6 +93,9 @@ func rebaseMain() {
 			Io:                   appConfig.Io,
 		}
 		_, rebaseError = gitutil.RebaseAndSkipAllEmpty(options, "-i", "origin/"+gitutil.GetRemoteMainBranchOrDie())
+		// Delete branches even if rebase failed. This is safe because these are
+		// branches for PRs already merged/closed on GitHub — they are not the local
+		// working branch. Cleaning them up regardless avoids stale branch accumulation.
 		slog.Info("Deleting branches...")
 		// Delete merged branches (including remote)
 		deleteBranches(appConfig.Io, mergedCommits, true)
