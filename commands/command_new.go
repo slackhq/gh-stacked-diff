@@ -72,6 +72,7 @@ func createNewCommand() *cobra.Command {
 	}
 
 	draft := cmd.Flags().BoolP("draft", "d", true, "Whether to create the PR as draft")
+	noTemplate := cmd.Flags().BoolP("no-template", "T", false, "Use the commit body as the PR description without applying the PR description template")
 	featureFlag := cmd.Flags().StringP("feature-flag", "f", "", "Value for FEATURE_FLAG in PR description")
 	baseBranch := cmd.Flags().StringP("base", "b", "", "Base branch for Pull Request. Default is "+gitutil.GetMainBranchForHelp())
 	_ = cmd.RegisterFlagCompletionFunc("base", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -100,7 +101,7 @@ func createNewCommand() *cobra.Command {
 			remoteBaseBranch = *baseBranch
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
-		if ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
+		if !*noTemplate && ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
 			ticketUrlPattern = interactive.PromptForStringOrDie(
 				"Ticket URL pattern (use {TicketNumber} as placeholder):",
 				util.ExampleTicketUrlPattern,
@@ -109,7 +110,7 @@ func createNewCommand() *cobra.Command {
 			util.SaveTicketUrlPattern(ticketUrlPattern)
 		}
 		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig, *merge)
-		createNewPr(*draft, *featureFlag, ticketUrlPattern, *baseBranch, remoteBaseBranch, targetCommits[0])
+		createNewPr(*draft, *noTemplate, *featureFlag, ticketUrlPattern, *baseBranch, remoteBaseBranch, targetCommits[0])
 		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
 			WhenChecksPass: true,
 			Silent:         *silent,
@@ -123,11 +124,11 @@ func createNewCommand() *cobra.Command {
 }
 
 // Creates a new pull request via Github CLI.
-func createNewPr(draft bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog) {
+func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog) {
 	templates.RequireCommitOnMain(gitLog.Commit)
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog)
-		pushAndCreateGhPr(draft, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
+		pushAndCreateGhPr(draft, noTemplate, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
 		rollbackManager.Clear()
 		openPrAndSwitchBack(gitLog)
 	})
@@ -149,11 +150,16 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", gitLog.Commit)
 }
 
-func pushAndCreateGhPr(draft bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
+func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
 	slog.Info("Pushing to remote")
 	// -u is required because in newer versions of Github CLI the upstream must be set.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "-c", "push.default=current", "push", "--force-with-lease", "-u")
-	prText := templates.GetPullRequestText(gitLog.Commit, featureFlag, ticketUrlPattern)
+	var prText templates.PullRequestText
+	if noTemplate {
+		prText = templates.GetPullRequestTextRaw(gitLog.Commit)
+	} else {
+		prText = templates.GetPullRequestText(gitLog.Commit, featureFlag, ticketUrlPattern)
+	}
 	slog.Info("Creating PR via gh")
 	createPrOutput := createPr(prText, remoteBaseBranch, draft)
 	slog.Info(fmt.Sprint("Created PR ", createPrOutput))

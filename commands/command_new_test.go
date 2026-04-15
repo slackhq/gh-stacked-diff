@@ -562,6 +562,62 @@ func TestSdNew_WithTicketUrlPattern_ReplacesTicketNumberInPrDescription(t *testi
 	assert.NotContains(body, "{TicketNumber}", "PR description should not contain unreplaced {TicketNumber} placeholder")
 }
 
+func TestSdNew_WithNoTemplate_UsesCommitBodyAsIs(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Create a commit with markdown headers and backtick-wrapped content in the body.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", "feature-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "Add feature", "-m", "Body paragraph\n\n#### Feature flag(s): `ANDROID_TEST_FLAG`")
+
+	testParseArguments("new", "--no-template", "1")
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+
+	titleIndex := slices.Index(prCreateCall.Args, "--title")
+	assert.Greater(titleIndex, -1, "expected --title flag")
+	title := prCreateCall.Args[titleIndex+1]
+	assert.Equal("Add feature", title)
+
+	bodyIndex := slices.Index(prCreateCall.Args, "--body")
+	assert.Greater(bodyIndex, -1, "expected --body flag")
+	body := prCreateCall.Args[bodyIndex+1]
+	assert.Contains(body, "#### Feature flag(s):", "markdown headers should be preserved with --no-template")
+	assert.Contains(body, "`ANDROID_TEST_FLAG`", "backtick-wrapped content should be preserved with --no-template")
+}
+
+func TestSdNew_WithNoTemplateAndTicketPrefix_SkipsTicketPrompt(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Create a commit with a ticket prefix. Without --no-template this would trigger
+	// the interactive ticket URL pattern prompt.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", "feature-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "CONV-999 Add feature", "-m", "Body paragraph\n\n#### Ticket: [CONV-999](https://jira.tinyspeck.com/browse/CONV-999)\n\n#### Feature flag(s): `ANDROID_TEST_FLAG`")
+
+	testParseArguments("new", "--no-template", "1")
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+
+	titleIndex := slices.Index(prCreateCall.Args, "--title")
+	assert.Greater(titleIndex, -1, "expected --title flag")
+	title := prCreateCall.Args[titleIndex+1]
+	assert.Equal("CONV-999 Add feature", title, "title should preserve the ticket prefix")
+
+	bodyIndex := slices.Index(prCreateCall.Args, "--body")
+	assert.Greater(bodyIndex, -1, "expected --body flag")
+	body := prCreateCall.Args[bodyIndex+1]
+	assert.Contains(body, "#### Ticket:", "ticket header should be preserved with --no-template")
+	assert.Contains(body, "#### Feature flag(s):", "feature flag header should be preserved with --no-template")
+	assert.Contains(body, "`ANDROID_TEST_FLAG`", "backtick-wrapped flag should be preserved with --no-template")
+}
+
 func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedResponse, bool) {
 	for _, r := range responses {
 		if r.ProgramName == "gh" && len(r.Args) >= 2 && r.Args[0] == "pr" && r.Args[1] == "create" {

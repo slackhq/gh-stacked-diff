@@ -162,6 +162,14 @@ func truncateString(str string, maxBytes int) string {
 	return str
 }
 
+// GetPullRequestTextRaw returns the commit subject and body without any
+// template processing or comment-line stripping.
+func GetPullRequestTextRaw(commitHash string) PullRequestText {
+	commitSummary := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%s", commitHash)
+	commitBody := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%b", commitHash)
+	return PullRequestText{Title: commitSummary, Description: commitBody}
+}
+
 func GetPullRequestText(commitHash string, featureFlag string, ticketUrlPattern string) PullRequestText {
 	data := getPullRequestTemplateData(commitHash, featureFlag, ticketUrlPattern)
 	title := RunTemplate("pr-title.template", prTitleTemplateText, data)
