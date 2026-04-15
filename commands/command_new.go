@@ -80,6 +80,8 @@ func createNewCommand() *cobra.Command {
 		return branches, cobra.ShellCompDirectiveNoFileComp
 	})
 
+	cmd.MarkFlagsMutuallyExclusive("no-template", "feature-flag")
+
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
 	indicatorTypeString := addIndicatorFlag(cmd)
 
