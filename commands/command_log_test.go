@@ -403,6 +403,32 @@ func TestSdLog_WhenStatusFlag_ShowsMergingStatus(t *testing.T) {
 	assert.NotContains(out, "[merged]")
 }
 
+func TestSdLog_WhenStatusFlag_ShowsMergeQueueStatus(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nnumber,42\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"myowner/myrepo",
+		nil, "gh", "repo", "view", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(
+		"MQE_abc123",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "[merging]")
+	assert.NotContains(out, "[open]")
+}
+
 func TestSdLog_WhenStatusFlagAndNoPRs_PrintsCommitsWithoutBubbletea(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
