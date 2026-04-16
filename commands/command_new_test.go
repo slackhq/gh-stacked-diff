@@ -618,6 +618,33 @@ func TestSdNew_WithNoTemplateAndTicketPrefix_SkipsTicketPrompt(t *testing.T) {
 	assert.Contains(body, "`ANDROID_TEST_FLAG`", "backtick-wrapped flag should be preserved with --no-template")
 }
 
+func TestSdNew_WithNoTemplateConfig_UsesCommitBodyAsIs(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", "feature-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "Add feature", "-m", "Body paragraph\n\n#### Feature flag(s): `ANDROID_TEST_FLAG`")
+
+	// Enable noTemplate via --config instead of the --no-template flag.
+	testParseArguments("--config", "noTemplate=true", "new", "1")
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+
+	titleIndex := slices.Index(prCreateCall.Args, "--title")
+	assert.Greater(titleIndex, -1, "expected --title flag")
+	title := prCreateCall.Args[titleIndex+1]
+	assert.Equal("Add feature", title)
+
+	bodyIndex := slices.Index(prCreateCall.Args, "--body")
+	assert.Greater(bodyIndex, -1, "expected --body flag")
+	body := prCreateCall.Args[bodyIndex+1]
+	assert.Contains(body, "#### Feature flag(s):", "markdown headers should be preserved with noTemplate config")
+	assert.Contains(body, "`ANDROID_TEST_FLAG`", "backtick-wrapped content should be preserved with noTemplate config")
+}
+
 func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedResponse, bool) {
 	for _, r := range responses {
 		if r.ProgramName == "gh" && len(r.Args) >= 2 && r.Args[0] == "pr" && r.Args[1] == "create" {
