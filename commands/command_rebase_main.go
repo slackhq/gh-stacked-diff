@@ -65,9 +65,9 @@ func rebaseMain() {
 
 	var confirmedClosedCommits []templates.GitLog
 	if len(closedCommits) > 0 {
-		slog.Info(fmt.Sprintf("Found %d commits from closed (not merged) PRs:", len(closedCommits)))
+		slog.Info(fmt.Sprint("Found ", len(closedCommits), " commits from closed (not merged) PRs:"))
 		for _, closedCommit := range closedCommits {
-			slog.Info(fmt.Sprintf("  - %s: %s", closedCommit.Branch, closedCommit.Subject))
+			slog.Info(fmt.Sprint("  - ", closedCommit.Branch, ": ", closedCommit.Subject))
 		}
 		if interactive.Confirm("Do you want to drop these closed PR commits and delete their local branches?", false) {
 			confirmedClosedCommits = closedCommits
@@ -165,7 +165,7 @@ func getBranchesByPRState(mergedState bool) []string {
 	for _, branchRawLine := range branchesRawLines {
 		fields := strings.Fields(branchRawLine)
 		if len(fields) != 2 {
-			break
+			continue
 		}
 		// Validate refs from GitHub API before passing to git commands.
 		util.RequireGitRef(fields[0])

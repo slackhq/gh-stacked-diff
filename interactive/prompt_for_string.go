@@ -18,8 +18,6 @@ func (m stringModel) Init() tea.Cmd {
 	return tea.Batch(textinput.Blink)
 }
 
-/*
- */
 func (m stringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:

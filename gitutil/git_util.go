@@ -23,6 +23,13 @@ type gitCache struct {
 	userEmail         string
 	minChecks         int
 	minChecksOnce     sync.Once
+	// gh_repo.go caches
+	repoNameWithOwner     string
+	repoNameWithOwnerOnce sync.Once
+	loggedInUsername      string
+	loggedInUsernameOnce  sync.Once
+	repoHostname          string
+	repoHostnameOnce      sync.Once
 }
 
 var cache = &gitCache{}
@@ -39,7 +46,11 @@ func GetRemoteMainBranch() (string, error) {
 		return "", err
 	}
 	branch = strings.TrimSpace(branch)
-	cache.remoteMainBranch = branch[strings.Index(branch, "/")+1:]
+	_, after, found := strings.Cut(branch, "/")
+	if !found {
+		return "", fmt.Errorf("unexpected origin/HEAD format (no '/' in %q)", branch)
+	}
+	cache.remoteMainBranch = after
 	return cache.remoteMainBranch, nil
 }
 
@@ -338,7 +349,7 @@ func RebaseAndSkipAllEmptyOrDie(options util.ExecuteOptions, otherRebaseArgs ...
 	out, err := RebaseAndSkipAllEmpty(options, otherRebaseArgs...)
 	if err != nil {
 		if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", "rebase", "--abort"); abortErr != nil {
-			slog.Warn(fmt.Sprintf("Failed to abort rebase: %s", abortErr.Error()))
+			slog.Warn(fmt.Sprint("Failed to abort rebase: ", abortErr.Error()))
 		}
 		panic("Rebase failed: " + outRecorder.String() + " (" + err.Error() + ")")
 	}

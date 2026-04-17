@@ -46,7 +46,7 @@ func executeMigrate() {
 	// Step 1: Find all local branches where the current user has made commits
 	slog.Debug("Step 1: Finding user branches...")
 	userBranches := findUserBranches()
-	slog.Debug(fmt.Sprintf("Step 1 complete: Found %d user branches", len(userBranches)))
+	slog.Debug(fmt.Sprint("Step 1 complete: Found ", len(userBranches), " user branches"))
 
 	if len(userBranches) == 0 {
 		util.Fprintln(appConfig.Io.Out, "No branches found with your commits")
@@ -56,18 +56,18 @@ func executeMigrate() {
 	// Step 2: Display branches to user for selection
 	slog.Debug("Step 2: Selecting branches to migrate...")
 	selectedBranches := selectBranchesToMigrate(userBranches)
-	slog.Debug(fmt.Sprintf("Step 2 complete: Selected %d branches", len(selectedBranches)))
+	slog.Debug(fmt.Sprint("Step 2 complete: Selected ", len(selectedBranches), " branches"))
 
 	if len(selectedBranches) == 0 {
 		slog.Debug("No branches selected for migration")
 		appConfig.Exit(0)
 	}
 
-	slog.Debug(fmt.Sprintf("Selected %d branches for migration: %v", len(selectedBranches), selectedBranches))
+	slog.Debug(fmt.Sprint("Selected ", len(selectedBranches), " branches for migration: ", selectedBranches))
 
 	// Step 3: Find the most recent commit from origin/main
 	mostRecentMainCommit := findMostRecentMainCommit(selectedBranches)
-	slog.Debug(fmt.Sprintf("Most recent origin/main commit: %s", mostRecentMainCommit))
+	slog.Debug(fmt.Sprint("Most recent origin/main commit: ", mostRecentMainCommit))
 
 	// Step 4: Process each selected branch
 	var results []migrationResult
@@ -78,7 +78,7 @@ func executeMigrate() {
 
 	// Switch to main branch
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
-	slog.Info(fmt.Sprintf("Switching to branch %s", mainBranch))
+	slog.Info(fmt.Sprint("Switching to branch ", mainBranch))
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	// Step 5: Report summary of migrated branches
@@ -87,16 +87,31 @@ func executeMigrate() {
 
 // processBranch handles the migration of a single branch
 func processBranch(branch string, baseCommit string) migrationResult {
-	slog.Info(fmt.Sprintf("Processing branch: %s", branch))
+	slog.Info(fmt.Sprint("Processing branch: ", branch))
 
 	// Step 4f: Check if branch has a PR - skip if so
 	mergedPR := gitutil.GetMergedPR(branch)
 	if mergedPR != nil {
-		slog.Warn(fmt.Sprintf("Branch %s has merged PR #%s: %s - skipping migration", branch, mergedPR.Number, mergedPR.Title))
+		slog.Warn(fmt.Sprint("Branch ", branch, " has merged PR #", mergedPR.Number, ": ", mergedPR.Title, " - skipping migration"))
 		return migrationResult{
 			branchName: branch,
 			success:    false,
-			reason:     fmt.Sprintf("already merged (PR #%s)", mergedPR.Number),
+			reason:     fmt.Sprint("already merged (PR #", mergedPR.Number, ")"),
+			numCommits: 0,
+		}
+	}
+
+	// Step 4c: Check if branch has an unmerged PR before modifying git state
+	pr := gitutil.GetUnmergedPR(branch)
+	if pr != nil {
+		// Step 4d: Handle branch with unmerged PR
+		// Branches with unmerged PRs are skipped because migrating them would create a new branch
+		// name (from the template) that doesn't match the existing PR's branch.
+		slog.Warn(fmt.Sprint("Branch ", branch, " has an unmerged PR #", pr.Number, ": ", pr.Title, " - skipping migration"))
+		return migrationResult{
+			branchName: branch,
+			success:    false,
+			reason:     fmt.Sprint("Unmerged PR (#", pr.Number, ")"),
 			numCommits: 0,
 		}
 	}
@@ -107,13 +122,13 @@ func processBranch(branch string, baseCommit string) migrationResult {
 
 	// Get commits ahead of base
 	commitsAhead := getCommitsAhead(baseCommit, "HEAD")
-	slog.Debug(fmt.Sprintf("Found %d commits ahead of main for branch %s", len(commitsAhead), branch))
+	slog.Debug(fmt.Sprint("Found ", len(commitsAhead), " commits ahead of main for branch ", branch))
 	for _, commit := range commitsAhead {
-		slog.Debug(fmt.Sprintf("  - %s", commit))
+		slog.Debug(fmt.Sprint("  - ", commit))
 	}
 
 	if len(commitsAhead) == 0 {
-		slog.Info(fmt.Sprintf("Branch %s has no commits ahead of main - skipping", branch))
+		slog.Info(fmt.Sprint("Branch ", branch, " has no commits ahead of main - skipping"))
 		return migrationResult{
 			branchName: branch,
 			success:    false,
@@ -122,23 +137,8 @@ func processBranch(branch string, baseCommit string) migrationResult {
 		}
 	}
 
-	// Step 4c: Check if branch has an unmerged PR
-	pr := gitutil.GetUnmergedPR(branch)
-	if pr != nil {
-		// Step 4d: Handle branch with unmerged PR
-		// Branches with unmerged PRs are skipped because migrating them would create a new branch
-		// name (from the template) that doesn't match the existing PR's branch.
-		slog.Warn(fmt.Sprintf("Branch %s has an unmerged PR #%s: %s - skipping migration", branch, pr.Number, pr.Title))
-		return migrationResult{
-			branchName: branch,
-			success:    false,
-			reason:     fmt.Sprintf("Unmerged PR (#%s)", pr.Number),
-			numCommits: 0,
-		}
-	} else {
-		// Step 4e: Handle branch without PR
-		return handleBranchWithoutPR(branch, baseCommit, commitsAhead)
-	}
+	// Step 4e: Handle branch without PR
+	return handleBranchWithoutPR(branch, baseCommit, commitsAhead)
 }
 
 // rebaseBranch rebases the current branch onto baseCommit, handling errors appropriately
@@ -148,7 +148,7 @@ func rebaseBranch(branch string, baseCommit string) {
 	gitutil.RebaseAndSkipAllEmptyOrDie(
 		util.ExecuteOptions{Io: util.StdIo{Out: appConfig.Io.Out, In: nil, Err: appConfig.Io.Err}},
 		baseCommit)
-	slog.Info(fmt.Sprintf("Successfully rebased branch: %s", branch))
+	slog.Info(fmt.Sprint("Successfully rebased branch: ", branch))
 }
 
 // itemWithTimestamp associates a name with a timestamp for sorting purposes
@@ -202,7 +202,7 @@ func findUserBranches() []string {
 		result[i] = b.name
 	}
 
-	slog.Info(fmt.Sprintf("Found %d branches with your commits", len(result)))
+	slog.Info(fmt.Sprint("Found ", len(result), " branches with your commits"))
 	return result
 }
 
@@ -229,7 +229,7 @@ func filterBranchesWithUserCommits(allBranches []string, mainBranch string, user
 			continue
 		}
 
-		slog.Debug(fmt.Sprintf("Found branch %s with user commits (timestamp: %s)", branch, strings.TrimSpace(logOutput)))
+		slog.Debug(fmt.Sprint("Found branch ", branch, " with user commits (timestamp: ", strings.TrimSpace(logOutput), ")"))
 		branchesWithTimestamps = append(branchesWithTimestamps, itemWithTimestamp{
 			name:      branch,
 			timestamp: timestamp,
@@ -285,7 +285,7 @@ func computeDisabledBranches(branches []string) map[int]bool {
 	slog.Info("Fetching commits from main for branch filtering...")
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	mainCommits := templates.GetNewCommits(mainBranch, "")
-	slog.Info(fmt.Sprintf("Found %d commits on main for branch filtering", len(mainCommits)))
+	slog.Info(fmt.Sprint("Found ", len(mainCommits), " commits on main for branch filtering"))
 
 	branchesOnMain := make(map[string]bool)
 	for _, commit := range mainCommits {
@@ -299,7 +299,7 @@ func computeDisabledBranches(branches []string) map[int]bool {
 	for i, branch := range branches {
 		if branchesOnMain[branch] {
 			disabledBranches[i] = true
-			slog.Info(fmt.Sprintf("Branch %s already exists on main - will be disabled", branch))
+			slog.Info(fmt.Sprint("Branch ", branch, " already exists on main - will be disabled"))
 		}
 	}
 	return disabledBranches
@@ -318,7 +318,7 @@ func findMostRecentMainCommit(branches []string) string {
 	// For each branch, find its merge-base with origin/main
 	for _, branch := range allBranches {
 		mergeBase := gitutil.FirstOriginMainCommit(branch)
-		slog.Debug(fmt.Sprintf("Merge-base for %s with origin/main: %s", branch, mergeBase))
+		slog.Debug(fmt.Sprint("Merge-base for ", branch, " with origin/main: ", mergeBase))
 
 		// Get the timestamp of this commit
 		timestampStr := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "-1", "--format=%ct", mergeBase)
@@ -372,19 +372,19 @@ func promptForInput(prompt string) string {
 		return strings.TrimSpace(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		panic(fmt.Sprintf("Failed to read input: %s", err.Error()))
+		panic(fmt.Sprint("Failed to read input: ", err.Error()))
 	}
 	return ""
 }
 
 // handleBranchWithoutPR handles step 4e: migration of a branch that doesn't have a PR.
 func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []string) migrationResult {
-	slog.Info(fmt.Sprintf("Branch %s does not have an unmerged PR", branch))
+	slog.Info(fmt.Sprint("Branch ", branch, " does not have an unmerged PR"))
 
 	// Prompt user for the eventual PR name
 	prName := promptForInput("What should the PR be named when it is eventually created")
 	if prName == "" {
-		slog.Info(fmt.Sprintf("No PR name provided, skipping branch %s", branch))
+		slog.Info(fmt.Sprint("No PR name provided, skipping branch ", branch))
 		return migrationResult{
 			branchName: branch,
 			success:    false,
@@ -402,7 +402,7 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 	// Rename the first commit to match the eventual PR title
 	firstCommit := commitsAhead[0]
 	renameCommitOnBranch(branch, firstCommit, prName)
-	slog.Info(fmt.Sprintf("Renamed first commit to: %s", prName))
+	slog.Info(fmt.Sprint("Renamed first commit to: ", prName))
 
 	// Rename remaining commits with prefix if provided
 	if commitPrefix != "" && len(commitsAhead) > 1 {
@@ -411,16 +411,16 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 
 	// Get the final list of commits in chronological order (oldest first)
 	finalCommits := getCommitsAhead(baseCommit, branch)
-	slog.Info(fmt.Sprintf("Final commits to cherry-pick (in order): %d commits", len(finalCommits)))
+	slog.Info(fmt.Sprint("Final commits to cherry-pick (in order): ", len(finalCommits), " commits"))
 	for i, commit := range finalCommits {
-		slog.Debug(fmt.Sprintf("  %d. %s: %s", i+1, commit, getCommitSubject(commit)))
+		slog.Debug(fmt.Sprint("  ", i+1, ". ", commit, ": ", getCommitSubject(commit)))
 	}
 
 	// Cherry-pick each commit onto local main branch IN ORDER (oldest to newest)
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
-	slog.Info(fmt.Sprintf("Cherry-picking %d commits to %s (oldest to newest)", len(finalCommits), mainBranch))
+	slog.Info(fmt.Sprint("Cherry-picking ", len(finalCommits), " commits to ", mainBranch, " (oldest to newest)"))
 	gitutil.CherryPickAndSkipAllEmpty("", finalCommits)
 
 	return migrationResult{
@@ -479,7 +479,7 @@ func prefixRemainingCommits(branch string, baseCommit string, commitPrefix strin
 		oldSubject := getCommitSubject(commit)
 		newSubject := commitPrefix + " " + oldSubject
 		renameCommitOnBranch(branch, commit, newSubject)
-		slog.Info(fmt.Sprintf("Renamed commit to: %s", newSubject))
+		slog.Info(fmt.Sprint("Renamed commit to: ", newSubject))
 
 		// Get updated commit list after each rename since hashes change
 		currentCommits = getCommitsAhead(baseCommit, branch)

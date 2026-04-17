@@ -116,9 +116,8 @@ func GetBranchInfo(commitIndicator string, indicatorType IndicatorType) GitLog {
 		// list indicators are 1 based, convert to 0 based.
 		listIndex--
 		if listIndex >= len(newCommits) || listIndex < 0 {
-			panic("list index " + fmt.Sprint(listIndex) +
-				" (parsed from " + commitIndicator + ") " +
-				"out of bounds for list of new commits with size " +
+			panic("list index " + commitIndicator +
+				" out of bounds for list of new commits with size " +
 				fmt.Sprint(len(newCommits)))
 		}
 		slog.Info("Using list index " + commitIndicator + ", commit " + newCommits[listIndex].Commit + " " + newCommits[listIndex].Subject)
@@ -146,7 +145,7 @@ func guessIndicatorType(commitIndicator string) IndicatorType {
 	return IndicatorTypeCommit
 }
 
-func getBranchForSantizedSubject(sanitizedSubject string) string {
+func getBranchForSanitizedSubject(sanitizedSubject string) string {
 	name := RunTemplate("branch-name.template", branchNameTemplateText, getBranchTemplateData(sanitizedSubject))
 	// Branch names that are too long cause problems with Github.
 	name = truncateString(name, 120)

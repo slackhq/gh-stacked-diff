@@ -15,12 +15,10 @@ func GetCurrentBranchName() string {
 }
 
 func GetRepoName() string {
-	if repoName == "" {
-		repoNameOnce.Do(func() {
-			out := ExecuteOrDieTrimmed(ExecuteOptions{},
-				"git", "rev-parse", "--show-toplevel")
-			_, repoName = filepath.Split(out)
-		})
-	}
+	repoNameOnce.Do(func() {
+		out := ExecuteOrDieTrimmed(ExecuteOptions{},
+			"git", "rev-parse", "--show-toplevel")
+		_, repoName = filepath.Split(out)
+	})
 	return repoName
 }

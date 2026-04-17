@@ -426,7 +426,7 @@ func TestGetMergedPR_WithMergedPR(t *testing.T) {
 	testutil.AddCommit("feature 1 commit", "feature1.txt")
 
 	// Mock the gh pr list response to simulate a merged PR
-	testExecutor.SetResponse("456|Implement feature|MERGED", nil,
+	testExecutor.SetResponse("456"+gitutil.GhDelim+"Implement feature"+gitutil.GhDelim+"MERGED", nil,
 		"gh", "pr", "list", "--head", "feature-1", "--state", "merged",
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 
@@ -478,7 +478,7 @@ func TestSdMigrate_SkipsBranchWithMergedPR(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", gitutil.GetLocalMainBranchOrDie())
 
 	// Mock the gh pr list response to simulate a merged PR
-	testExecutor.SetResponse("789|Already merged feature|MERGED", nil,
+	testExecutor.SetResponse("789"+gitutil.GhDelim+"Already merged feature"+gitutil.GhDelim+"MERGED", nil,
 		"gh", "pr", "list", "--head", "feature-1", "--state", "merged",
 		"--json", "number,title,state", "--jq", util.MatchAnyRemainingArgs)
 

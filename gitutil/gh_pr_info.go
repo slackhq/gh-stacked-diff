@@ -22,37 +22,39 @@ type PrInfo struct {
 // Returns the PR information if found, nil otherwise.
 func GetMergedPR(branchName string) *PrInfo {
 	// Check for merged PRs with this branch as the head
-	slog.Debug(fmt.Sprintf("Checking for merged PR with head branch: %s", branchName))
+	slog.Debug(fmt.Sprint("Checking for merged PR with head branch: ", branchName))
 	output := util.ExecuteOrDieTrimmed(
 		util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "list",
 		"--head", branchName,
 		"--state", "merged",
 		"--json", "number,title,state",
-		"--jq", ".[0] | \"\\(.number)|\\(.title)|\\(.state)\"",
+		"--jq", ".[0] | \"\\(.number)"+GhDelim+"\\(.title)"+GhDelim+"\\(.state)\"",
 	)
 
-	slog.Debug(fmt.Sprintf("gh pr list output for branch %s: '%s'", branchName, output))
+	slog.Debug(fmt.Sprint("gh pr list output for branch ", branchName, ": '", output, "'"))
 
-	if output == "" || output == "null" || output == "||" || output == "null|null|null" {
-		slog.Debug(fmt.Sprintf("No merged PR found for branch %s", branchName))
+	nullOutput := GhDelim + GhDelim
+	nullNullOutput := "null" + GhDelim + "null" + GhDelim + "null"
+	if output == "" || output == "null" || output == nullOutput || output == nullNullOutput {
+		slog.Debug(fmt.Sprint("No merged PR found for branch ", branchName))
 		return nil
 	}
 
-	// Parse the output: "number|title|state"
-	parts := strings.SplitN(output, "|", 3)
+	// Parse the output: "number<delim>title<delim>state"
+	parts := strings.SplitN(output, GhDelim, 4)
 	if len(parts) != 3 {
-		slog.Warn(fmt.Sprintf("Unexpected PR output format for branch %s: %s", branchName, output))
+		slog.Warn(fmt.Sprint("Unexpected PR output format for branch ", branchName, ": ", output))
 		return nil
 	}
 
 	// Check if any part is empty or "null" (which means the PR data was incomplete/missing)
 	if parts[0] == "" || parts[0] == "null" || parts[1] == "" || parts[1] == "null" || parts[2] == "" || parts[2] == "null" {
-		slog.Debug(fmt.Sprintf("No merged PR found for branch %s (empty or null PR data)", branchName))
+		slog.Debug(fmt.Sprint("No merged PR found for branch ", branchName, " (empty or null PR data)"))
 		return nil
 	}
 
-	slog.Debug(fmt.Sprintf("Found merged PR for branch %s: #%s - %s (%s)", branchName, parts[0], parts[1], parts[2]))
+	slog.Debug(fmt.Sprint("Found merged PR for branch ", branchName, ": #", parts[0], " - ", parts[1], " (", parts[2], ")"))
 
 	return &PrInfo{
 		Number: parts[0],
