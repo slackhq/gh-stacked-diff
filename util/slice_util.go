@@ -1,8 +1,6 @@
 // Utility functions (inspired by Kotlin) for slices.
 package util
 
-import "slices"
-
 // Returns a slice containing the results of applying the given transform function to each element
 // in the original array.
 func MapSlice[V, R any](slice []V, f func(V) R) []R {
@@ -22,13 +20,4 @@ func FilterSlice[V any](slice []V, f func(V) bool) []V {
 		}
 	}
 	return filtered
-}
-
-// Reverses the current order of the elements in slice.
-func ReverseSlice[V any](slice []V) []V {
-	reversed := make([]V, 0, len(slice))
-	for _, next := range slices.Backward(slice) {
-		reversed = append(reversed, next)
-	}
-	return reversed
 }

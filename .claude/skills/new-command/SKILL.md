@@ -70,7 +70,7 @@ Examples:
 		// Add Annotations if needed:
 		// Annotations: map[string]string{
 		//   "defaultLogLevel": "error",    // for output commands (default is info)
-		//   "skipRepoCheck":   "true",     // if command doesn't need a git repo
+		//   "checkRepo":       "true",     // if command needs a git repo (omit if not needed)
 		// },
 	}
 
@@ -158,7 +158,7 @@ Replace these placeholders when generating files:
 - `appConfig` is captured via closure in `cmd.Run`
 - Per-command metadata uses `cobra.Command.Annotations`:
   - `"defaultLogLevel": "error"` for output commands (default is info if not set)
-  - `"skipRepoCheck": "true"` for commands that don't need a git repo
+  - `"checkRepo": "true"` for commands that need a git repo (omit if not needed)
 - Error handling uses `panic("message")` — caught by defer/recover in `ExecuteCommand`
 - Use `addIndicatorFlag(cmd)` for commit selection, `addReviewersFlags(cmd)` for PR operations
 - Use `getTargetCommits(appConfig, args, indicatorTypeString, options)` for interactive commit selection

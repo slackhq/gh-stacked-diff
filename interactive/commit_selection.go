@@ -36,12 +36,11 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 	appConfig := util.GetAppConfig()
 	columns := []string{"Index", "Commit", "Summary"}
 	newCommits := templates.GetNewCommits("HEAD", options.GitDir)
-	gitBranchArgs := make([]string, 0, len(newCommits)+2)
-	gitBranchArgs = append(gitBranchArgs, "branch", "-l")
-	for _, log := range newCommits {
-		gitBranchArgs = append(gitBranchArgs, log.Branch)
+	branchNames := make([]string, len(newCommits))
+	for i, log := range newCommits {
+		branchNames[i] = log.Branch
 	}
-	prBranches := strings.Fields(util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(options.GitDir, gitBranchArgs...)...))
+	prBranches := gitutil.CheckLocalBranches(options.GitDir, branchNames)
 
 	rows := make([][]string, 0, len(newCommits))
 
@@ -142,12 +141,6 @@ func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []t
 			program.Send(UpdateCommitSelectorSummaryMsg{Index: i, Summary: summary})
 		}
 	}
-}
-
-// GetBranchSelection displays an interactive selector for branches.
-// Returns an empty array if user cancelled.
-func GetBranchSelection(branches []string, prompt string) ([]string, error) {
-	return GetBranchSelectionWithFilter(branches, prompt, nil)
 }
 
 // GetBranchSelectionWithFilter displays an interactive selector for branches with optional filtering.

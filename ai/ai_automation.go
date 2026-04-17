@@ -18,9 +18,6 @@ var aiCommandHistory = util.NewHistoricalData("ai_command.config", -1)
 //go:embed templates/ai_prompt_pr_description.template
 var aiPromptPrDescription string
 
-//go:embed templates/ai_prompt_pr_review.template
-var aiPromptPrReview string
-
 func GetAiCommandInteractive() []string {
 	commandAndArgs := aiCommandHistory.ReadHistory()
 	if len(commandAndArgs) == 0 {
@@ -38,11 +35,4 @@ func GetPromptPrDescription(prNumber string) string {
 		PrNumber: prNumber,
 	}
 	return templates.RunTemplate("ai_prompt_pr_description.template", aiPromptPrDescription, data)
-}
-
-func GetPromptPrReview(prNumber string) string {
-	data := prData{
-		PrNumber: prNumber,
-	}
-	return templates.RunTemplate("ai_prompt_pr_review.template", aiPromptPrReview, data)
 }

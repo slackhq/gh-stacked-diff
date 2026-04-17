@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"strings"
-
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 	"github.com/spf13/cobra"
 )
@@ -17,13 +15,7 @@ func createVersionCommand() *cobra.Command {
 			"defaultLogLevel": "error",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			var stableSuffix string
-			if strings.TrimSpace(util.CurrentVersion) == strings.TrimSpace(util.StableVersion) {
-				stableSuffix = " (stable)"
-			} else {
-				stableSuffix = " (preview)"
-			}
-			util.Fprintln(util.GetAppConfig().Io.Out, "Version "+util.CurrentVersion+stableSuffix)
+			util.Fprintln(util.GetAppConfig().Io.Out, "Version "+util.CurrentVersion+util.VersionSuffix())
 		},
 	}
 }

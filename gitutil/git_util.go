@@ -295,6 +295,15 @@ func PopStash(popStash bool) {
 	}
 }
 
+// CheckLocalBranches returns the subset of branchNames that exist as local branches.
+func CheckLocalBranches(gitDir string, branchNames []string) []string {
+	args := make([]string, 0, len(branchNames)+2)
+	args = append(args, "branch", "-l")
+	args = append(args, branchNames...)
+	output := util.ExecuteOrDie(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, args...)...)
+	return strings.Fields(output)
+}
+
 // PrependGitDir prepends "-C", dir to args if dir is non-empty.
 // This causes git to run as if invoked from that directory.
 func PrependGitDir(dir string, args ...string) []string {

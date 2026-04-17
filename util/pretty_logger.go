@@ -10,7 +10,7 @@ import (
 	"github.com/fatih/color"
 )
 
-// Handler for [slog] that uses diffdrent ANSI colors for each level (DEBUG, INFO, etc.).
+// Handler for [slog] that uses different ANSI colors for each level (DEBUG, INFO, etc.).
 //
 // Modified from https://betterstack.com/community/guides/logging/logging-in-go/
 type PrettyHandler struct {
