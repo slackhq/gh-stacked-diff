@@ -12,8 +12,6 @@ func TestGetMinChecksFromHistory_WhenHistorySet_ReturnsCachedValue(t *testing.T)
 	testutil.InitTest(t, slog.LevelError)
 	assert := assert.New(t)
 
-	// Write min checks = 3 to history via setMinChecksToHistory.
-	cachedMinChecks = 3
 	setMinChecksToHistory(3)
 
 	result := getMinChecksFromHistory()
