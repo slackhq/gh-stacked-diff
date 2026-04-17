@@ -377,30 +377,26 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 }
 
 func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSections []WorktreeLogSection) []logStatusRow {
-	rows := make([]logStatusRow, 0, len(logs))
+	rows := appendLogRows(make([]logStatusRow, 0, len(logs)), logs, checkedBranches, "")
+	for _, section := range worktreeSections {
+		rows = appendLogRows(rows, section.Logs, section.CheckedBranches, section.DirName)
+	}
+	return rows
+}
+
+func appendLogRows(rows []logStatusRow, logs []templates.GitLog, checkedBranches []string, sectionHeader string) []logStatusRow {
 	for i, log := range logs {
 		prefix := GetLogNumberPrefix(i, len(logs))
-		rows = append(rows, logStatusRow{
+		row := logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
 			numberPrefix: prefix,
 			padding:      strings.Repeat(" ", len(prefix)),
-		})
-	}
-	for _, section := range worktreeSections {
-		for i, log := range section.Logs {
-			prefix := GetLogNumberPrefix(i, len(section.Logs))
-			row := logStatusRow{
-				log:          log,
-				hasPR:        slices.Contains(section.CheckedBranches, log.Branch),
-				numberPrefix: prefix,
-				padding:      strings.Repeat(" ", len(prefix)),
-			}
-			if i == 0 {
-				row.sectionHeader = section.DirName
-			}
-			rows = append(rows, row)
 		}
+		if i == 0 && sectionHeader != "" {
+			row.sectionHeader = sectionHeader
+		}
+		rows = append(rows, row)
 	}
 	return rows
 }

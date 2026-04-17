@@ -10,49 +10,46 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-// Cached value of main branch name for help text.
-var mainBranchNameForHelp string
+// gitCache holds all cached values that are expensive to recompute.
+// Replaced atomically in tests via ResetCacheForTesting.
+type gitCache struct {
+	remoteMainBranch  string
+	remoteMainOnce    sync.Once
+	localMainBranch   string
+	localMainOnce     sync.Once
+	worktrees         []WorktreeInfo
+	worktreesOnce     sync.Once
+	mainBranchForHelp string
+	userEmail         string
+}
 
-// Cached value of user email.
-var userEmail string
-
-// Cached remote main branch name (from origin/HEAD).
-var remoteMainBranch string
-var remoteMainBranchOnce *sync.Once = new(sync.Once)
-
-// Cached local main branch name.
-var localMainBranch string
-var localMainBranchOnce *sync.Once = new(sync.Once)
-
-// Cached worktrees.
-var cachedWorktrees []WorktreeInfo
-var cachedWorktreesOnce *sync.Once = new(sync.Once)
+var cache = &gitCache{}
 
 // Returns name of the remote main branch (e.g. "main" or "master"), as determined
 // from origin/HEAD. Returns an error if it cannot be determined.
 // The result is cached after the first successful call.
 func GetRemoteMainBranch() (string, error) {
-	if remoteMainBranch != "" {
-		return remoteMainBranch, nil
+	if cache.remoteMainBranch != "" {
+		return cache.remoteMainBranch, nil
 	}
 	branch, err := util.Execute(util.ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
 	if err != nil {
 		return "", err
 	}
 	branch = strings.TrimSpace(branch)
-	remoteMainBranch = branch[strings.Index(branch, "/")+1:]
-	return remoteMainBranch, nil
+	cache.remoteMainBranch = branch[strings.Index(branch, "/")+1:]
+	return cache.remoteMainBranch, nil
 }
 
 // Returns name of the remote main branch, or panics if it cannot be determined.
 // Handles initial repository setup (setting origin/HEAD) if needed.
 // The result is cached after the first call.
 func GetRemoteMainBranchOrDie() string {
-	if remoteMainBranch == "" {
-		remoteMainBranchOnce.Do(func() {
+	if cache.remoteMainBranch == "" {
+		cache.remoteMainOnce.Do(func() {
 			out, err := GetRemoteMainBranch()
 			if err == nil {
-				remoteMainBranch = out
+				cache.remoteMainBranch = out
 				return
 			}
 			out, err = util.Execute(util.ExecuteOptions{}, "git", "rev-parse")
@@ -65,7 +62,7 @@ func GetRemoteMainBranchOrDie() string {
 				panic("Remote repository is empty.\n" +
 					"Push an initial inconsequential commit to origin/main and try again. \n" +
 					"Using a repository without an initial remote commit is not recommended because git \n" +
-					"requires special handling for the root commit, and you might accidentially \n" +
+					"requires special handling for the root commit, and you might accidentally \n" +
 					"create more than one root commit.\n" + out + ": " + err.Error())
 			}
 
@@ -74,10 +71,10 @@ func GetRemoteMainBranchOrDie() string {
 			if err != nil {
 				panic("Remote repository not setup.\n" + out + ": " + err.Error())
 			}
-			remoteMainBranch = out
+			cache.remoteMainBranch = out
 		})
 	}
-	return remoteMainBranch
+	return cache.remoteMainBranch
 }
 
 // Returns name of the local main branch. In a standard checkout or the main worktree,
@@ -85,19 +82,19 @@ func GetRemoteMainBranchOrDie() string {
 // worktree's branch (the branch it was created with).
 // The result is cached after the first successful call.
 func GetLocalMainBranch() (string, error) {
-	if localMainBranch != "" {
-		return localMainBranch, nil
+	if cache.localMainBranch != "" {
+		return cache.localMainBranch, nil
 	}
 	if branch := getSecondaryWorktreeBranch(); branch != "" {
-		localMainBranch = branch
-		return localMainBranch, nil
+		cache.localMainBranch = branch
+		return cache.localMainBranch, nil
 	}
 	branch, err := GetRemoteMainBranch()
 	if err != nil {
 		return "", err
 	}
-	localMainBranch = branch
-	return localMainBranch, nil
+	cache.localMainBranch = branch
+	return cache.localMainBranch, nil
 }
 
 // Returns the current branch name if running in a secondary worktree,
@@ -141,7 +138,7 @@ type WorktreeInfo struct {
 // main worktree. Panics if git worktree list fails.
 // For worktrees on a detached HEAD, BranchOrCommit is set to the commit hash.
 func GetWorktrees() []WorktreeInfo {
-	cachedWorktreesOnce.Do(func() {
+	cache.worktreesOnce.Do(func() {
 		worktreeList := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "worktree", "list")
 		lines := strings.Split(worktreeList, "\n")
 		for _, line := range lines {
@@ -156,10 +153,10 @@ func GetWorktrees() []WorktreeInfo {
 			if strings.HasPrefix(branchField, "[") {
 				branchOrCommit = strings.Trim(branchField, "[]")
 			}
-			cachedWorktrees = append(cachedWorktrees, WorktreeInfo{Path: path, BranchOrCommit: branchOrCommit})
+			cache.worktrees = append(cache.worktrees, WorktreeInfo{Path: path, BranchOrCommit: branchOrCommit})
 		}
 	})
-	return cachedWorktrees
+	return cache.worktrees
 }
 
 // GetSecondaryWorktrees returns all secondary worktrees (excludes the main worktree).
@@ -174,11 +171,11 @@ func GetSecondaryWorktrees() []WorktreeInfo {
 // Returns name of the local main branch, or panics if it cannot be determined.
 // The result is cached after the first call.
 func GetLocalMainBranchOrDie() string {
-	if localMainBranch == "" {
-		localMainBranchOnce.Do(func() {
+	if cache.localMainBranch == "" {
+		cache.localMainOnce.Do(func() {
 			out, err := GetLocalMainBranch()
 			if err == nil {
-				localMainBranch = out
+				cache.localMainBranch = out
 				return
 			}
 			// Fall through to GetRemoteMainBranchOrDie which handles setup.
@@ -188,24 +185,24 @@ func GetLocalMainBranchOrDie() string {
 			if err != nil {
 				panic("Could not determine local main branch: " + err.Error())
 			}
-			localMainBranch = result
+			cache.localMainBranch = result
 		})
 	}
-	return localMainBranch
+	return cache.localMainBranch
 }
 
 // Returns name of main branch, or "main" if cannot be determined. For use by CLI help.
 func GetMainBranchForHelp() string {
-	if mainBranchNameForHelp != "" {
-		return mainBranchNameForHelp
+	if cache.mainBranchForHelp != "" {
+		return cache.mainBranchForHelp
 	}
 	branch, err := GetRemoteMainBranch()
 	if err != nil {
-		mainBranchNameForHelp = "main"
+		cache.mainBranchForHelp = "main"
 	} else {
-		mainBranchNameForHelp = branch
+		cache.mainBranchForHelp = branch
 	}
-	return mainBranchNameForHelp
+	return cache.mainBranchForHelp
 }
 
 func setRemoteHead() {
@@ -229,11 +226,15 @@ func setRemoteHead() {
 }
 
 func GetUsername() string {
-	if userEmail == "" {
-		userEmailRaw := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "config", "user.email")
-		userEmail = userEmailRaw[0:strings.Index(userEmailRaw, "@")]
+	if cache.userEmail == "" {
+		raw := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "config", "user.email")
+		name, _, found := strings.Cut(raw, "@")
+		if !found {
+			panic("git config user.email does not contain '@': " + raw)
+		}
+		cache.userEmail = name
 	}
-	return userEmail
+	return cache.userEmail
 }
 
 // Returns most recent commit of the given branch that is on origin/main.
