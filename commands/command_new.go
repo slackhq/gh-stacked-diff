@@ -169,7 +169,7 @@ func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUr
 }
 
 func openPrAndSwitchBack(gitLog templates.GitLog) {
-	if _, err := util.Execute(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web"); err != nil {
+	if _, err := util.Execute(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
 		slog.Warn("Could not view PR: " + err.Error())
 	}
 	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))

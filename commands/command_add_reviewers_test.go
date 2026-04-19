@@ -281,7 +281,8 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 	testParseArguments("new", "1")
 
 	// Return failing checks: one SUCCESS and one FAILURE to meet min checks.
-	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\n\n"
+	// Each check needs 3 values (status, conclusion, state) so the scanner can parse them.
+	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\nFAILURE\n"
 	testExecutor.SetResponse(
 		failingChecks,
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
