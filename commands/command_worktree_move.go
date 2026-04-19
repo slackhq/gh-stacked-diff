@@ -99,7 +99,7 @@ func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag strin
 	})
 	cherryPickWithRecovery(mainPath, commits, cherryPickRecoveryOptions{
 		OnRollback: func() {
-			util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(mainPath, "cherry-pick", "--abort")...)
+			util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(mainPath, "cherry-pick", "--abort"))
 		},
 		OnContinueManually: func() {
 			if err := os.Chdir(mainPath); err != nil {

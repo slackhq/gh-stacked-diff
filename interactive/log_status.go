@@ -146,15 +146,15 @@ func (m logStatusModel) renderRow(row logStatusRow) string {
 		out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
 	}
 	if row.log.HasDuplicate {
-		out.WriteString(row.numberPrefix + color.YellowString("🟡 "))
+		out.WriteString(row.numberPrefix + color.YellowString("● "))
 	} else if row.hasPR {
-		out.WriteString(row.numberPrefix + color.GreenString("✅ "))
+		out.WriteString(row.numberPrefix + color.GreenString("✓ "))
 	} else {
-		out.WriteString(row.numberPrefix + "   ")
+		out.WriteString(row.numberPrefix + "  ")
 	}
 	out.WriteString(coloredCommit(row) + " " + row.log.Subject + "\n")
 	if row.hasPR {
-		statusLine := row.padding + "   " + m.formatStatus(row.status)
+		statusLine := row.padding + "  " + m.formatStatus(row.status)
 		if row.status != nil {
 			reviewInfo := formatReviewSummary(row.status)
 			if reviewInfo != "" {
@@ -246,7 +246,7 @@ func (m logStatusModel) formatStatus(status *gitutil.PullRequestStatus) string {
 		return m.spinner.View()
 	}
 	var parts []string
-	if status.IsInMergeQueue {
+	if status.IsInMergeQueue && status.CanMerge {
 		parts = append(parts, color.YellowString("[merging]"))
 	} else {
 		switch status.State {
@@ -457,12 +457,12 @@ func FormatBranchCommits(branchCommits []templates.GitLog, padding string) strin
 	commits = commits[1:]
 	var out strings.Builder
 	if len(commits) > 3 {
-		hidingMessage := hidingColor.Sprint("   - [hiding ", (len(commits) - 2), " previous...]")
+		hidingMessage := hidingColor.Sprint("  - [hiding ", (len(commits) - 2), " previous...]")
 		out.WriteString(padding + hidingMessage + "\n")
 		commits = commits[len(commits)-2:]
 	}
 	for _, bc := range commits {
-		out.WriteString(padding + "   - " + bc.Subject + "\n")
+		out.WriteString(padding + "  - " + bc.Subject + "\n")
 	}
 	return out.String()
 }

@@ -24,13 +24,13 @@ func createLogCommand() *cobra.Command {
 			"Useful to view list indexes, or copy commit hashes, to use for the\n" +
 			"commitIndicator required by other commands.\n" +
 			"\n" +
-			"A " + color.GreenString("✅") + " means that there is a PR associated with the commit (actually it\n" +
+			"A " + color.GreenString("✓") + " means that there is a PR associated with the commit (actually it\n" +
 			"means there is a branch, but having a branch means there is a PR when\n" +
 			"using this workflow). If there is more than one commit on the\n" +
 			"associated branch, those commits are also listed (indented under\n" +
 			"their associated commit summary).\n" +
 			"\n" +
-			"A " + color.YellowString("🟡") + " means that multiple commits have the same subject.\n" +
+			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
 			"Change the subjects to differentiate commits.",
 		Args: cobra.NoArgs,
 		Annotations: map[string]string{
@@ -80,7 +80,7 @@ func printGitLog() {
 			gitArgs = append(gitArgs, "origin/"+gitutil.GetRemoteMainBranchOrDie()+"..HEAD")
 		}
 		gitArgs = append(gitArgs, "--color=always")
-		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs...)
+		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs)
 		return
 	}
 	logs, checkedBranches := getLogsAndBranches()
@@ -104,12 +104,11 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 		hasPR := slices.Contains(checkedBranches, log.Branch)
 		if log.HasDuplicate {
 			hasDuplicates = true
-			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("🟡 "))
+			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● "))
 		} else if hasPR {
-			// Use color for ✅ otherwise in Git Bash on Windows it will appear as black and white.
-			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✅ "))
+			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ "))
 		} else {
-			util.Fprint(stdIo.Out, numberPrefix+"   ")
+			util.Fprint(stdIo.Out, numberPrefix+"  ")
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
 		if hasPR {

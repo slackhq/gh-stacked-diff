@@ -30,6 +30,7 @@ func GetMergedPR(branchName string) *PrInfo {
 		"--state", "merged",
 		"--json", "number,title,state",
 		"--jq", ".[0] | \"\\(.number)"+GhDelim+"\\(.title)"+GhDelim+"\\(.state)\"",
+		GhRepoArgs(),
 	)
 
 	slog.Debug(fmt.Sprint("gh pr list output for branch ", branchName, ": '", output, "'"))
@@ -74,6 +75,7 @@ func GetUnmergedPR(branchName string) *PrInfo {
 		"--state", "open",
 		"--json", "number,title,state,body",
 		"--jq", ".[0] | \"\\(.number)"+GhDelim+"\\(.title)"+GhDelim+"\\(.state)"+GhDelim+"\\(.body)\"",
+		GhRepoArgs(),
 	)
 
 	// Parse the output: "number|title|state|body"

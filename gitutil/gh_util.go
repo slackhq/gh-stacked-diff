@@ -101,7 +101,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	util.RequireHexString(lastCommit)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq, GhRepoArgs())
 	approvingUsers := strings.Fields(out)
 	slices.Sort(approvingUsers)
 	return slices.Compact(approvingUsers)
@@ -155,7 +155,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))," +
 		"(\"autoMerge,\" + (if .autoMergeRequest != null then \"true\" else \"false\" end))"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq, GhRepoArgs())
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	prNumber := 0

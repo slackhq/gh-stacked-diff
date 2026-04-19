@@ -42,7 +42,7 @@ func TestSdLog_WhenPrCreatedForSomeCommits_PrintsCheckForCommitsWithPrs(t *testi
 
 	out := testParseArguments("log")
 
-	assert.Contains(out, "✅")
+	assert.Contains(out, "✓")
 }
 
 func TestSdLog_WhenDuplicateSubjects_PrintsYellowCircle(t *testing.T) {
@@ -54,8 +54,8 @@ func TestSdLog_WhenDuplicateSubjects_PrintsYellowCircle(t *testing.T) {
 
 	out := testParseArguments("log")
 
-	assert.Contains(out, "🟡")
-	assert.NotContains(out, "✅")
+	assert.Contains(out, "●")
+	assert.NotContains(out, "✓")
 	assert.Contains(out, "indicates that multiple commits have the same subject")
 }
 
@@ -68,7 +68,7 @@ func TestSdLog_WhenUniqueSubjects_DoesNotPrintYellowCircle(t *testing.T) {
 
 	out := testParseArguments("log")
 
-	assert.NotContains(out, "🟡")
+	assert.NotContains(out, "●")
 	assert.NotContains(out, "indicates that multiple commits have the same subject")
 }
 
@@ -108,10 +108,10 @@ func TestSdLog_WhenCommitHasBranch_PrintsExtraBranchCommits(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 
-	assert.Equal("1. ✅ "+color.YellowString(allCommits[0].Commit)+" first\n"+
-		"      - second\n"+
-		"      - third\n"+
-		"      - forth\n",
+	assert.Equal("1. ✓ "+color.YellowString(allCommits[0].Commit)+" first\n"+
+		"     - second\n"+
+		"     - third\n"+
+		"     - forth\n",
 		out)
 }
 
@@ -134,10 +134,10 @@ func TestSdLog_WhenBranchHasManyCommits_PrintsLatest3(t *testing.T) {
 	out := testParseArguments("log")
 
 	allCommits := templates.GetAllCommits()
-	assert.Equal("1. ✅ "+color.YellowString(allCommits[0].Commit)+" first\n"+
-		"      - [hiding 3 previous...]\n"+
-		"      - fifth\n"+
-		"      - sixth\n",
+	assert.Equal("1. ✓ "+color.YellowString(allCommits[0].Commit)+" first\n"+
+		"     - [hiding 3 previous...]\n"+
+		"     - fifth\n"+
+		"     - sixth\n",
 		out)
 }
 
@@ -169,8 +169,8 @@ func TestSdLog_WhenManyCommits_PadsFirstCommits(t *testing.T) {
 
 	out := testParseArguments("log")
 
-	assert.Contains(out, "\n 2.    ")
-	assert.Contains(out, "\n10.    ")
+	assert.Contains(out, "\n 2.   ")
+	assert.Contains(out, "\n10.   ")
 }
 
 func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
@@ -185,8 +185,8 @@ func TestSdLog_WhenMultiplePrs_MatchesAllPrs(t *testing.T) {
 
 	out := testParseArguments("log")
 
-	assert.Regexp("✅.*first", out)
-	assert.Regexp("✅.*second", out)
+	assert.Regexp("✓.*first", out)
+	assert.Regexp("✓.*second", out)
 }
 
 func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
@@ -410,15 +410,16 @@ func TestSdLog_WhenStatusFlag_ShowsMergeQueueStatus(t *testing.T) {
 	testutil.AddCommit("first", "")
 	testParseArguments("new", "1")
 
+	gitutil.ResetCacheForTesting()
+	testExecutor.SetResponse(
+		"myowner/myrepo",
+		nil, "gh", "repo", "view", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
 		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nnumber,42\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
-	testExecutor.SetResponse(
-		"myowner/myrepo",
-		nil, "gh", "repo", "view", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
 		"MQE_abc123",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
@@ -440,7 +441,7 @@ func TestSdLog_WhenStatusFlagAndNoPRs_PrintsCommitsWithoutBubbletea(t *testing.T
 
 	assert.Contains(out, "first")
 	assert.Contains(out, "second")
-	assert.NotContains(out, "✅")
+	assert.NotContains(out, "✓")
 }
 
 func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
@@ -570,7 +571,7 @@ func TestSdLog_WhenOtherWorktreeCommitHasBranch_ShowsCheckAndBranchCommits(t *te
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
-	assert.Contains(out, "✅")
+	assert.Contains(out, "✓")
 	assert.Contains(out, "extra-on-branch")
 	assert.Contains(out, "secondary-worktree")
 }

@@ -34,14 +34,15 @@ const MatchAnyRemainingArgs = "MatchCommandWithAnyRemainingArgs"
 var _ Executor = &TestExecutor{}
 
 // Checks [TestExecutor.fakeResponses] for any match before calling [DefaultExecutor.Execute].
-func (t *TestExecutor) Execute(options ExecuteOptions, programName string, args ...string) (string, error) {
+func (t *TestExecutor) Execute(options ExecuteOptions, programName string, args ...any) (string, error) {
+	flatArgs := flattenArgs(args)
 	for _, response := range slices.Backward(t.fakeResponses) {
-		if response.isMatch(programName, args...) {
+		if response.isMatch(programName, flatArgs...) {
 			executedResponse := ExecutedResponse{
 				Out:         response.out,
 				Err:         response.err,
 				ProgramName: programName,
-				Args:        args,
+				Args:        flatArgs,
 				Faked:       true,
 			}
 			t.Responses = append(t.Responses, executedResponse)
@@ -55,7 +56,7 @@ func (t *TestExecutor) Execute(options ExecuteOptions, programName string, args 
 		}
 	}
 	out, err := (&DefaultExecutor{}).Execute(options, programName, args...)
-	t.Responses = append(t.Responses, ExecutedResponse{Out: out, Err: err, ProgramName: programName, Args: args})
+	t.Responses = append(t.Responses, ExecutedResponse{Out: out, Err: err, ProgramName: programName, Args: flatArgs})
 	return out, err
 }
 

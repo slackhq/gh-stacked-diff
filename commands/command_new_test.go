@@ -71,7 +71,7 @@ func TestSdNew_CreatesPr(t *testing.T) {
 
 	out := testParseArguments("log")
 
-	assert.Contains(out, "✅")
+	assert.Contains(out, "✓")
 }
 
 func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
@@ -92,7 +92,7 @@ func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -407,8 +407,8 @@ func TestSdNew_WhenDestinationCommitNotSpecifiedAndManyCommitsAndExistingPr_Pads
 	defer func() {
 		r := recover()
 		if r != nil {
-			assert.Contains(out.String(), "│ 1    │")
-			assert.Contains(out.String(), "│10 ✅ │")
+			assert.Contains(out.String(), "│ 1  │")
+			assert.Contains(out.String(), "│10 ✓│")
 		}
 	}()
 	testParseArgumentsWithOut(out, "--log-level=error", "new")

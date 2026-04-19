@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -25,7 +26,22 @@ type ExecuteOptions struct {
 // Provides a simple way to execute shell commands.
 // Allows swapping in a [TestExecutor] via Dependency Injection during tests.
 type Executor interface {
-	Execute(options ExecuteOptions, programName string, args ...string) (string, error)
+	Execute(options ExecuteOptions, programName string, args ...any) (string, error)
+}
+
+func flattenArgs(args []any) []string {
+	var flat []string
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case string:
+			flat = append(flat, v)
+		case []string:
+			flat = append(flat, v...)
+		default:
+			panic(fmt.Sprintf("Execute args must be string or []string, got %T", arg))
+		}
+	}
+	return flat
 }
 
 var globalExecutor Executor = DefaultExecutor{}
@@ -39,8 +55,9 @@ func SetGlobalExecutor(executor Executor) {
 }
 
 // Implementation of Execute that uses [exec.Command].
-func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programName string, args ...string) (string, error) {
-	cmd := exec.Command(programName, args...)
+func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programName string, args ...any) (string, error) {
+	flatArgs := flattenArgs(args)
+	cmd := exec.Command(programName, flatArgs...)
 	if options.EnvironmentVariables != nil {
 		cmd.Env = append(os.Environ(), options.EnvironmentVariables...)
 	}
@@ -63,33 +80,34 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 	//       namely `git diff | git apply`.`
 	stringOut := b.String()
 	if err != nil && options.Retries > 0 {
-		fullCommand := programName + " " + strings.Join(args, " ")
+		fullCommand := programName + " " + strings.Join(flatArgs, " ")
 		firstLine, _, _ := strings.Cut(fullCommand, "\n")
 		slog.Warn("Retrying: " + "\"" + firstLine + "\": " + err.Error())
 		Sleep(RetryDelay)
 		options.Retries = options.Retries - 1
 		return defaultExecutor.Execute(options, programName, args...)
 	}
-	slog.Debug("Executed " + getLogMessage(programName, args, stringOut, err))
+	slog.Debug("Executed " + getLogMessage(programName, flatArgs, stringOut, err))
 	return stringOut, err
 }
 
 // Executes a shell program with arguments.
-func Execute(options ExecuteOptions, programName string, args ...string) (string, error) {
+func Execute(options ExecuteOptions, programName string, args ...any) (string, error) {
 	return globalExecutor.Execute(options, programName, args...)
 }
 
 // Executes a shell program with arguments. Panics if there is an error.
-func ExecuteOrDie(options ExecuteOptions, programName string, args ...string) string {
+func ExecuteOrDie(options ExecuteOptions, programName string, args ...any) string {
 	out, err := Execute(options, programName, args...)
 	if err != nil {
-		panic("failed executing " + getLogMessage(programName, args, out, err))
+		flatArgs := flattenArgs(args)
+		panic("failed executing " + getLogMessage(programName, flatArgs, out, err))
 	}
 	return out
 }
 
 // Executes a shell program with arguments, trims whitespace from output, and panics if there is an error.
-func ExecuteOrDieTrimmed(options ExecuteOptions, programName string, args ...string) string {
+func ExecuteOrDieTrimmed(options ExecuteOptions, programName string, args ...any) string {
 	return strings.TrimSpace(ExecuteOrDie(options, programName, args...))
 }
 

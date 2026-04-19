@@ -8,11 +8,14 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-// Returns "repository-owner/repository-name".
+// Returns "repository-owner/repository-name" for the origin remote.
+// Uses the origin URL explicitly so that forks resolve to the fork itself,
+// not the parent repository.
 func GetRepoNameWithOwner() string {
 	cache.repoNameWithOwnerOnce.Do(func() {
+		originURL := getOriginURL()
 		cache.repoNameWithOwner = util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
-			"gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+			"gh", "repo", "view", originURL, "--json", "nameWithOwner", "--jq", ".nameWithOwner")
 	})
 	return cache.repoNameWithOwner
 }
@@ -36,8 +39,9 @@ func GetLoggedInUsername() string {
 
 func GetRepoHostname() string {
 	cache.repoHostnameOnce.Do(func() {
+		originURL := getOriginURL()
 		out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
-			"gh", "repo", "view", "--json", "url", "--jq", ".url")
+			"gh", "repo", "view", originURL, "--json", "url", "--jq", ".url")
 		parsedUrl, err := url.Parse(out)
 		if err != nil {
 			panic("Could not parse url (" + out + "): " + err.Error())
@@ -45,4 +49,13 @@ func GetRepoHostname() string {
 		cache.repoHostname = parsedUrl.Hostname()
 	})
 	return cache.repoHostname
+}
+
+// GhRepoArgs returns "--repo", "owner/repo" for use with gh pr subcommands.
+func GhRepoArgs() []string {
+	return []string{"--repo", GetRepoNameWithOwner()}
+}
+
+func getOriginURL() string {
+	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "remote", "get-url", "origin")
 }

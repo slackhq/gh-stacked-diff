@@ -2,6 +2,7 @@ package commands
 
 import (
 	"log/slog"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,8 @@ func TestSdAddDescription_WhenHasPr_UpdatesPrBody(t *testing.T) {
 	editCommand := util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh" && next.Args[0] == "pr" && next.Args[1] == "edit"
 	})[0]
-	assert.Equal(expectedBody, editCommand.Args[len(editCommand.Args)-1])
+	bodyIndex := slices.Index(editCommand.Args, "--body")
+	assert.Equal(expectedBody, editCommand.Args[bodyIndex+1])
 }
 
 func TestSdAddDescription_WhenHasPrHasExistingComment_ReplacesComment(t *testing.T) {
@@ -97,5 +99,6 @@ func TestSdAddDescription_WhenHasPrHasExistingComment_ReplacesComment(t *testing
 	editCommand := util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh" && next.Args[0] == "pr" && next.Args[1] == "edit"
 	})[0]
-	assert.Equal(expectedBody, editCommand.Args[len(editCommand.Args)-1])
+	bodyIndex := slices.Index(editCommand.Args, "--body")
+	assert.Equal(expectedBody, editCommand.Args[bodyIndex+1])
 }

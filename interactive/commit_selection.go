@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fatih/color"
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -64,9 +65,9 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 		indexString = strings.Repeat(" ", paddingLen) + indexString
 		if commit.HasDuplicate {
 			hasDuplicates = true
-			indexString += " 🟡"
+			indexString += " " + color.YellowString("●")
 		} else if hasLocalBranch {
-			indexString += " ✅"
+			indexString += " " + color.GreenString("✓")
 		}
 		row := []string{indexString, commit.Commit, commit.Subject}
 		if rowEnabled(i) {

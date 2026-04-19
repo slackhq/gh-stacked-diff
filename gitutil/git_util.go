@@ -312,7 +312,7 @@ func CheckLocalBranches(gitDir string, branchNames []string) []string {
 	args := make([]string, 0, len(branchNames)+2)
 	args = append(args, "branch", "-l")
 	args = append(args, branchNames...)
-	output := util.ExecuteOrDie(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, args...)...)
+	output := util.ExecuteOrDie(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, args...))
 	return strings.Fields(output)
 }
 
@@ -334,11 +334,11 @@ func CherryPickAndSkipAllEmpty(gitDir string, commits []string) {
 	for i, commit := range commits {
 		cherryPickArgs[i+2] = commit
 	}
-	out, err := util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, cherryPickArgs...)...)
+	out, err := util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, cherryPickArgs...))
 	for err != nil {
 		if strings.Contains(out, "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")
-			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip")...)
+			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip"))
 		} else {
 			slog.Error("Unexpected cherry-pick error: " + out)
 			panic("Unexpected cherry-pick error: " + out + " args: " + strings.Join(cherryPickArgs, " ") + " error: " + err.Error())
@@ -351,7 +351,7 @@ func RebaseAndSkipAllEmpty(options util.ExecuteOptions, otherRebaseArgs ...strin
 	options.Io.Out = outRecorder
 	options.Io.Err = outRecorder
 	out, err := util.Execute(options,
-		"git", append(rebaseNoVerify(), otherRebaseArgs...)...)
+		"git", append(rebaseNoVerify(), otherRebaseArgs...))
 	for err != nil {
 		if strings.Contains(outRecorder.String(), "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")

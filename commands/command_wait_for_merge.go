@@ -52,5 +52,5 @@ func waitForMerge(targetCommit templates.GitLog, silent bool, pollInterval time.
 
 func getMergedAt(branchName string) string {
 	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries},
-		"gh", "pr", "view", branchName, "--json", "mergedAt", "--jq", ".mergedAt")
+		"gh", "pr", "view", branchName, "--json", "mergedAt", "--jq", ".mergedAt", gitutil.GhRepoArgs())
 }
