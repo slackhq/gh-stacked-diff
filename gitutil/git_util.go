@@ -32,6 +32,8 @@ type gitCache struct {
 	loggedInUsernameOnce  sync.Once
 	repoHostname          string
 	repoHostnameOnce      sync.Once
+	isFork                bool
+	isForkOnce            sync.Once
 }
 
 var cache = &gitCache{}

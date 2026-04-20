@@ -1,6 +1,7 @@
 package gitutil
 
 import (
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -39,9 +40,8 @@ func GetLoggedInUsername() string {
 
 func GetRepoHostname() string {
 	cache.repoHostnameOnce.Do(func() {
-		originURL := getOriginURL()
 		out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
-			"gh", "repo", "view", originURL, "--json", "url", "--jq", ".url")
+			"gh", "repo", "view", "--json", "url", "--jq", ".url")
 		parsedUrl, err := url.Parse(out)
 		if err != nil {
 			panic("Could not parse url (" + out + "): " + err.Error())
@@ -51,9 +51,22 @@ func GetRepoHostname() string {
 	return cache.repoHostname
 }
 
-// GhRepoArgs returns "--repo", "owner/repo" for use with gh pr subcommands.
+// GhRepoArgs returns "--repo", "owner/repo" for use with gh pr subcommands
+// when in a fork, or an empty slice when not in a fork.
 func GhRepoArgs() []string {
+	if !isFork() {
+		return []string{}
+	}
 	return []string{"--repo", GetRepoNameWithOwner()}
+}
+
+func isFork() bool {
+	cache.isForkOnce.Do(func() {
+		out, err := util.Execute(util.ExecuteOptions{}, "git", "remote", "get-url", "upstream")
+		cache.isFork = err == nil
+		slog.Debug(fmt.Sprint("isFork ", cache.isFork, ", upstream ", out))
+	})
+	return cache.isFork
 }
 
 func getOriginURL() string {
