@@ -103,6 +103,7 @@ func createNewCommand() *cobra.Command {
 			*baseBranch = gitutil.GetLocalMainBranchOrDie()
 			remoteBaseBranch = gitutil.GetRemoteMainBranchOrDie()
 		} else {
+			util.RequireGitRef(*baseBranch)
 			remoteBaseBranch = *baseBranch
 		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
@@ -142,7 +143,7 @@ func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPatte
 func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
 	var commitToBranchFrom string
 	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
-		commitToBranchFrom = gitutil.FirstOriginMainCommit(gitutil.GetLocalMainBranchOrDie())
+		commitToBranchFrom = gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Switching to branch ", gitLog.Branch, " based off commit ", commitToBranchFrom))
 	} else {
 		commitToBranchFrom = baseBranch
@@ -171,7 +172,9 @@ func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUr
 }
 
 func openPrAndSwitchBack(gitLog templates.GitLog) {
-	util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web")
+	if _, err := util.Execute(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
+		slog.Warn("Could not view PR: " + err.Error())
+	}
 	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))
 	gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.
@@ -179,20 +182,24 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 }
 
 func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft bool) string {
-	createPrArgsNoDraft := []string{"pr", "create", "--title", prText.Title, "--body", prText.Description, "--fill", "--base", remoteBaseBranch}
-	createPrArgs := createPrArgsNoDraft
+	baseArgs := []string{"pr", "create", "--title", prText.Title, "--body", prText.Description,
+		"--fill", "--base", remoteBaseBranch}
+	var draftArgs []string
 	if draft {
-		createPrArgs = append(createPrArgs, "--draft")
+		draftArgs = append(baseArgs, "--draft")
+	} else {
+		draftArgs = baseArgs
 	}
-	createPrOutput, createPrErr := util.Execute(util.ExecuteOptions{}, "gh", createPrArgs...)
+	createPrOutput, createPrErr := util.Execute(util.ExecuteOptions{}, "gh", draftArgs, gitutil.GhRepoArgs())
 	if createPrErr != nil {
 		if draft && strings.Contains(createPrOutput, "Draft pull requests are not supported") {
 			slog.Warn("Draft PRs not supported, trying again without draft.\nUse \"--draft=false\" to avoid this warning.")
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", createPrArgsNoDraft...)
+			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", baseArgs, gitutil.GhRepoArgs())
 		} else {
-			slog.Warn("Retrying: " + "\"gh " + strings.Join(createPrArgs, " ") + "\": " + createPrErr.Error())
+			firstLine, _, _ := strings.Cut(strings.Join(draftArgs, " "), "\n")
+			slog.Warn("Retrying: " + "\"gh " + firstLine + "\": " + createPrErr.Error())
 			util.Sleep(util.RetryDelay)
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries - 1}, "gh", createPrArgs...)
+			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries - 1}, "gh", draftArgs, gitutil.GhRepoArgs())
 		}
 	} else {
 		return createPrOutput

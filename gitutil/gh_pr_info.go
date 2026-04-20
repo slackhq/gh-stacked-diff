@@ -30,6 +30,7 @@ func GetMergedPR(branchName string) *PrInfo {
 		"--state", "merged",
 		"--json", "number,title,state",
 		"--jq", ".[0] | \"\\(.number)"+GhDelim+"\\(.title)"+GhDelim+"\\(.state)\"",
+		GhRepoArgs(),
 	)
 
 	slog.Debug(fmt.Sprint("gh pr list output for branch ", branchName, ": '", output, "'"))
@@ -42,7 +43,7 @@ func GetMergedPR(branchName string) *PrInfo {
 	}
 
 	// Parse the output: "number<delim>title<delim>state"
-	parts := strings.SplitN(output, GhDelim, 4)
+	parts := strings.SplitN(output, GhDelim, 3)
 	if len(parts) != 3 {
 		slog.Warn(fmt.Sprint("Unexpected PR output format for branch ", branchName, ": ", output))
 		return nil
@@ -74,11 +75,12 @@ func GetUnmergedPR(branchName string) *PrInfo {
 		"--state", "open",
 		"--json", "number,title,state,body",
 		"--jq", ".[0] | \"\\(.number)"+GhDelim+"\\(.title)"+GhDelim+"\\(.state)"+GhDelim+"\\(.body)\"",
+		GhRepoArgs(),
 	)
 
 	// Parse the output: "number|title|state|body"
 	// Check if status is not present (which means the PR data was incomplete/missing)
-	parts := strings.SplitN(output, GhDelim, 5)
+	parts := strings.SplitN(output, GhDelim, 4)
 	if len(parts) != 4 || strings.ToUpper(parts[2]) != "OPEN" {
 		return nil
 	}

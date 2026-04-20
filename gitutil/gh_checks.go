@@ -13,7 +13,7 @@ import (
 )
 
 const DefaultMinChecks = 1
-const MaxChecks = 5
+const maxChecks = 5
 
 // Cached value from minChecks api call if there were checks run.
 var minChecksHistory = util.NewHistoricalData("min-checks.history", 2)
@@ -56,13 +56,17 @@ func GetChecksStatus(branchName string, minChecks int) PullRequestChecksStatus {
 	summary := PullRequestChecksStatus{MinChecks: minChecks}
 	stateString := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
 		"gh", "pr", "view", branchName, "--json", "statusCheckRollup",
-		"--jq", ".statusCheckRollup[] | .status, .conclusion, .state")
+		"--jq", ".statusCheckRollup[] | .status, .conclusion, .state", GhRepoArgs())
 	scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(stateString)))
 	for scanner.Scan() {
 		status := scanner.Text()
-		scanner.Scan()
+		if !scanner.Scan() {
+			break
+		}
 		conclusion := scanner.Text()
-		scanner.Scan()
+		if !scanner.Scan() {
+			break
+		}
 		state := scanner.Text()
 		updatePullRequestChecksStatus(&summary, status, conclusion, state)
 	}
@@ -98,7 +102,7 @@ func getMinChecks() int {
 		// Github sometimes returns an error for this command so retry and then fallback to default.
 		out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
 			"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
-			"--json", "statusCheckRollup", "--jq", jq)
+			"--json", "statusCheckRollup", "--jq", jq, GhRepoArgs())
 		if err != nil {
 			slog.Warn("Could not determine min checks so using default " + fmt.Sprint(DefaultMinChecks))
 			cache.minChecks = DefaultMinChecks
@@ -118,7 +122,7 @@ func getMinChecks() int {
 
 		minChecks := slices.Min(allNumChecks)
 		slog.Debug(fmt.Sprint("Checks from PRs are ", allNumChecks, " min is ", minChecks))
-		cache.minChecks = min(minChecks, MaxChecks)
+		cache.minChecks = min(minChecks, maxChecks)
 		setMinChecksToHistory(cache.minChecks)
 	})
 	return cache.minChecks

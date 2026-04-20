@@ -105,7 +105,7 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 		addReviewers(targetCommit, opts.Reviewers, progressIndicator, index)
 	}
 	if opts.AutoMerge {
-		util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "merge", targetCommit.Branch, "--auto", "--squash")
+		util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "merge", targetCommit.Branch, "--auto", "--squash", gitutil.GhRepoArgs())
 		progressIndicator.SetLogLine(index, "Auto-merge enabled")
 	}
 }
@@ -154,7 +154,7 @@ func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, prog
 
 func markPrReady(targetCommit templates.GitLog, progressIndicator *interactive.ProgressIndicator, index int) {
 	progressIndicator.SetLogLine(index, "Marking PR as ready for review")
-	util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "ready", targetCommit.Branch)
+	util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "ready", targetCommit.Branch, gitutil.GhRepoArgs())
 	progressIndicator.SetLogLine(index, "PR marked as ready for review")
 }
 
@@ -172,7 +172,7 @@ func addReviewers(targetCommit templates.GitLog, reviewers string, progressIndic
 		} else {
 			prUrl := strings.TrimSpace(
 				util.ExecuteOrDie(util.ExecuteOptions{},
-					"gh", "pr", "edit", targetCommit.Branch, "--add-reviewer", nonApprovingUsers,
+					"gh", "pr", "edit", targetCommit.Branch, "--add-reviewer", nonApprovingUsers, gitutil.GhRepoArgs(),
 				),
 			)
 			progressIndicator.SetLogLine(index, fmt.Sprint("Added reviewers ", nonApprovingUsers, " to ", prUrl))

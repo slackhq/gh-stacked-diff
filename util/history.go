@@ -50,7 +50,7 @@ func (d HistoricalData) AddToHistory(newHistoryItem string) {
 	d.SetHistory(history)
 }
 
-// Add a most recently used item to history.
+// SetHistory replaces the entire history with the provided slice.
 func (d HistoricalData) SetHistory(history []string) {
 	if d.maxHistory != -1 && len(history) > d.maxHistory {
 		history = history[len(history)-d.maxHistory:]

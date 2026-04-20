@@ -106,10 +106,13 @@ func rebaseMain() {
 		_, rebaseError = gitutil.RebaseAndSkipAllEmpty(options, "origin/"+gitutil.GetRemoteMainBranchOrDie())
 	}
 	if rebaseError != nil {
+		if shouldPopStash {
+			slog.Info("Your changes are still stashed. Run `git stash pop` after resolving the rebase.")
+		}
 		panic("Rebase failed, check output ^^ for details. Continue rebase manually.")
-	} else {
-		gitutil.PopStash(shouldPopStash)
 	}
+	// Only pop stash on success — popping onto merge conflicts would be a problem.
+	gitutil.PopStash(shouldPopStash)
 }
 
 // getMergedBranches returns branches from merged PRs that were merged AFTER our branch diverged.
@@ -156,11 +159,11 @@ func getBranchesByPRState(mergedState bool) []string {
 	if mergedState {
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
 			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", gitutil.GetRemoteMainBranchOrDie(),
-			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid")
+			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid", gitutil.GhRepoArgs())
 	} else {
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
 			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", gitutil.GetRemoteMainBranchOrDie(),
-			"--json", "headRefName,headRefOid", "--jq", ".[ ] | .headRefName + \" \" + .headRefOid")
+			"--json", "headRefName,headRefOid", "--jq", ".[ ] | .headRefName + \" \" + .headRefOid", gitutil.GhRepoArgs())
 	}
 	branchesRawLines := strings.Split(strings.TrimSpace(branchesRaw), "\n")
 	branches := make([]string, 0, len(branchesRawLines))

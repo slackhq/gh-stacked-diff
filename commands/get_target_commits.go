@@ -37,7 +37,7 @@ func getTargetCommits(
 	} else {
 		indicatorType := checkIndicatorFlag(indicatorTypeString)
 		return util.MapSlice(commitsFromCommandLine, func(commit string) templates.GitLog {
-			return templates.GetBranchInfo(commit, indicatorType)
+			return templates.ResolveCommitIndicator(commit, indicatorType)
 		})
 	}
 }

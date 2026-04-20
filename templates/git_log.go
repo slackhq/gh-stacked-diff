@@ -9,7 +9,7 @@ import (
 )
 
 // DuplicateSubjectLegend is the warning shown when multiple commits share the same subject.
-const DuplicateSubjectLegend = "🟡 indicates that multiple commits have the same subject. Change the subjects to differentiate commits"
+const DuplicateSubjectLegend = "● indicates that multiple commits have the same subject. Change the subjects to differentiate commits"
 
 // Returned by some of the Get*Commit functions.
 type GitLog struct {
@@ -37,7 +37,7 @@ const newGitLogsFormat = "--pretty=format:%h" + formatDelimiter + "%s" + formatD
 // Returns all the commits on the current branch. For use by tests.
 func GetAllCommits() []GitLog {
 	gitArgs := []string{"--no-pager", "log", newGitLogsFormat, "--abbrev-commit"}
-	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitArgs...)
+	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitArgs)
 	return newGitLogs(logsRaw)
 }
 
@@ -49,7 +49,7 @@ func GetNewCommits(to string, gitDir string) []GitLog {
 	} else {
 		gitArgs = append(gitArgs, to)
 	}
-	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(gitDir, gitArgs...)...)
+	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(gitDir, gitArgs...))
 	return newGitLogs(logsRaw)
 }
 
@@ -77,9 +77,6 @@ func newGitLogs(logsRaw string) []GitLog {
 }
 
 func RequireCommitOnMain(commit string) {
-	if commit == gitutil.GetLocalMainBranchOrDie() {
-		return
-	}
 	newCommits := GetNewCommits("HEAD", "")
 	if !slices.ContainsFunc(newCommits, func(gitLog GitLog) bool {
 		return gitLog.Commit == commit

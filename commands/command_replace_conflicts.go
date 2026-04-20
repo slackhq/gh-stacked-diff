@@ -35,16 +35,12 @@ func createReplaceConflictsCommand() *cobra.Command {
 // For failed rebase: replace changes with its associated branch.
 func replaceConflicts(confirmed bool) {
 	commitWithConflicts := getCommitWithConflicts()
-	gitLog := templates.GetBranchInfo(commitWithConflicts, templates.IndicatorTypeCommit)
+	gitLog := templates.ResolveCommitIndicator(commitWithConflicts, templates.IndicatorTypeCommit)
 	checkConfirmed(confirmed)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", "HEAD")
 	slog.Info(fmt.Sprint("Replacing changes (merge conflicts) for failed rebase of commit ", commitWithConflicts, ", with changes from associated branch, ", gitLog.Branch))
-	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", "origin/"+gitutil.GetRemoteMainBranchOrDie(), gitLog.Branch)
-	util.ExecuteOrDie(util.ExecuteOptions{Io: util.StdIo{In: strings.NewReader(diff), Out: nil, Err: nil}},
-		"git", "apply",
-	)
+	gitutil.ApplyDiffFromRef("origin/"+gitutil.GetRemoteMainBranchOrDie(), gitLog.Branch)
 	slog.Info("Adding changes and continuing rebase")
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
 	continueOptions := util.ExecuteOptions{EnvironmentVariables: []string{"GIT_EDITOR=true"}}
 	// Note: --continue cannot be used with --no-verify.
 	util.ExecuteOrDie(continueOptions, "git", "rebase", "--continue")
@@ -70,7 +66,11 @@ func getCommitWithConflicts() string {
 		panic("Cannot determine which commit is being rebased with because \"git status\" does not have a \"Last commands done\" section. To use this command you must be in the middle of a rebase")
 	}
 	// Return the 2nd field, from a string such as "pick f52e867 next1"
-	return strings.Fields(statusLines[lastCommandDoneLine])[1]
+	fields := strings.Fields(statusLines[lastCommandDoneLine])
+	if len(fields) < 2 {
+		panic("Cannot parse commit hash from git status line: " + statusLines[lastCommandDoneLine])
+	}
+	return fields[1]
 }
 
 func checkConfirmed(confirmed bool) {

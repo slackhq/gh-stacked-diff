@@ -64,7 +64,7 @@ func addDescriptionForBranch(branch string) {
 	description := createAiDescription(*pr)
 	newBody := getNewPrBody(*pr, description)
 	slog.Info("Adding comment to PR description")
-	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "gh", "pr", "edit", pr.Number, "--body", newBody)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "gh", "pr", "edit", pr.Number, "--body", newBody, gitutil.GhRepoArgs())
 }
 
 func createAiDescription(pr gitutil.PrInfo) string {
@@ -73,7 +73,7 @@ func createAiDescription(pr gitutil.PrInfo) string {
 	outWriter := util.NewWriteRecorder(appConfig.Io.Out)
 	aiCommand := ai.GetAiCommandInteractive()
 	var allArgs = append(aiCommand[1:], "-p", prompt)
-	util.ExecuteOrDie(util.ExecuteOptions{Io: util.StdIo{Out: outWriter, Err: appConfig.Io.Err, In: appConfig.Io.In}}, aiCommand[0], allArgs...)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: util.StdIo{Out: outWriter, Err: appConfig.Io.Err, In: appConfig.Io.In}}, aiCommand[0], allArgs)
 	out := outWriter.String()
 	return parseDescription(out)
 }

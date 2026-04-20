@@ -171,7 +171,7 @@ func TestSdUpdate_WithReviewers_AddReviewers(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[1].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"

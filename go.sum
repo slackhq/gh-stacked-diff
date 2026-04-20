@@ -30,8 +30,8 @@ github.com/hairyhenderson/go-codeowners v0.3.0 h1:StTUwFO+E6gaAcsAx8h6Pgc88OO0oC
 github.com/hairyhenderson/go-codeowners v0.3.0/go.mod h1:sbmEivkk3c2tqw05ch4AVtpnOb4un1CQTJ6rtGfODJE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/joshallenit/bubbles v0.20.3 h1:TwLqxe4ckaUXO871GhIBGeNuBaXv4s6mMHlOlfmfIo0=
-github.com/joshallenit/bubbles v0.20.3/go.mod h1:aU8CG8S/0kEyrz4npP8Q4Y2rhkc+NeMguilG8FRoH90=
+github.com/joshallenit/bubbles v0.20.4 h1:pkE8PFee4tqTbWNCWzlZDZwVawPZwLOIaPNCSO0ROpc=
+github.com/joshallenit/bubbles v0.20.4/go.mod h1:aU8CG8S/0kEyrz4npP8Q4Y2rhkc+NeMguilG8FRoH90=
 github.com/joshallenit/bubbletea v1.3.6 h1:CapxcAY7tuLjqr2eITzG7GSAjWqhYjnx+ilP8AsxY0I=
 github.com/joshallenit/bubbletea v1.3.6/go.mod h1:v7ShPIXTq1XOrezNC+KqabdR4I11euqk4K0rj+ZyWkg=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=

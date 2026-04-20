@@ -62,16 +62,11 @@ func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCh
 	rollbackCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H")
 	commitsAfter := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "log", gitLog.Commit+"..HEAD", "--pretty=format:%h"))
 	slices.Reverse(commitsAfter)
-	commitToDiffFrom := gitutil.FirstOriginMainCommit(gitLog.Branch)
+	commitToDiffFrom := gitutil.GetMergeBaseWithOriginMain(gitLog.Branch)
 	slog.Info("Resetting to " + gitLog.Commit + "~1")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", gitLog.Commit+"~1")
 	slog.Info("Adding diff from commits " + gitLog.Branch)
-	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", commitToDiffFrom, gitLog.Branch)
-	util.ExecuteOrDie(
-		util.ExecuteOptions{Io: util.StdIo{In: strings.NewReader(diff), Out: nil, Err: nil}},
-		"git", "apply",
-	)
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	gitutil.ApplyDiffFromRef(commitToDiffFrom, gitLog.Branch)
 	commitSummary := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%s", gitLog.Commit)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "--no-verify", "-m", strings.TrimSpace(commitSummary))
 	if len(commitsAfter) != 0 {

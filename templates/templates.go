@@ -69,8 +69,9 @@ func (indicator IndicatorType) IsValid() bool {
 	}
 }
 
-// Returns BranchInfo for commitIndicator and indicatorType.
-func GetBranchInfo(commitIndicator string, indicatorType IndicatorType) GitLog {
+// ResolveCommitIndicator resolves a commit indicator (hash, PR number, or list index)
+// into a GitLog with commit hash, subject, and branch information.
+func ResolveCommitIndicator(commitIndicator string, indicatorType IndicatorType) GitLog {
 	util.RequireNotEmptyString(commitIndicator)
 	if !indicatorType.IsValid() {
 		panic("Invalid IndicatorType " + string(indicatorType))
@@ -208,7 +209,7 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 	ticketNumber := strings.TrimSpace(summaryMatches[1])
 	resolvedTicketUrl := strings.ReplaceAll(ticketUrlPattern, "{TicketNumber}", ticketNumber)
 	return templateData{
-		Username:                   gitutil.GetUsername(),
+		Username:                   gitutil.GetEmailLocalPart(),
 		TicketNumber:               ticketNumber,
 		TicketUrlPattern:           resolvedTicketUrl,
 		CommitBody:                 commitBody,
@@ -249,7 +250,7 @@ func templateTextContains(configFilename string, defaultText string, search stri
 
 func getBranchTemplateData(sanitizedSummary string) branchTemplateData {
 	// Dots are not allowed in branch names of some Github configurations.
-	username := strings.ReplaceAll(gitutil.GetUsername(), ".", "-")
+	username := strings.ReplaceAll(gitutil.GetEmailLocalPart(), ".", "-")
 	return branchTemplateData{
 		UsernameCleaned:      username,
 		CommitSummaryCleaned: sanitizedSummary,

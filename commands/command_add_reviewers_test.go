@@ -40,7 +40,7 @@ func TestSdAddReviewers_AddReviewers(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -66,7 +66,7 @@ func TestSdAddReviewers_WhenUsingListIndicator_AddReviewers(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -93,7 +93,7 @@ func TestSdAddReviewers_WhenOmittingCommitIndicator_AsksForSelection(t *testing.
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -131,7 +131,7 @@ func TestSdAddReviewers_WhenUserAlreadyApproved_DoesNotRequestReview(t *testing.
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -173,7 +173,7 @@ func TestSdAddReviewers_UserChoosesHistory_ChoosesSameReviewers(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -219,7 +219,7 @@ func TestSdAddReviewers_UserChoosesHistoryFromTyped_ChoosesSameReviewers(t *test
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "my"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -264,7 +264,7 @@ func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "merge", allCommits[0].Branch, "--auto", "--squash"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"
@@ -281,7 +281,8 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 	testParseArguments("new", "1")
 
 	// Return failing checks: one SUCCESS and one FAILURE to meet min checks.
-	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\n\n"
+	// Each check needs 3 values (status, conclusion, state) so the scanner can parse them.
+	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\nFAILURE\n"
 	testExecutor.SetResponse(
 		failingChecks,
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
@@ -325,7 +326,7 @@ func TestSdAddReviewers_WhenMinChecksFails_UsesDefault(t *testing.T) {
 
 	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie"}
-		return next.ProgramName == "gh" && slices.Equal(next.Args, ghExpectedArgs)
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
 	})
 	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
 		return next.ProgramName == "gh"

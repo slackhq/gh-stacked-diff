@@ -94,13 +94,12 @@ func worktreeMove(args []string, indicatorTypeString *string, worktreeFlag strin
 	}
 	selectedCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 	slog.Info(fmt.Sprint("Cherry-picking ", len(selectedCommits), " commit(s) onto ", mainBranch, " in main worktree"))
-	commits := make([]string, len(selectedCommits))
-	for i, commit := range selectedCommits {
-		commits[i] = commit.Commit
-	}
+	commits := util.MapSlice(selectedCommits, func(commit templates.GitLog) string {
+		return commit.Commit
+	})
 	cherryPickWithRecovery(mainPath, commits, cherryPickRecoveryOptions{
 		OnRollback: func() {
-			util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(mainPath, "cherry-pick", "--abort")...)
+			util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(mainPath, "cherry-pick", "--abort"))
 		},
 		OnContinueManually: func() {
 			if err := os.Chdir(mainPath); err != nil {

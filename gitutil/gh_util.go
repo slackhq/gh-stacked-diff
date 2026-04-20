@@ -101,7 +101,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	util.RequireHexString(lastCommit)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq, GhRepoArgs())
 	approvingUsers := strings.Fields(out)
 	slices.Sort(approvingUsers)
 	return slices.Compact(approvingUsers)
@@ -148,15 +148,17 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	}
 	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
 		"(\"state,\" + .state)," +
+		"(\"number,\" + (.number | tostring))," +
 		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
 		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
 		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
 		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))," +
 		"(\"autoMerge,\" + (if .autoMergeRequest != null then \"true\" else \"false\" end))"
 	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
-		"gh", "pr", "view", branchName, "--json", "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq)
+		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq, GhRepoArgs())
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
+	prNumber := 0
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
 		if len(fields) < 2 {
@@ -168,6 +170,11 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
 			} else {
 				slog.Warn(fmt.Sprint("malformed check line in pr view output: ", line))
+			}
+		case "number":
+			n, err := strconv.Atoi(fields[1])
+			if err == nil {
+				prNumber = n
 			}
 		case "state":
 			switch fields[1] {
@@ -205,10 +212,45 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		case "isDraft":
 			status.IsDraft = fields[1] == "true"
 		case "autoMerge":
-			status.IsInMergeQueue = fields[1] == "true"
+			if fields[1] == "true" {
+				status.IsInMergeQueue = true
+			}
 		default:
 			slog.Warn(fmt.Sprint("unexpected key in pr view output: ", fields[0]))
 		}
 	}
+	if !status.IsInMergeQueue && status.State == PullRequestStateOpen {
+		status.IsInMergeQueue = isInMergeQueue(branchName, prNumber)
+	}
 	return status
+}
+
+func isInMergeQueue(branchName string, prNumber int) (result bool) {
+	if prNumber <= 0 {
+		return false
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Debug(fmt.Sprint("merge queue check failed: ", r))
+			result = false
+		}
+	}()
+	nameWithOwner := GetRepoNameWithOwner()
+	parts := strings.SplitN(nameWithOwner, "/", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	query := `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){mergeQueueEntry{id}}}}`
+	out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
+		"gh", "api", "graphql",
+		"-f", "query="+query,
+		"-f", "owner="+parts[0],
+		"-f", "repo="+parts[1],
+		"-F", fmt.Sprintf("number=%d", prNumber),
+		"--jq", ".data.repository.pullRequest.mergeQueueEntry.id")
+	if err != nil {
+		slog.Debug(fmt.Sprint("merge queue check failed: ", err))
+		return false
+	}
+	return strings.TrimSpace(out) != "" && strings.TrimSpace(out) != "null"
 }
