@@ -2,6 +2,24 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-04-20
+
+### Added 
+
+- `--no-template` flag added to `new` to only use the commit body as the PR description without applying the PR description template. Can also be set by `noTemplate` config.
+
+### Changed
+
+- ✅ and 🟡 were switched to a green ✓ and yellow ●. Some terminals (for example, Android Studio) displayed those two character width emoji's as different lengths and so the formatting of tables was off.
+
+### Fixed
+
+- github forks are now supported. Before this fix, command like `new` would try to create pull requests on the `upstream` repository. Now they correctly use `origin`.
+
+Special thanks to the following contributors for contributing to this release!
+
+- [Evan Isnor](https://github.com/evanisnor)
+
 ## [2.1.3](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.2...v2.1.3) - 2026-04-10
 
 ### Added 

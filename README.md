@@ -97,13 +97,13 @@ in the remote branch.
 Useful to view list indexes, or copy commit hashes, to use for the
 commitIndicator required by other commands.
 
-A ✅ means that there is a PR associated with the commit (actually it
+A ✓ means that there is a PR associated with the commit (actually it
 means there is a branch, but having a branch means there is a PR when
 using this workflow). If there is more than one commit on the
 associated branch, those commits are also listed (indented under
 their associated commit summary).
 
-A 🟡 means that multiple commits have the same subject.
+A ● means that multiple commits have the same subject.
 Change the subjects to differentiate commits.
 
 Usage:
@@ -207,6 +207,7 @@ Flags:
                               to be added to a PR by Github, and if you add-reviewers too soon it
                               will think that they have all passed. Default of -1 means to use 4 
                               or the average number of checks of merged PRs, whatever is less. (default -1)
+  -T, --no-template           Use the commit body as the PR description without applying the PR description template
   -r, --reviewers string      Comma-separated list of Github usernames to add as reviewers once
                               checks have passed.
   -s, --silent                Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
@@ -713,6 +714,9 @@ The following flags are available on all commands:
                                       Whether to show worktrees in log command
                                    showUiLegend=true|false (default: true)
                                       Whether to show keyboard shortcut legend in interactive UIs
+                                   noTemplate=true|false (default: false)
+                                      Use the commit body as the PR description without applying
+                                      the PR description template
                                 Can be specified multiple times for different keys.
                                 
                                 Equivalent config.yaml:
@@ -722,6 +726,7 @@ The following flags are available on all commands:
                                    worktreeMainBranchGuard: path
                                    showWorktrees: true
                                    showUiLegend: true
+                                   noTemplate: false
   -l, --log-level string        Possible log levels:
                                    debug
                                    info
