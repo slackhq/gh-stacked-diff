@@ -102,7 +102,7 @@ func buildRootCommand() *cobra.Command {
 			"   worktreeMainBranchGuard: path\n"+
 			"   showWorktrees: true\n"+
 			"   showUiLegend: true\n"+
-			"   noTemplate: true")
+			"   noTemplate: false")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
