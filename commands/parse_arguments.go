@@ -90,6 +90,9 @@ func buildRootCommand() *cobra.Command {
 			"      Whether to show worktrees in log command\n"+
 			"   showUiLegend=true|false (default: true)\n"+
 			"      Whether to show keyboard shortcut legend in interactive UIs\n"+
+			"   noTemplate=true|false (default: false)\n"+
+			"      Use the commit body as the PR description without applying\n"+
+			"      the PR description template\n"+
 			"Can be specified multiple times for different keys.\n"+
 			"\n"+
 			"Equivalent config.yaml:\n"+
@@ -98,7 +101,8 @@ func buildRootCommand() *cobra.Command {
 			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
 			"   worktreeMainBranchGuard: path\n"+
 			"   showWorktrees: true\n"+
-			"   showUiLegend: true")
+			"   showUiLegend: true\n"+
+			"   noTemplate: true")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

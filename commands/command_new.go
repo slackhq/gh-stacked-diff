@@ -87,12 +87,15 @@ func createNewCommand() *cobra.Command {
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		gitutil.RequireMainBranch()
+		userConfig := util.GetUserConfig()
+		if !cmd.Flags().Changed("no-template") {
+			*noTemplate = userConfig.NoTemplate
+		}
 		selectCommitOptions := interactive.CommitSelectionOptions{
 			Prompt:      "What commit do you want to create a PR from?",
 			CommitType:  interactive.CommitTypeNoPr,
 			MultiSelect: false,
 		}
-		userConfig := util.GetUserConfig()
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		var remoteBaseBranch string

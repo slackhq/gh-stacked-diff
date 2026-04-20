@@ -63,6 +63,7 @@ type UserConfig struct {
 	ShowTableSelectionLegend      bool
 	ShowTableMultiselectionLegend bool
 	ShowDuplicateSubjectLegend    bool
+	NoTemplate                    bool
 }
 
 type YamlConfig struct {
@@ -72,6 +73,7 @@ type YamlConfig struct {
 	WorktreeMainBranchGuard WorktreeMainBranchGuardType `yaml:"worktreeMainBranchGuard,omitempty"`
 	ShowWorktrees           *bool                       `yaml:"showWorktrees,omitempty"`
 	ShowUiLegend            *bool                       `yaml:"showUiLegend,omitempty"`
+	NoTemplate              *bool                       `yaml:"noTemplate,omitempty"`
 }
 
 // LoadUserConfigFile reads config.yaml from ConfigHome if it exists.
@@ -134,6 +136,9 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 	if fileConfig.ShowWorktrees != nil {
 		config.ShowWorktrees = *fileConfig.ShowWorktrees
 	}
+	if fileConfig.NoTemplate != nil {
+		config.NoTemplate = *fileConfig.NoTemplate
+	}
 	if fileConfig.ShowUiLegend != nil {
 		showAll := *fileConfig.ShowUiLegend
 		config.ShowUserSelectionLegend = showAll
@@ -184,6 +189,15 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 				config.ShowWorktrees = false
 			default:
 				panic("invalid showWorktrees value: " + value + " (must be true or false)")
+			}
+		case "noTemplate":
+			switch value {
+			case "true":
+				config.NoTemplate = true
+			case "false":
+				config.NoTemplate = false
+			default:
+				panic("invalid noTemplate value: " + value + " (must be true or false)")
 			}
 		case "showUiLegend":
 			switch value {

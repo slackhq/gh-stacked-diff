@@ -264,6 +264,38 @@ func TestNewUserConfig_ShowUiLegendFlagOverridesShownCount(t *testing.T) {
 	assert.Equal(t, true, config.ShowTableMultiselectionLegend)
 }
 
+func TestNewUserConfig_NoTemplateDefault(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, nil, util.MetricsConfig{})
+	assert.Equal(t, false, config.NoTemplate)
+}
+
+func TestNewUserConfig_NoTemplateFromFlag(t *testing.T) {
+	config := util.NewUserConfig(util.YamlConfig{}, map[string]string{"noTemplate": "true"}, util.MetricsConfig{})
+	assert.Equal(t, true, config.NoTemplate)
+}
+
+func TestNewUserConfig_NoTemplateFromFile(t *testing.T) {
+	noTemplate := true
+	config := util.NewUserConfig(util.YamlConfig{NoTemplate: &noTemplate}, nil, util.MetricsConfig{})
+	assert.Equal(t, true, config.NoTemplate)
+}
+
+func TestNewUserConfig_NoTemplateFlagOverridesFile(t *testing.T) {
+	noTemplate := true
+	config := util.NewUserConfig(
+		util.YamlConfig{NoTemplate: &noTemplate},
+		map[string]string{"noTemplate": "false"},
+		util.MetricsConfig{},
+	)
+	assert.Equal(t, false, config.NoTemplate)
+}
+
+func TestNewUserConfig_NoTemplateInvalidValue(t *testing.T) {
+	assert.PanicsWithValue(t, "invalid noTemplate value: invalid (must be true or false)", func() {
+		util.NewUserConfig(util.YamlConfig{}, map[string]string{"noTemplate": "invalid"}, util.MetricsConfig{})
+	})
+}
+
 func TestShowUiLegend_ShownCountStopsAtMax(t *testing.T) {
 	tempDir := t.TempDir()
 	util.SetAppConfig(util.NewAppConfig(util.StdIo{}, "", nil, tempDir, tempDir, false))
