@@ -78,7 +78,7 @@ git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
 # sd rebase-main if required
 GOPROXY=proxy.golang.org go list -m \
-  github.com/slackhq/bubbletea@v$RELEASE_VERSION
+  github.com/joshallenit/bubbletea@v$RELEASE_VERSION
 # In gh-stacked-diff:
 # Update version in go.mod replace, then:
 # Remove go.work and go.work.sum if using them:
@@ -88,7 +88,7 @@ go mod tidy
 
 # Same steps for:
 GOPROXY=proxy.golang.org go list -m \
-  github.com/slackhq/bubbles@v$RELEASE_VERSION
+  github.com/joshallenit/bubbles@v$RELEASE_VERSION
 ```
 
 Once a tag is created [.github/workflows/release.yml] kicks off and
