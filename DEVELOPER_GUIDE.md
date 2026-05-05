@@ -73,6 +73,7 @@ For bubbles and bubbletea forks:
 # Make labels in their repositories
 git checkout main
 git status && sd log
+# Increment the latest version being used in the "replace" section of the go.mod
 export RELEASE_VERSION=1.3.6
 git tag v$RELEASE_VERSION
 git push origin v$RELEASE_VERSION
