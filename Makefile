@@ -11,6 +11,10 @@ endif
 # Add executable to PATH so it can be used as the git sequence editor for unit tests.
 export PATH := ${PATH}${PATH_SEPARATOR}${ROOT_DIR}/bin
 
+.PHONY: setup
+setup:
+	git config core.hooksPath .githooks
+
 .PHONY: format
 format:
 	go fmt ./...
