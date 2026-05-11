@@ -7,6 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **IMPORTANT: Never call `go test` directly. Always use `make` with `TEST_ARGS` and include `-timeout 10s` to avoid hanging tests.**
 
 ```bash
+# First-time setup (configures pre-commit hook for lint)
+make setup
+
 # Build the project (formats, builds binary to ./bin/)
 make build
 
@@ -35,13 +38,13 @@ This is a CLI tool (`sd`) that implements a stacked diff workflow for Git/GitHub
 - **Entry point**: `main.go` creates an `AppConfig` and calls `commands.ExecuteCommand()`
 - **Command framework**: Uses `github.com/spf13/cobra` for CLI parsing, subcommands, help generation, and shell completions
 - **Command registration**: `commands/parse_arguments.go` contains `buildRootCommand(appConfig)` which creates the root `*cobra.Command` and adds all subcommands via `rootCmd.AddCommand(...)`
-- **Command pattern**: Each command is a `*cobra.Command` returned by a `create<CommandName>Command(appConfig util.AppConfig)` factory function
-- **AppConfig injection**: `appConfig` is passed to each factory function and captured via closure in the command's `Run` function. No global state.
+- **Command pattern**: Each command is a `*cobra.Command` returned by a `create<CommandName>Command()` factory function
+- **AppConfig access**: Commands call `util.GetAppConfig()` at runtime (not passed as a parameter). No global mutable state at init time.
 
 ### Command Implementation Pattern
 Commands follow this structure:
 1. Each command has two files: `commands/command_<name>.go` and `commands/command_<name>_test.go`
-2. Each command file exports a `create<CommandName>Command(appConfig util.AppConfig)` function that returns `*cobra.Command`
+2. Each command file exports a `create<CommandName>Command()` function that returns `*cobra.Command`
 3. Common flag helpers: `addIndicatorFlag(cmd)`, `addReviewersFlags(cmd)` for reusable functionality
 4. Commands use `getTargetCommits()` for interactive commit selection
 5. **Annotations**: `DefaultLogLevel` and `CheckRepo` are stored in `cobra.Command.Annotations` map:
@@ -105,9 +108,11 @@ The tool supports three ways to reference commits (via the `--indicator`/`-i` fl
 
 ## Creating New Commands
 
+**Canonical example**: `command_branch_name.go` + `command_branch_name_test.go` — a minimal command with indicator flag, `getTargetCommits()`, annotations, and a clean test using `testutil.InitTest()` / `testParseArguments()`. Read these two files before creating a new command.
+
 To add a new command:
 
-1. Create `commands/command_<name>.go` with `create<CommandName>Command(appConfig util.AppConfig)` function returning `*cobra.Command`
+1. Create `commands/command_<name>.go` with `create<CommandName>Command()` function returning `*cobra.Command`
 2. Create `commands/command_<name>_test.go` with test cases
 3. Register in `commands/parse_arguments.go` (add to `rootCmd.AddCommand(...)`, keep alphabetical)
 4. Follow existing command patterns:
