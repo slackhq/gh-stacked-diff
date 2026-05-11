@@ -1,2 +1,9 @@
 #!/bin/sh
+
+go mod tidy
+if ! git diff --exit-code go.mod go.sum; then
+    echo "go.mod or go.sum is not tidy. Please run 'go mod tidy' and stage the changes."
+    exit 1
+fi
+
 make lint
