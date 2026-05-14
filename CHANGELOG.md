@@ -2,6 +2,16 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.5](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-05-14
+
+### Added 
+
+- Support for git LFS. Now if push fails because LFS was not been pushed, LFS is pushed first.
+
+### Fixed
+
+- Commits on PR branches were not always showing in the table selection UI.
+
 ## [2.1.4](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-04-20
 
 ### Added 
