@@ -147,3 +147,59 @@ func TestGetRemoteMainBranch_WhenInSecondaryWorktree_StillReturnsRemoteMain(t *t
 	assert.NotEqual(t, "secondary-branch", remoteBranch)
 	assert.Contains(t, []string{"main", "master"}, remoteBranch)
 }
+
+func TestGitPush_WhenLfsError_PushesLfsAndRetries(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelDebug)
+	testutil.AddCommit("test commit", "")
+	branch := util.GetCurrentBranchName()
+
+	// Install a server-side hook that fails with an LFS error on the first push attempt.
+	hookDir := "../remote-repo/hooks"
+	// nolint:errcheck
+	os.MkdirAll(hookDir, os.ModePerm)
+	markerFile := hookDir + "/lfs-marker"
+	hookScript := "#!/bin/sh\n" +
+		"if [ ! -f \"" + markerFile + "\" ]; then\n" +
+		"  touch \"" + markerFile + "\"\n" +
+		"  echo \"remote: error: GH008: Your push referenced at least 1 unknown Git LFS objects:\" >&2\n" +
+		"  echo \"remote: Try to push them with 'git lfs push --all'.\" >&2\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+	// nolint:errcheck
+	os.WriteFile(hookDir+"/pre-receive", []byte(hookScript), 0755)
+
+	out, err := GitPush(util.ExecuteOptions{}, "push", "origin", branch)
+
+	assert.NoError(err)
+	assert.NotContains(out, "GH008")
+}
+
+func TestGitPushOrDie_WhenPersistentError_Panics(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelDebug)
+	testutil.AddCommit("test commit", "")
+	branch := util.GetCurrentBranchName()
+
+	// Install a hook that always fails with a non-LFS error.
+	hookDir := "../remote-repo/hooks"
+	// nolint:errcheck
+	os.MkdirAll(hookDir, os.ModePerm)
+	hookScript := "#!/bin/sh\necho \"remote: error: some other error\" >&2\nexit 1\n"
+	// nolint:errcheck
+	os.WriteFile(hookDir+"/pre-receive", []byte(hookScript), 0755)
+
+	assert.Panics(func() {
+		GitPushOrDie(util.ExecuteOptions{}, "push", "origin", branch)
+	})
+}
+
+func TestExtractRemoteFromPushArgs(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal("origin", extractRemoteFromPushArgs([]string{"push", "origin", "main:main"}))
+	assert.Equal("upstream", extractRemoteFromPushArgs([]string{"push", "upstream", "branch:branch"}))
+	assert.Equal("origin", extractRemoteFromPushArgs([]string{"-c", "push.default=current", "push", "--force-with-lease", "-u"}))
+	assert.Equal("origin", extractRemoteFromPushArgs([]string{"push", "--force-with-lease", "origin", "branch:branch"}))
+}

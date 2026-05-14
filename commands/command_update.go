@@ -126,12 +126,12 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		// Do the push last so that if there is a rollback origin was not updated.
 		slog.Info("Pushing to remote")
 		if forcePush {
-			if _, err := util.Execute(util.ExecuteOptions{}, "git", "push", "origin", destCommit.Branch+":"+destCommit.Branch); err != nil {
+			if _, err := gitutil.GitPush(util.ExecuteOptions{}, "push", "origin", destCommit.Branch+":"+destCommit.Branch); err != nil {
 				slog.Info("Regular push failed, force pushing instead.")
-				util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "--force-with-lease", "origin", destCommit.Branch+":"+destCommit.Branch)
+				gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "--force-with-lease", "origin", destCommit.Branch+":"+destCommit.Branch)
 			}
 		} else {
-			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", destCommit.Branch+":"+destCommit.Branch)
+			gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "origin", destCommit.Branch+":"+destCommit.Branch)
 		}
 		rollbackManager.Clear()
 	})
