@@ -293,6 +293,50 @@ func GitSwitch(branchName string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", branchName)
 }
 
+// GitPush runs "git push" with the given args. If the push fails because of
+// missing LFS objects (error contains "git lfs push --all"), it pushes LFS
+// objects first and retries the push.
+func GitPush(options util.ExecuteOptions, args ...string) (string, error) {
+	out, err := util.Execute(options, "git", args)
+	if err != nil && strings.Contains(out, "git lfs push --all") {
+		remote := extractRemoteFromPushArgs(args)
+		slog.Info(fmt.Sprint("Pushing LFS objects to ", remote))
+		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "lfs", "push", "--all", remote)
+		out, err = util.Execute(options, "git", args)
+	}
+	return out, err
+}
+
+// GitPushOrDie is like GitPush but panics on failure.
+func GitPushOrDie(options util.ExecuteOptions, args ...string) string {
+	out, err := GitPush(options, args...)
+	if err != nil {
+		panic("failed executing " + fmt.Sprint("\"git ", strings.Join(args, " "), "\"") + "\n\n" + out)
+	}
+	return out
+}
+
+func extractRemoteFromPushArgs(args []string) string {
+	pastPush := false
+	for _, arg := range args {
+		if arg == "push" {
+			pastPush = true
+			continue
+		}
+		if !pastPush {
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if strings.Contains(arg, ":") {
+			continue
+		}
+		return arg
+	}
+	return "origin"
+}
+
 func Stash(forName string) bool {
 	stashResult := strings.Split(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "stash", "save", "-u", "before "+forName), "\n")
 	if len(stashResult) > 0 && strings.HasPrefix(stashResult[len(stashResult)-1], "Saved working") {

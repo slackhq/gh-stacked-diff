@@ -159,7 +159,7 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
 	slog.Info("Pushing to remote")
 	// -u is required because in newer versions of Github CLI the upstream must be set.
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "-c", "push.default=current", "push", "--force-with-lease", "-u")
+	gitutil.GitPushOrDie(util.ExecuteOptions{}, "-c", "push.default=current", "push", "--force-with-lease", "-u")
 	var prText templates.PullRequestText
 	if noTemplate {
 		prText = templates.GetPullRequestTextRaw(gitLog.Commit)
