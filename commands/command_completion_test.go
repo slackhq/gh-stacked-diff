@@ -39,7 +39,7 @@ func TestSdCompletion_Fish(t *testing.T) {
 
 func TestSdCompletion_FromNonGitDirectory(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 	// Move to a non-git directory to verify completion works without a repo.
 	if err := os.Chdir(t.TempDir()); err != nil {
 		t.Fatal(err)

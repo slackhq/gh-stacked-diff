@@ -150,7 +150,7 @@ func TestGetRemoteMainBranch_WhenInSecondaryWorktree_StillReturnsRemoteMain(t *t
 
 func TestGitPush_WhenLfsError_PushesLfsAndRetries(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 	testutil.AddCommit("test commit", "")
 	branch := util.GetCurrentBranchName()
 
@@ -178,7 +178,7 @@ func TestGitPush_WhenLfsError_PushesLfsAndRetries(t *testing.T) {
 
 func TestGitPushOrDie_WhenPersistentError_Panics(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelDebug)
+	testutil.InitTest(t, slog.LevelError)
 	testutil.AddCommit("test commit", "")
 	branch := util.GetCurrentBranchName()
 
