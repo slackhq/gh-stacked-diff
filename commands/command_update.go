@@ -83,7 +83,7 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		gitutil.GitSwitch(destCommit.Branch)
 		rollbackManager.SaveState() // Save state again for associated branch.
 		slog.Info("Fast forwarding in case there were any commits made via github web interface")
-		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", destCommit.Branch)
+		util.ExecuteOrDie(util.ExecuteOptions{}, "git", "-c", "advice.diverging=false", "fetch", "origin", destCommit.Branch)
 		forcePush := false
 		if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "--ff-only", "origin/"+destCommit.Branch); err != nil {
 			slog.Info(fmt.Sprint("Could not fast forward to match origin. Rebasing instead. ", err))
