@@ -157,11 +157,11 @@ func getClosedBranches() []string {
 func getBranchesByPRState(mergedState bool) []string {
 	var branchesRaw string
 	if mergedState {
-		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{},
 			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", gitutil.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid", gitutil.GhRepoArgs())
 	} else {
-		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{},
 			"gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", "--base", gitutil.GetRemoteMainBranchOrDie(),
 			"--json", "headRefName,headRefOid", "--jq", ".[ ] | .headRefName + \" \" + .headRefOid", gitutil.GhRepoArgs())
 	}

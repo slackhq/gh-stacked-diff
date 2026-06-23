@@ -15,7 +15,7 @@ import (
 func GetRepoNameWithOwner() string {
 	cache.repoNameWithOwnerOnce.Do(func() {
 		originURL := getOriginURL()
-		cache.repoNameWithOwner = util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
+		cache.repoNameWithOwner = util.ExecuteOrDieTrimmed(util.ExecuteOptions{},
 			"gh", "repo", "view", originURL, "--json", "nameWithOwner", "--jq", ".nameWithOwner")
 	})
 	return cache.repoNameWithOwner
@@ -26,7 +26,7 @@ func GetLoggedInUsername() string {
 		hostname := GetRepoHostname()
 		util.RequireHostname(hostname)
 		jq := ".hosts | to_entries[] | select(.key == \"" + hostname + "\") | .value[].login"
-		out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
+		out := util.ExecuteOrDie(util.ExecuteOptions{},
 			"gh", "auth", "status", "--active", "--json", "hosts", "--jq", jq)
 		fields := strings.Fields(out)
 		if len(fields) == 0 {
@@ -40,7 +40,7 @@ func GetLoggedInUsername() string {
 
 func GetRepoHostname() string {
 	cache.repoHostnameOnce.Do(func() {
-		out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: GhRetries},
+		out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{},
 			"gh", "repo", "view", "--json", "url", "--jq", ".url")
 		parsedUrl, err := url.Parse(out)
 		if err != nil {

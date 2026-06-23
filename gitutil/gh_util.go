@@ -10,8 +10,6 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-const GhRetries = 2
-
 type PullRequestState int
 
 const (
@@ -100,7 +98,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	lastCommit := GetBranchLatestCommit(branchName)
 	util.RequireHexString(lastCommit)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
-	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
+	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq, GhRepoArgs())
 	approvingUsers := strings.Fields(out)
 	slices.Sort(approvingUsers)
@@ -154,7 +152,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
 		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))," +
 		"(\"autoMerge,\" + (if .autoMergeRequest != null then \"true\" else \"false\" end))"
-	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
+	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq, GhRepoArgs())
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
@@ -241,7 +239,7 @@ func isInMergeQueue(branchName string, prNumber int) (result bool) {
 		return false
 	}
 	query := `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){mergeQueueEntry{id}}}}`
-	out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
+	out, err := util.Execute(util.ExecuteOptions{},
 		"gh", "api", "graphql",
 		"-f", "query="+query,
 		"-f", "owner="+parts[0],

@@ -3,14 +3,40 @@ package util
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
+// lockedBuffer is a [bytes.Buffer] safe for concurrent writes, needed because the
+// stdout and stderr copy goroutines started by [exec.Cmd] can both write to it.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 const RetryDelay = 1 * time.Second
+
+// ShouldRetryFunc decides whether to re-run a command after a failure.
+// It receives the 1-based execution count (1 = first attempt) and the command's stderr.
+// Return true to retry.
+type ShouldRetryFunc func(executionCount int, stderr string) bool
 
 // Options for [ExecuteWithOptions].
 type ExecuteOptions struct {
@@ -20,7 +46,22 @@ type ExecuteOptions struct {
 	Io StdIo
 	// For example "MY_VAR=some_value"
 	EnvironmentVariables []string
-	Retries              int
+	// ShouldRetry decides whether to re-run after a failure. If nil, a default is
+	// chosen based on the program name (see [defaultShouldRetry]).
+	ShouldRetry ShouldRetryFunc
+}
+
+// defaultShouldRetry returns the retry policy used when [ExecuteOptions.ShouldRetry] is nil.
+// "git" commands retry on ".git/index.lock" contention, "gh" commands retry on any error.
+func defaultShouldRetry(programName string) ShouldRetryFunc {
+	switch programName {
+	case "git":
+		return RetryOnIndexLock
+	case "gh":
+		return RetryUpTo(GhRetries)
+	default:
+		return nil
+	}
 }
 
 // Provides a simple way to execute shell commands.
@@ -57,38 +98,49 @@ func SetGlobalExecutor(executor Executor) {
 // Implementation of Execute that uses [exec.Command].
 func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programName string, args ...any) (string, error) {
 	flatArgs := flattenArgs(args)
-	cmd := exec.Command(programName, flatArgs...)
-	if options.EnvironmentVariables != nil {
-		cmd.Env = append(os.Environ(), options.EnvironmentVariables...)
+	retry := options.ShouldRetry
+	if retry == nil {
+		retry = defaultShouldRetry(programName)
 	}
-	if options.Io.In != nil {
-		cmd.Stdin = options.Io.In
+	executionCount := 0
+	for {
+		executionCount++
+		cmd := exec.Command(programName, flatArgs...)
+		if options.EnvironmentVariables != nil {
+			cmd.Env = append(os.Environ(), options.EnvironmentVariables...)
+		}
+		if options.Io.In != nil {
+			cmd.Stdin = options.Io.In
+		}
+		// stderr is captured separately (in addition to the combined output) so that
+		// the retry predicate can inspect it. combined is written by both the stdout and
+		// stderr copy goroutines, so it must be synchronized.
+		combined := &lockedBuffer{}
+		var stderrBuf bytes.Buffer
+		if options.Io.Out != nil {
+			cmd.Stdout = options.Io.Out
+		} else {
+			cmd.Stdout = combined
+		}
+		if options.Io.Err != nil {
+			cmd.Stderr = io.MultiWriter(options.Io.Err, &stderrBuf)
+		} else {
+			cmd.Stderr = io.MultiWriter(combined, &stderrBuf)
+		}
+		err := cmd.Run()
+		// Note: while it is tempting to trim the trailing \n here, some code flows require it,
+		//       namely `git diff | git apply`.`
+		stringOut := combined.String()
+		if err != nil && retry != nil && retry(executionCount, stderrBuf.String()) {
+			fullCommand := programName + " " + strings.Join(flatArgs, " ")
+			firstLine, _, _ := strings.Cut(fullCommand, "\n")
+			slog.Warn("Retrying: " + "\"" + firstLine + "\": " + err.Error())
+			Sleep(RetryDelay)
+			continue
+		}
+		slog.Debug("Executed " + getLogMessage(programName, flatArgs, stringOut, err))
+		return stringOut, err
 	}
-	var b bytes.Buffer
-	if options.Io.Out != nil {
-		cmd.Stdout = options.Io.Out
-	} else {
-		cmd.Stdout = &b
-	}
-	if options.Io.Err != nil {
-		cmd.Stderr = options.Io.Err
-	} else {
-		cmd.Stderr = &b
-	}
-	err := cmd.Run()
-	// Note: while it is tempting to trim the trailing \n here, some code flows require it,
-	//       namely `git diff | git apply`.`
-	stringOut := b.String()
-	if err != nil && options.Retries > 0 {
-		fullCommand := programName + " " + strings.Join(flatArgs, " ")
-		firstLine, _, _ := strings.Cut(fullCommand, "\n")
-		slog.Warn("Retrying: " + "\"" + firstLine + "\": " + err.Error())
-		Sleep(RetryDelay)
-		options.Retries = options.Retries - 1
-		return defaultExecutor.Execute(options, programName, args...)
-	}
-	slog.Debug("Executed " + getLogMessage(programName, flatArgs, stringOut, err))
-	return stringOut, err
 }
 
 // Executes a shell program with arguments.

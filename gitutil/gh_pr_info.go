@@ -24,7 +24,7 @@ func GetMergedPR(branchName string) *PrInfo {
 	// Check for merged PRs with this branch as the head
 	slog.Debug(fmt.Sprint("Checking for merged PR with head branch: ", branchName))
 	output := util.ExecuteOrDieTrimmed(
-		util.ExecuteOptions{Retries: GhRetries},
+		util.ExecuteOptions{},
 		"gh", "pr", "list",
 		"--head", branchName,
 		"--state", "merged",
@@ -69,7 +69,7 @@ func GetMergedPR(branchName string) *PrInfo {
 func GetUnmergedPR(branchName string) *PrInfo {
 	// Check for open PRs with this branch as the head
 	output := util.ExecuteOrDieTrimmed(
-		util.ExecuteOptions{Retries: GhRetries},
+		util.ExecuteOptions{},
 		"gh", "pr", "list",
 		"--head", branchName,
 		"--state", "open",

@@ -54,7 +54,7 @@ func GetChecksStatus(branchName string, minChecks int) PullRequestChecksStatus {
 		minChecks = getMinChecks()
 	}
 	summary := PullRequestChecksStatus{MinChecks: minChecks}
-	stateString := util.ExecuteOrDie(util.ExecuteOptions{Retries: GhRetries},
+	stateString := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "pr", "view", branchName, "--json", "statusCheckRollup",
 		"--jq", ".statusCheckRollup[] | .status, .conclusion, .state", GhRepoArgs())
 	scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(stateString)))
@@ -100,7 +100,7 @@ func getMinChecks() int {
 		}
 		jq := ".[].statusCheckRollup | length"
 		// Github sometimes returns an error for this command so retry and then fallback to default.
-		out, err := util.Execute(util.ExecuteOptions{Retries: GhRetries},
+		out, err := util.Execute(util.ExecuteOptions{},
 			"gh", "pr", "list", "--state", "merged", "--base", GetRemoteMainBranchOrDie(),
 			"--json", "statusCheckRollup", "--jq", jq, GhRepoArgs())
 		if err != nil {
