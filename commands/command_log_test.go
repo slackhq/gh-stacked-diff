@@ -489,7 +489,7 @@ func TestSdLog_WhenOtherWorktreeHasUniqueCommits_ShowsWorktreeCommits(t *testing
 	}
 	gitutil.ResetCacheForTesting()
 
-	out := testParseArguments("log")
+	out := testParseArguments("log", "-c", "showWorktrees=true")
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
@@ -529,7 +529,7 @@ func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T)
 		"check,COMPLETED,SUCCESS,SUCCESS\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false",
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
-	out := testParseArguments("log", "--status")
+	out := testParseArguments("log", "-c", "showWorktrees=true", "--status")
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")
@@ -567,7 +567,7 @@ func TestSdLog_WhenOtherWorktreeCommitHasBranch_ShowsCheckAndBranchCommits(t *te
 	}
 	gitutil.ResetCacheForTesting()
 
-	out := testParseArguments("log")
+	out := testParseArguments("log", "-c", "showWorktrees=true")
 
 	assert.Contains(out, "main-commit")
 	assert.Contains(out, "secondary-commit")

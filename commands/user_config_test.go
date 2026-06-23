@@ -132,7 +132,7 @@ func TestNewUserConfig_WorktreeMainBranchGuardInvalidValue(t *testing.T) {
 
 func TestNewUserConfig_ShowWorktreesDefault(t *testing.T) {
 	config := util.NewUserConfig(util.YamlConfig{}, nil, util.MetricsConfig{})
-	assert.Equal(t, true, config.ShowWorktrees)
+	assert.Equal(t, false, config.ShowWorktrees)
 }
 
 func TestNewUserConfig_ShowWorktreesFromFlag(t *testing.T) {

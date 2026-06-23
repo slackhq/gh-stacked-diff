@@ -114,7 +114,7 @@ func NewUserConfig(fileConfig YamlConfig, flagValues map[string]string, metrics 
 		PromptForReview:               PromptForReviewPromptN,
 		PollInterval:                  DefaultPollInterval,
 		WorktreeMainBranchGuard:       WorktreeMainBranchGuardPath,
-		ShowWorktrees:                 true,
+		ShowWorktrees:                 false,
 		ShowUserSelectionLegend:       true,
 		ShowTableSelectionLegend:      true,
 		ShowTableMultiselectionLegend: true,
