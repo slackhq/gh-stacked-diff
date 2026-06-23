@@ -167,6 +167,7 @@ func truncateString(str string, maxBytes int) string {
 func GetPullRequestTextRaw(commitHash string) PullRequestText {
 	commitSummary := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%s", commitHash)
 	commitBody := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%b", commitHash)
+	commitBody = stripCoAuthoredBy(commitBody)
 	return PullRequestText{Title: commitSummary, Description: commitBody}
 }
 
@@ -204,6 +205,7 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 	commitBody := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "show", "--no-patch", "--format=%b", commitHash)
 	commentLineRegex := regexp.MustCompile("(?m)^#.*$")
 	commitBody = commentLineRegex.ReplaceAllString(commitBody, "")
+	commitBody = stripCoAuthoredBy(commitBody)
 	commitSummaryCleaned := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "show", "--no-patch", "--format=%f", commitHash)
 	summaryMatches := ticketNumberRegex.FindStringSubmatch(commitSummary)
 	ticketNumber := strings.TrimSpace(summaryMatches[1])
@@ -218,6 +220,13 @@ func getPullRequestTemplateData(commitHash string, featureFlag string, ticketUrl
 		CommitSummaryCleaned:       commitSummaryCleaned,
 		FeatureFlag:                featureFlag,
 	}
+}
+
+var coAuthoredByRegex = regexp.MustCompile("(?m)^Co-Authored-By.*$")
+
+func stripCoAuthoredBy(commitBody string) string {
+	commitBody = coAuthoredByRegex.ReplaceAllString(commitBody, "")
+	return strings.TrimRight(commitBody, "\n")
 }
 
 var ticketNumberRegex = regexp.MustCompile(`^(\S+-[[:digit:]]+ )?(.*)`)
