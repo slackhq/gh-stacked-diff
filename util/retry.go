@@ -1,0 +1,26 @@
+package util
+
+import "regexp"
+
+// Number of times to retry a "gh" command that fails. GitHub commands can fail
+// transiently, so they are retried on any error.
+const GhRetries = 2
+
+// Number of times to retry a "git" command that fails due to ".git/index.lock" contention.
+const IndexLockRetries = 3
+
+// Matches git's transient "index.lock" contention error, which is safe to retry.
+var indexLockRegexp = regexp.MustCompile(`Unable to create '.*index\.lock': File exists\.`)
+
+// RetryOnIndexLock retries when a git command fails due to transient
+// ".git/index.lock" contention, up to [IndexLockRetries] times.
+func RetryOnIndexLock(executionCount int, stderr string) bool {
+	return executionCount <= IndexLockRetries && indexLockRegexp.MatchString(stderr)
+}
+
+// RetryUpTo returns a [ShouldRetryFunc] that retries on any failure, up to maxRetries times.
+func RetryUpTo(maxRetries int) ShouldRetryFunc {
+	return func(executionCount int, _ string) bool {
+		return executionCount <= maxRetries
+	}
+}

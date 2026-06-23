@@ -83,7 +83,7 @@ Example output from: gh repo view --json nameWithOwner
 */
 func getAllCollaborators() []string {
 	jq := ".[] | .login"
-	out := util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries},
+	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "api", "--hostname", gitutil.GetRepoHostname(), "repos/"+gitutil.GetRepoNameWithOwner()+"/collaborators",
 		"--paginate", "--cache", "6h", "--jq", jq)
 	collaborators := strings.Fields(out)

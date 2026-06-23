@@ -19,7 +19,7 @@ func createPrsCommand() *cobra.Command {
 			checkRepoAnnotation: "true",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{Retries: gitutil.GhRetries, EnvironmentVariables: []string{"GH_PAGER=", "GH_FORCE_TTY=true"}},
+			out := util.ExecuteOrDieTrimmed(util.ExecuteOptions{EnvironmentVariables: []string{"GH_PAGER=", "GH_FORCE_TTY=true"}},
 				"gh", "pr", "list", "--author", "@me", gitutil.GhRepoArgs())
 			util.Fprintln(util.GetAppConfig().Io.Out, out)
 		},

@@ -589,6 +589,28 @@ func TestSdNew_WithNoTemplate_UsesCommitBodyAsIs(t *testing.T) {
 	assert.Contains(body, "`ANDROID_TEST_FLAG`", "backtick-wrapped content should be preserved with --no-template")
 }
 
+func TestSdNew_WithNoTemplate_StripsCoAuthoredByAndTrailingBlankLines(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "touch", "feature-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "commit", "-m", "Add feature", "-m", "Body paragraph\n\nCo-Authored-By: Claude <svc-devxp-claude@slack-corp.com>\n")
+
+	testParseArguments("new", "--no-template", "1")
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+
+	bodyIndex := slices.Index(prCreateCall.Args, "--body")
+	assert.Greater(bodyIndex, -1, "expected --body flag")
+	body := prCreateCall.Args[bodyIndex+1]
+	assert.Contains(body, "Body paragraph", "body content should be preserved")
+	assert.NotContains(body, "Co-Authored-By", "Co-Authored-By lines should be stripped")
+	assert.False(strings.HasSuffix(body, "\n"), "trailing blank lines should be stripped")
+}
+
 func TestSdNew_WithNoTemplateAndTicketPrefix_SkipsTicketPrompt(t *testing.T) {
 	assert := assert.New(t)
 

@@ -172,7 +172,7 @@ func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUr
 }
 
 func openPrAndSwitchBack(gitLog templates.GitLog) {
-	if _, err := util.Execute(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
+	if _, err := util.Execute(util.ExecuteOptions{}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
 		slog.Warn("Could not view PR: " + err.Error())
 	}
 	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))
@@ -194,12 +194,12 @@ func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft b
 	if createPrErr != nil {
 		if draft && strings.Contains(createPrOutput, "Draft pull requests are not supported") {
 			slog.Warn("Draft PRs not supported, trying again without draft.\nUse \"--draft=false\" to avoid this warning.")
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries}, "gh", baseArgs, gitutil.GhRepoArgs())
+			return util.ExecuteOrDie(util.ExecuteOptions{}, "gh", baseArgs, gitutil.GhRepoArgs())
 		} else {
 			firstLine, _, _ := strings.Cut(strings.Join(draftArgs, " "), "\n")
 			slog.Warn("Retrying: " + "\"gh " + firstLine + "\": " + createPrErr.Error())
 			util.Sleep(util.RetryDelay)
-			return util.ExecuteOrDie(util.ExecuteOptions{Retries: gitutil.GhRetries - 1}, "gh", draftArgs, gitutil.GhRepoArgs())
+			return util.ExecuteOrDie(util.ExecuteOptions{ShouldRetry: util.RetryUpTo(util.GhRetries - 1)}, "gh", draftArgs, gitutil.GhRepoArgs())
 		}
 	} else {
 		return createPrOutput
