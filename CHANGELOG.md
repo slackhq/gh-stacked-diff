@@ -2,6 +2,16 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.6](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-06-24
+
+### Changed 
+
+- Default of showWorktree config is now false. `sd log` will not show other worktree commits by default. 
+- Co-authored-by lines are now not included in the created PR description.
+- Retry git failures because of "cannot create index.lock".
+- Increase delay between retries (linear backoff).
+- nit: avoid showing git advice.diverging during `sd update`.
+
 ## [2.1.5](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-05-14
 
 ### Added 
