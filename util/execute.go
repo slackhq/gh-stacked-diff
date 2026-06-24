@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 )
 
 // lockedBuffer is a [bytes.Buffer] safe for concurrent writes, needed because the
@@ -30,8 +29,6 @@ func (b *lockedBuffer) String() string {
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
-
-const RetryDelay = 1 * time.Second
 
 // ShouldRetryFunc decides whether to re-run a command after a failure.
 // It receives the 1-based execution count (1 = first attempt) and the command's stderr.
@@ -133,9 +130,9 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 		stringOut := combined.String()
 		if err != nil && retry != nil && retry(executionCount, stderrBuf.String()) {
 			fullCommand := programName + " " + strings.Join(flatArgs, " ")
-			firstLine, _, _ := strings.Cut(fullCommand, "\n")
-			slog.Warn("Retrying: " + "\"" + firstLine + "\": " + err.Error())
-			Sleep(RetryDelay)
+			firstLineCmd, _, _ := strings.Cut(fullCommand, "\n")
+			firstLineError, _, _ := strings.Cut(stderrBuf.String(), "\n")
+			slog.Warn("Retrying: " + "\"" + firstLineCmd + "\": " + firstLineError)
 			continue
 		}
 		slog.Debug("Executed " + getLogMessage(programName, flatArgs, stringOut, err))
