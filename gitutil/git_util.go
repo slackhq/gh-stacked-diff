@@ -371,6 +371,36 @@ func PrependGitDir(dir string, args ...string) []string {
 	return append([]string{"-C", dir}, args...)
 }
 
+// CherryPick runs "git cherry-pick" for the given commits, recovering from
+// ".git/index.lock" contention that interrupts a multi-commit cherry-pick partway.
+//
+// When a background git process (e.g. an IDE's VCS integration) holds index.lock,
+// a multi-commit cherry-pick can apply its first commit, then fail to create the
+// lock for the next commit. git's sequencer is then left in progress, and the
+// [util.Execute] index.lock retry re-runs the whole command verbatim, which fails
+// with "cherry-pick is already in progress". This is not recoverable by re-running
+// the same command, so this function aborts the partially-applied cherry-pick and
+// restarts it from a clean state (which is idempotent: the abort rewinds the
+// already-applied commits first).
+//
+// Genuine failures (merge conflicts) are returned to the caller with the
+// cherry-pick left in progress, so the caller can run its own conflict recovery.
+func CherryPick(options util.ExecuteOptions, commits ...string) (string, error) {
+	cherryPickArgs := append([]string{"cherry-pick"}, commits...)
+	out, err := util.Execute(options, "git", cherryPickArgs)
+	if err == nil || !strings.Contains(out, "cherry-pick is already in progress") {
+		return out, err
+	}
+	// index.lock contention left a partial cherry-pick in progress. Abort and restart
+	// from a clean state. The abort goes through util.Execute, which retries the abort
+	// itself on any further index.lock contention.
+	slog.Warn("Cherry-pick was interrupted by index.lock contention; aborting partial cherry-pick and restarting")
+	if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", "cherry-pick", "--abort"); abortErr != nil {
+		return out, fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
+	}
+	return util.Execute(options, "git", cherryPickArgs)
+}
+
 // CherryPickAndSkipAllEmpty cherry-picks all commits and skips any that are empty
 // (i.e., commits that are already on main and would result in no changes).
 func CherryPickAndSkipAllEmpty(gitDir string, commits []string) {
