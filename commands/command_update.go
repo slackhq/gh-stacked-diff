@@ -98,7 +98,8 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		for i, commit := range commitsToCherryPick {
 			cherryPickArgs[i+1] = commit.Commit
 		}
-		_, cherryPickError := util.Execute(util.ExecuteOptions{}, "git", cherryPickArgs)
+		cherryPickCommits := cherryPickArgs[1:]
+		_, cherryPickError := gitutil.CherryPick(util.ExecuteOptions{}, cherryPickCommits...)
 		if cherryPickError != nil {
 			slog.Info("First attempt at cherry-pick failed")
 			util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", "--abort")
@@ -107,7 +108,9 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 				", in case the local "+gitutil.GetLocalMainBranchOrDie()+" was rebased with origin/"+gitutil.GetRemoteMainBranchOrDie()))
 			gitutil.RebaseAndSkipAllEmptyOrDie(util.ExecuteOptions{Io: appConfig.Io}, rebaseCommit)
 			slog.Info(fmt.Sprint("Cherry picking again ", commitsToCherryPick))
-			util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", cherryPickArgs)
+			if _, err := gitutil.CherryPick(util.ExecuteOptions{Io: appConfig.Io}, cherryPickCommits...); err != nil {
+				panic("failed executing git cherry-pick " + err.Error())
+			}
 			forcePush = true
 		}
 		slog.Info("Switching back to " + gitutil.GetLocalMainBranchOrDie())

@@ -11,7 +11,7 @@ const GhRetries = 2
 const RetryDelay = 1 * time.Second
 
 // Number of times to retry a "git" command that fails due to ".git/index.lock" contention.
-const IndexLockRetries = 3
+const IndexLockRetries = 5
 
 // Matches git's transient "index.lock" contention error, which is safe to retry.
 var indexLockRegexp = regexp.MustCompile(`Unable to create '.*index\.lock': File exists\.`)
@@ -21,7 +21,7 @@ var indexLockRegexp = regexp.MustCompile(`Unable to create '.*index\.lock': File
 func RetryOnIndexLock(executionCount int, stderr string) bool {
 	retry := executionCount <= IndexLockRetries && indexLockRegexp.MatchString(stderr)
 	if retry {
-		Sleep(time.Duration(executionCount) * RetryDelay)
+		Sleep(RetryDelay)
 	}
 	return retry
 }
