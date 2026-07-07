@@ -20,7 +20,7 @@ import (
 func createMigrateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "migrate",
-		Short: "Migrates any work-in-progress branches to main. This prepares local git repository for first use by sd.",
+		Short: "Migrates any WIP branches to main (prepares local git repository for first use by sd)",
 		Long: `Migrates work-in-progress branches to main, preparing your local repository for stacked diff workflow.
 
 This command is useful when first adopting sd in an existing repository with feature branches.

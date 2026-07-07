@@ -63,13 +63,14 @@ source ~/.zshrc
 | [`code-owners`](#code-owners) | Outputs code owners for all of the changes in branch |
 | [`completion`](#completion) | Generate the autocompletion script for the specified shell |
 | [`log`](#log) | Displays git log of your changes |
-| [`migrate`](#migrate) | Migrates any work-in-progress branches to main |
+| [`migrate`](#migrate) | Migrates any WIP branches to main (prepares local git repository for first use by sd) |
 | [`new`](#new) | Create a new pull request from a commit on main |
 | [`prs`](#prs) | Lists all Pull Requests you have open |
 | [`rebase-main`](#rebase-main) | Bring your main branch up to date with remote |
-| [`replace-commit`](#replace-commit) | Replaces a commit on main branch with its associated branch |
+| [`replace-commit`](#replace-commit) | Replaces a commit on local main branch with its associated branch |
 | [`replace-conflicts`](#replace-conflicts) | For failed rebase: replace changes with its associated branch |
 | [`update`](#update) | Add commits from main to an existing PR |
+| [`update-branches`](#update-branches) | Update PR branches with contents of the local main commit |
 | [`wait-for-merge`](#wait-for-merge) | Waits for a pull request to be merged |
 | [`worktree-move`](#worktree-move) | Cherry-pick commits from secondary worktree to main worktree |
 
@@ -411,7 +412,7 @@ Replaces a commit on your local main branch with the squashed contents of its as
 <summary><code>sd replace-commit --help</code></summary>
 
 ```
-Replaces a commit on main branch with the squashed contents of its
+Replaces a commit on local main branch with the squashed contents of its
 associated branch.
 
 This is useful when you make changes within a branch, for example to
@@ -496,6 +497,38 @@ Flags:
                                  Number between 100 and 999999: pr
                                  Otherwise:                     commit
                             (default "guess")
+
+Global Flags:
+  -c, --config stringToString   Set a config value as key=value (see Global Flags)
+  -l, --log-level string        Log level: debug, info, warn, error
+```
+
+</details>
+
+### update-branches
+
+Update PR branches with contents of the local main commit
+
+<details>
+<summary><code>sd update-branches --help</code></summary>
+
+```
+Update PR branches so they match the contents of local main.
+
+Shows a selection dialog with PR branches whose diffs differ from the
+commit on local main. Branches already in sync are not selectable.
+
+Draft PRs: Branch is recreated from origin/main with the commit
+cherry-picked on top, then force-pushed.
+
+Non-draft PRs: origin/main is merged into the branch, creating
+a merge commit, then pushed.
+
+Usage:
+  sd update-branches [flags]
+
+Flags:
+  -h, --help   help for update-branches
 
 Global Flags:
   -c, --config stringToString   Set a config value as key=value (see Global Flags)
