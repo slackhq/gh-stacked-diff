@@ -146,6 +146,7 @@ func buildRootCommand() *cobra.Command {
 		createRebaseMainCommand(),
 		createReplaceCommitCommand(),
 		createReplaceConflictsCommand(),
+		createUpdateBranchesCommand(),
 		createUpdateCommand(),
 		createVersionCommand(),
 		createWaitForMergeCommand(),
