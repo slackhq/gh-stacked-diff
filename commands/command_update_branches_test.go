@@ -16,7 +16,7 @@ import (
 
 func TestSdUpdateBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	// Add "first" commit and create PR branch
 	testutil.CommitFileChange("first", "file1", "original")
@@ -44,7 +44,7 @@ func TestSdUpdateBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
 
 func TestSdUpdateBranches_NonDraftBranch_MergesOriginMain(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	// Push "other-change" to origin so origin/main has content the branch won't have
 	testutil.AddCommit("other-change", "other-file")
@@ -77,7 +77,7 @@ func TestSdUpdateBranches_NonDraftBranch_MergesOriginMain(t *testing.T) {
 
 func TestSdUpdateBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
 	assert := assert.New(t)
-	_ = testutil.InitTest(t, slog.LevelDebug)
+	_ = testutil.InitTest(t, slog.LevelError)
 
 	testutil.AddCommit("first", "file1")
 	testParseArguments("new", "1")
@@ -95,7 +95,7 @@ func TestSdUpdateBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
 
 func TestSdUpdateBranches_UserCancels_NoBranchUpdate(t *testing.T) {
 	assert := assert.New(t)
-	_ = testutil.InitTest(t, slog.LevelDebug)
+	_ = testutil.InitTest(t, slog.LevelError)
 
 	// Add "first" commit and create PR branch
 	testutil.CommitFileChange("first", "file1", "original")
