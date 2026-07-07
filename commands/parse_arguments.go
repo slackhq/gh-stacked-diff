@@ -59,6 +59,10 @@ func buildRootCommand() *cobra.Command {
 	}
 	rootCmd.SetOut(appConfig.Io.Out)
 	rootCmd.SetErr(appConfig.Io.Err)
+	cobra.AddTemplateFunc("rpadx", func(s string, padding int) string {
+		return fmt.Sprintf("%-*s", padding, s)
+	})
+	rootCmd.SetUsageTemplate(strings.Replace(rootCmd.UsageTemplate(), "rpad .Name .NamePadding", "rpadx .Name 20", 1))
 
 	var logLevelString string
 	rootCmd.PersistentFlags().StringVarP(&logLevelString, "log-level", "l", "",
