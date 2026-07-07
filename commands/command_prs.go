@@ -9,7 +9,7 @@ import (
 func createPrsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "prs",
-		Short: "Lists all Pull Requests you have open.",
+		Short: "Lists all Pull Requests you have open",
 		Long: "Lists all Pull Requests you have open.\n" +
 			"\n" +
 			"You must be logged-in, via \"gh auth login\"",

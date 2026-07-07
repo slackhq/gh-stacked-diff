@@ -17,8 +17,8 @@ import (
 func createReplaceCommitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace-commit [commitIndicator]",
-		Short: "Replaces a commit on " + gitutil.GetMainBranchForHelp() + " branch with its associated branch",
-		Long: "Replaces a commit on " + gitutil.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
+		Short: "Replaces a commit on local " + gitutil.GetMainBranchForHelp() + " branch with its associated branch",
+		Long: "Replaces a commit on local " + gitutil.GetMainBranchForHelp() + " branch with the squashed contents of its\n" +
 			"associated branch.\n" +
 			"\n" +
 			"This is useful when you make changes within a branch, for example to\n" +
