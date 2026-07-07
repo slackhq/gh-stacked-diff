@@ -515,6 +515,10 @@ Update PR branches with contents of the local main commit
 ```
 Update PR branches so they match the contents of local main.
 
+This is the opposite of `replace-commit`. It updates PR branches to the contents of the corresponding 
+commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR 
+branches. Uses `git rebase` if the PR is in draft status, or `git merge` if the PR is open.
+
 Shows a selection dialog with PR branches whose diffs differ from the
 commit on local main. Branches already in sync are not selectable.
 
@@ -712,10 +716,10 @@ Usage:
   sd completion [command]
 
 Available Commands:
-  bash        Generate the autocompletion script for bash
-  fish        Generate the autocompletion script for fish
-  powershell  Generate the autocompletion script for powershell
-  zsh         Generate the autocompletion script for zsh
+  bash                 Generate the autocompletion script for bash
+  fish                 Generate the autocompletion script for fish
+  powershell           Generate the autocompletion script for powershell
+  zsh                  Generate the autocompletion script for zsh
 
 Flags:
   -h, --help   help for completion

@@ -2,7 +2,17 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.6](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-06-24
+## [2.1.7](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.6...v2.1.7) - 2026-07-07
+
+### Added
+
+- `update-branches`: Update PR branches so they match the contents of local main. This is the opposite of `replace-commit`. It updates PR branches to the contents of the corresponding commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR branches. Uses `git rebase` if the PR is in draft status, or `git merge` if the PR is open.
+
+# Fixed
+
+- Failed cherry-picks can now be successfully retried.
+
+## [2.1.6](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.5...v2.1.6) - 2026-06-24
 
 ### Changed 
 
@@ -12,7 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Increase delay between retries (linear backoff).
 - nit: avoid showing git advice.diverging during `sd update`.
 
-## [2.1.5](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.3...v2.1.4) - 2026-05-14
+## [2.1.5](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.4...v2.1.5) - 2026-05-14
 
 ### Added 
 
