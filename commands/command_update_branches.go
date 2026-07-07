@@ -103,7 +103,7 @@ func branchNeedsDiffUpdate(commit templates.GitLog) bool {
 
 func updatePrBranch(commit templates.GitLog, mainBranch string) {
 	appConfig := util.GetAppConfig()
-	prStatus := gitutil.GetPullRequestStatus(commit.Branch, 0)
+	prStatus := gitutil.GetPullRequestStatus(commit.Branch, 0, nil)
 	if prStatus.IsDraft {
 		updateDraftBranch(commit, mainBranch, appConfig)
 	} else {
