@@ -74,8 +74,13 @@ func TestDefaultShouldRetryByProgramName(t *testing.T) {
 
 	ghRetry := defaultShouldRetry("gh")
 	if assert.NotNil(ghRetry) {
-		assert.True(ghRetry(GhRetries, "any error"))
-		assert.False(ghRetry(GhRetries+1, "any error"))
+		assert.True(ghRetry(1, "dial tcp: lookup api.github.com: no such host"))
+		assert.True(ghRetry(GhRetries, "connection refused"))
+		assert.False(ghRetry(GhRetries+1, "connection refused"))
+		assert.True(ghRetry(1, "gh: Not Found (HTTP 404)"))
+		assert.True(ghRetry(1, "gh: Internal Server Error (HTTP 500)"))
+		assert.False(ghRetry(1, "gh: Not Modified (HTTP 304)"))
+		assert.False(ghRetry(1, "gh: rate limit exceeded (HTTP 429)"))
 	}
 
 	assert.Nil(defaultShouldRetry("nonexistent-program-sd-test"))
