@@ -9,7 +9,10 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-func fetchPRWithETag(prNumber int, etag string) (statusCode int, newETag string, err error) {
+// fetchPRWithETag queries a PR using a conditional HTTP request. Pass an empty
+// etag to seed the cache. Returns a new ETag if the PR changed, or the same
+// etag back if unchanged (304) or on error.
+func fetchPRWithETag(prNumber int, etag string) string {
 	nameWithOwner := GetRepoNameWithOwner()
 	endpoint := fmt.Sprintf("/repos/%s/pulls/%d", nameWithOwner, prNumber)
 
@@ -21,14 +24,18 @@ func fetchPRWithETag(prNumber int, etag string) (statusCode int, newETag string,
 
 	out, execErr := util.Execute(util.ExecuteOptions{}, "gh", args...)
 	if out == "" && execErr != nil {
-		return 0, "", execErr
+		slog.Debug(fmt.Sprint("ETag conditional request failed: ", execErr))
+		return etag
 	}
 	statusCode, newETag, parseErr := parseGhApiIncludeResponse(out)
 	if parseErr != nil {
 		slog.Debug(fmt.Sprint("failed to parse gh api --include response: ", parseErr))
-		return 0, "", parseErr
+		return etag
 	}
-	return statusCode, newETag, nil
+	if statusCode == 304 || newETag == "" {
+		return etag
+	}
+	return newETag
 }
 
 func parseGhApiIncludeResponse(raw string) (statusCode int, etag string, err error) {
