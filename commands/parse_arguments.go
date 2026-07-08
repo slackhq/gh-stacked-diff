@@ -66,47 +66,14 @@ func buildRootCommand() *cobra.Command {
 
 	var logLevelString string
 	rootCmd.PersistentFlags().StringVarP(&logLevelString, "log-level", "l", "",
-		"Possible log levels:\n"+
-			"   debug\n"+
-			"   info\n"+
-			"   warn\n"+
-			"   error\n"+
-			"Default is info, except on commands that are for output purposes,\n"+
-			"(namely branch-name and log), which have a default of error.")
+		"Set log level: debug|info|warn|error (default: info)")
 
 	_ = rootCmd.RegisterFlagCompletionFunc("log-level", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"debug", "info", "warn", "error"}, cobra.ShellCompDirectiveNoFileComp
 	})
 
 	rootCmd.PersistentFlags().StringToStringP("config", "c", nil,
-		"Set a config value as key=value. Overrides values from\n"+
-			"~/.gh-stacked-diff/config.yaml. Supported keys:\n"+
-			"   promptForReview=never|promptY|promptN (default: promptN)\n"+
-			"   pollInterval=<duration> (default: 30s, e.g. 1m, 10s)\n"+
-			"   ticketUrlPattern=<url> URL pattern for tickets, e.g.\n"+
-			"                          "+util.ExampleTicketUrlPattern+"\n"+
-			"   worktreeMainBranchGuard=path|none (default: path)\n"+
-			"      What to consider the \"main\" branch when in a worktree, to guard\n"+
-			"      against incorrect use:\n"+
-			"         path: worktree directory name\n"+
-			"         none: current branch\n"+
-			"   showWorktrees=true|false (default: true)\n"+
-			"      Whether to show worktrees in log command\n"+
-			"   showUiLegend=true|false (default: true)\n"+
-			"      Whether to show keyboard shortcut legend in interactive UIs\n"+
-			"   noTemplate=true|false (default: false)\n"+
-			"      Use the commit body as the PR description without applying\n"+
-			"      the PR description template\n"+
-			"Can be specified multiple times for different keys.\n"+
-			"\n"+
-			"Equivalent config.yaml:\n"+
-			"   promptForReview: promptY\n"+
-			"   pollInterval: 1m\n"+
-			"   ticketUrlPattern: "+util.ExampleTicketUrlPattern+"\n"+
-			"   worktreeMainBranchGuard: path\n"+
-			"   showWorktrees: true\n"+
-			"   showUiLegend: true\n"+
-			"   noTemplate: false")
+		"Set a config key=value, overrides config.yaml (see 'sd flags' for keys)")
 	rootCmd.PersistentFlags().Lookup("config").DefValue = ""
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
@@ -142,6 +109,7 @@ func buildRootCommand() *cobra.Command {
 		createCheckoutCommand(),
 		createCodeOwnersCommand(),
 		createDropAlreadyMergedCommand(),
+		createFlagsCommand(),
 		createLogCommand(),
 		createMarkAsFixupCommand(),
 		createMigrateCommand(),
