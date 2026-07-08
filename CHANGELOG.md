@@ -8,6 +8,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - `update-branches`: Update PR branches so they match the contents of local main. This is the opposite of `replace-commit`. It updates PR branches to the contents of the corresponding commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR branches. Uses `git rebase` if the PR is in draft status, or `git merge` if the PR is open.
 
+### Changed
+
+- Checking PR status now uses ETags which helps avoid hitting your Github API rate limit.
+- `help` is more concise with global flags moved to `help flags`
+
 # Fixed
 
 - Failed cherry-picks can now be successfully retried.
