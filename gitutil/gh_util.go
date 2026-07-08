@@ -150,18 +150,14 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 	// When data has changed, we still need the full "gh pr view" call below because
 	// the REST pulls endpoint lacks statusCheckRollup and latestReviews (those are
 	// GraphQL-only fields that gh pr view fetches internally).
-	if previousStatus != nil && previousStatus.etag.prNumber > 0 && previousStatus.etag.etag != "" {
-		statusCode, newETag, err := fetchPRWithETag(previousStatus.etag.prNumber, previousStatus.etag.etag)
-		if err == nil && statusCode == 304 {
+	var cachedETag etagEntry
+	if previousStatus != nil && previousStatus.etag.prNumber > 0 {
+		newETag := fetchPRWithETag(previousStatus.etag.prNumber, previousStatus.etag.etag)
+		if previousStatus.etag.etag != "" && newETag == previousStatus.etag.etag {
 			slog.Debug(fmt.Sprint("ETag cache hit for branch: ", branchName))
 			return *previousStatus
 		}
-		if err == nil && statusCode == 200 && newETag != "" {
-			previousStatus.etag.etag = newETag
-		}
-		if err != nil {
-			slog.Debug(fmt.Sprint("ETag conditional request failed, falling back: ", err))
-		}
+		cachedETag = etagEntry{prNumber: previousStatus.etag.prNumber, etag: newETag}
 	}
 	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
 		"(\"state,\" + .state)," +
@@ -174,7 +170,7 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq, GhRepoArgs())
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
+	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, etag: cachedETag}
 	prNumber := 0
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
@@ -239,14 +235,8 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 	if !status.IsInMergeQueue && status.State == PullRequestStateOpen {
 		status.IsInMergeQueue = isInMergeQueue(branchName, prNumber)
 	}
-	if prNumber > 0 {
-		status.etag.prNumber = prNumber
-		if status.etag.etag == "" {
-			_, etag, err := fetchPRWithETag(prNumber, "")
-			if err == nil && etag != "" {
-				status.etag.etag = etag
-			}
-		}
+	if prNumber > 0 && status.etag.prNumber == 0 {
+		status.etag = etagEntry{prNumber: prNumber, etag: fetchPRWithETag(prNumber, "")}
 	}
 	return status
 }
