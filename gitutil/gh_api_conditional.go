@@ -16,7 +16,7 @@ func fetchPRWithETag(prNumber int, etag string) string {
 	nameWithOwner := GetRepoNameWithOwner()
 	endpoint := fmt.Sprintf("/repos/%s/pulls/%d", nameWithOwner, prNumber)
 
-	args := []any{"api", "--include", "--hostname", GetRepoHostname()}
+	args := []any{"api", "--method", "HEAD", "--include", "--hostname", GetRepoHostname()}
 	if etag != "" {
 		args = append(args, "-H", "If-None-Match: "+etag)
 	}
