@@ -82,8 +82,7 @@ func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
 	testutil.AddCommit("first", "")
 
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	testParseArguments("new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
@@ -107,7 +106,7 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 	testutil.AddCommit("first", "")
 
 	testExecutor.SetResponse(
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	// Verify no history before running.
@@ -421,8 +420,7 @@ func TestSdNew_WhenNoReviewersAndDraft_ConfirmReady_MarksPrReady(t *testing.T) {
 	testutil.AddCommit("first", "")
 
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
@@ -454,8 +452,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 	testutil.AddCommit("first", "")
 
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,

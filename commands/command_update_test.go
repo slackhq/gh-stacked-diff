@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
-
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -163,8 +161,7 @@ func TestSdUpdate_WithReviewers_AddReviewers(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	testParseArguments("update", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "2", "1")
@@ -458,8 +455,7 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 	testutil.AddCommit("second", "")
 
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	// What commits do you want to add?

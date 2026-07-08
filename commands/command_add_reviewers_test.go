@@ -21,6 +21,11 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+func prStatusWithChecks(numChecks int) string {
+	return strings.Repeat("check,COMPLETED,SUCCESS,SUCCESS\n", numChecks) +
+		"state,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
+}
+
 func TestSdAddReviewers_AddReviewers(t *testing.T) {
 	assert := assert.New(t)
 
@@ -32,8 +37,7 @@ func TestSdAddReviewers_AddReviewers(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", allCommits[0].Commit)
@@ -58,8 +62,7 @@ func TestSdAddReviewers_WhenUsingListIndicator_AddReviewers(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--indicator=list", "--reviewers=mybestie", "1")
@@ -84,8 +87,7 @@ func TestSdAddReviewers_WhenOmittingCommitIndicator_AsksForSelection(t *testing.
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -110,13 +112,11 @@ func TestSdAddReviewers_WhenUserAlreadyApproved_DoesNotRequestReview(t *testing.
 	testParseArguments("new", "1")
 
 	allCommits := templates.GetAllCommits()
-	// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-	checksSuccess := strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks)
-	testExecutor.SetResponseFunc(checksSuccess, nil, func(programName string, args ...string) bool {
+	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
 		return programName == "gh" &&
 			args[0] == "pr" &&
 			args[1] == "view" &&
-			slices.Contains(args, "statusCheckRollup")
+			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
 	})
 
 	approvedUsers := "alreadyapproved1\nalreadyapproved2"
@@ -150,13 +150,11 @@ func TestSdAddReviewers_UserChoosesHistory_ChoosesSameReviewers(t *testing.T) {
 	testParseArguments("new", "1")
 
 	allCommits := templates.GetAllCommits()
-	// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-	checksSuccess := strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks)
-	testExecutor.SetResponseFunc(checksSuccess, nil, func(programName string, args ...string) bool {
+	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
 		return programName == "gh" &&
 			args[0] == "pr" &&
 			args[1] == "view" &&
-			slices.Contains(args, "statusCheckRollup")
+			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
 	})
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
@@ -190,13 +188,11 @@ func TestSdAddReviewers_UserChoosesHistoryFromTyped_ChoosesSameReviewers(t *test
 	testParseArguments("new", "1")
 
 	allCommits := templates.GetAllCommits()
-	// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-	checksSuccess := strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks)
-	testExecutor.SetResponseFunc(checksSuccess, nil, func(programName string, args ...string) bool {
+	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
 		return programName == "gh" &&
 			args[0] == "pr" &&
 			args[1] == "view" &&
-			slices.Contains(args, "statusCheckRollup")
+			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
 	})
 
 	// What reviewers?
@@ -234,7 +230,7 @@ func TestSdAddReviewers_WhenNoReviewersSelected_DoesNotAddReviewers(t *testing.T
 	testParseArguments("new", "1")
 
 	testExecutor.SetResponse(
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	// Select PR, then enter empty reviewers.
@@ -256,8 +252,7 @@ func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
-		// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-		strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+		prStatusWithChecks(gitutil.DefaultMinChecks),
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--merge", "--reviewers=mybestie", allCommits[0].Commit)
@@ -280,9 +275,7 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 
 	testParseArguments("new", "1")
 
-	// Return failing checks: one SUCCESS and one FAILURE to meet min checks.
-	// Each check needs 3 values (status, conclusion, state) so the scanner can parse them.
-	failingChecks := "SUCCESS\nSUCCESS\nSUCCESS\nCOMPLETED\nFAILURE\nFAILURE\n"
+	failingChecks := "check,COMPLETED,SUCCESS,SUCCESS\ncheck,COMPLETED,FAILURE,FAILURE\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false"
 	testExecutor.SetResponse(
 		failingChecks,
 		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
@@ -311,13 +304,11 @@ func TestSdAddReviewers_WhenMinChecksFails_UsesDefault(t *testing.T) {
 	testParseArguments("new", "1")
 
 	allCommits := templates.GetAllCommits()
-	// Each check has 3 values: status, conclusion, and state. Copied DefaultMinChecks times.
-	checksSuccess := strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks)
-	testExecutor.SetResponseFunc(checksSuccess, nil, func(programName string, args ...string) bool {
+	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
 		return programName == "gh" &&
 			args[0] == "pr" &&
 			args[1] == "view" &&
-			slices.Contains(args, "statusCheckRollup")
+			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
 	})
 
 	testExecutor.SetResponse("", errors.New("error"), "gh", "pr", "list", "--state", "merged", util.MatchAnyRemainingArgs)
