@@ -41,7 +41,7 @@ func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommi
 	if tt.expectPrReady {
 		testExecutor.SetResponse(
 			prStatusWithChecks(gitutil.DefaultMinChecks),
-			nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+			nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 	}
 
 	programIndex := 0

@@ -83,7 +83,7 @@ func TestSdNew_WithReviewers_AddReviewers(t *testing.T) {
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("new", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
 
@@ -107,7 +107,7 @@ func TestSdNew_WithReviewersFlag_SavesReviewersToHistory(t *testing.T) {
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Verify no history before running.
 	assert.Empty(interactive.ReviewersHistory.ReadHistory())
@@ -421,7 +421,7 @@ func TestSdNew_WhenNoReviewersAndDraft_ConfirmReady_MarksPrReady(t *testing.T) {
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
 		// What commit do you want to create a PR from?
@@ -453,7 +453,7 @@ func TestSdNew_WhenNoReviewersAndDraft_EnterDefaultsToReady_MarksPrReady(t *test
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
 		// What commit do you want to create a PR from?

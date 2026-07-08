@@ -116,40 +116,30 @@ func GetBranchLatestCommit(branchName string) string {
 }
 
 /*
-GetPullRequestStatus fetches PR status via gh pr view using a jq query that
-produces CSV lines. Example raw JSON fields used:
+GetPullRequestStatus fetches PR status via a single gh api graphql call using a
+jq query that produces CSV lines. Example output:
 
-	state, statusCheckRollup, latestReviews, reviewRequests, mergeStateStatus, isDraft
-
-Example jq output:
-
-	check,COMPLETED,SUCCESS,SUCCESS
+	rateLimit,1,4999,5000,2025-01-01T00:00:00Z
+	check,COMPLETED,SUCCESS,
+	check,,,SUCCESS
 	state,OPEN
+	number,42
 	reviewRequestCount,3
 	latestReview,someuser,APPROVED,4,0
 	latestReview,otheruser,CHANGES_REQUESTED,0,2
 	mergeStateStatus,CLEAN
 	isDraft,false
+	autoMerge,false
 */
 func GetPullRequestStatus(branchName string, minChecks int, previousStatus *PullRequestStatus) PullRequestStatus {
-	/*
-		Turn each type into a CSV with initial key field.
-		gh pr view 73 --json "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft" --jq '...'
-		check,COMPLETED,SUCCESS,SUCCESS
-		state,OPEN
-		reviewRequestCount,3
-		latestReview,someuser,APPROVED,4,0
-		mergeStateStatus,CLEAN
-		isDraft,false
-	*/
 	if minChecks == -1 {
 		minChecks = getMinChecks()
 	}
 	// Use a conditional request (ETag) to detect changes without counting against
 	// the rate limit. A 304 means nothing changed, so we return the cached result.
-	// When data has changed, we still need the full "gh pr view" call below because
+	// When data has changed, we still need the full graphql call below because
 	// the REST pulls endpoint lacks statusCheckRollup and latestReviews (those are
-	// GraphQL-only fields that gh pr view fetches internally).
+	// GraphQL-only fields).
 	var cachedETag etagEntry
 	if previousStatus != nil && previousStatus.etag.prNumber > 0 {
 		newETag := fetchPRWithETag(previousStatus.etag.prNumber, previousStatus.etag.etag)
@@ -159,16 +149,40 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 		}
 		cachedETag = etagEntry{prNumber: previousStatus.etag.prNumber, etag: newETag}
 	}
-	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
-		"(\"state,\" + .state)," +
-		"(\"number,\" + (.number | tostring))," +
-		"(\"reviewRequestCount,\" + (.reviewRequests | length | tostring))," +
-		"(.latestReviews[] | \"latestReview,\" + .author.login + \",\" + .state + \",\" + (.body | length | tostring) + \",\" + ((.comments // []) | length | tostring))," +
-		"(\"mergeStateStatus,\" + .mergeStateStatus)," +
-		"(\"isDraft,\" + (if .isDraft then \"true\" else \"false\" end))," +
-		"(\"autoMerge,\" + (if .autoMergeRequest != null then \"true\" else \"false\" end))"
+	nameWithOwner := GetRepoNameWithOwner()
+	parts := strings.SplitN(nameWithOwner, "/", 2)
+	if len(parts) != 2 {
+		panic("could not parse repo name with owner: " + nameWithOwner)
+	}
+	query := `query($owner:String!,$repo:String!,$prHeadRef:String!){` +
+		`repository(owner:$owner,name:$repo){` +
+		`pullRequests(headRefName:$prHeadRef,states:[OPEN,CLOSED,MERGED],first:1){nodes{` +
+		`number state isDraft mergeStateStatus mergeQueueEntry{id} autoMergeRequest{enabledAt}` +
+		`reviewRequests{totalCount}` +
+		`latestReviews(last:100){nodes{author{login} state body comments{totalCount}}}` +
+		`commits(last:1){nodes{commit{statusCheckRollup{contexts(last:100){nodes{` +
+		`__typename ... on CheckRun{status conclusion} ... on StatusContext{state}` +
+		`}}}}}}` +
+		`}}}` +
+		`rateLimit{limit cost remaining resetAt}` +
+		`}`
+	jq := "def pr: .data.repository.pullRequests.nodes[0];" +
+		`("rateLimit," + (.data.rateLimit.cost|tostring) + "," + (.data.rateLimit.remaining|tostring) + "," + (.data.rateLimit.limit|tostring) + "," + .data.rateLimit.resetAt),` +
+		`(pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]? | if .__typename=="CheckRun" then "check,"+.status+","+(.conclusion//"")+","  else "check,,,"+(.state//"") end),` +
+		`("state," + pr.state),` +
+		`("number," + (pr.number|tostring)),` +
+		`("reviewRequestCount," + (pr.reviewRequests.totalCount|tostring)),` +
+		`(pr.latestReviews.nodes[]? | "latestReview,"+.author.login+","+.state+","+(.body|length|tostring)+","+(.comments.totalCount|tostring)),` +
+		`("mergeStateStatus," + (pr.mergeStateStatus // "")),` +
+		`("isDraft," + (if pr.isDraft then "true" else "false" end)),` +
+		`("autoMerge," + (if (pr.autoMergeRequest != null) or (pr.mergeQueueEntry != null) then "true" else "false" end))`
 	out := util.ExecuteOrDie(util.ExecuteOptions{},
-		"gh", "pr", "view", branchName, "--json", "number,state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft,autoMergeRequest", "--jq", jq, GhRepoArgs())
+		"gh", "api", "graphql",
+		"-f", "query="+query,
+		"-f", "owner="+parts[0],
+		"-f", "repo="+parts[1],
+		"-f", "prHeadRef="+branchName,
+		"--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, etag: cachedETag}
 	prNumber := 0
@@ -178,11 +192,15 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 			continue
 		}
 		switch fields[0] {
+		case "rateLimit":
+			if len(fields) >= 5 {
+				slog.Debug(fmt.Sprint("GetPullRequestStatus rateLimit: cost=", fields[1], " remaining=", fields[2], " limit=", fields[3], " resetAt=", fields[4]))
+			}
 		case "check":
 			if len(fields) >= 4 {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
 			} else {
-				slog.Warn(fmt.Sprint("malformed check line in pr view output: ", line))
+				slog.Warn(fmt.Sprint("malformed check line in graphql output: ", line))
 			}
 		case "number":
 			n, err := strconv.Atoi(fields[1])
@@ -218,7 +236,7 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 					CommentCount: commentCount,
 				})
 			} else {
-				slog.Warn(fmt.Sprint("malformed latestReview line in pr view output: ", line))
+				slog.Warn(fmt.Sprint("malformed latestReview line in graphql output: ", line))
 			}
 		case "mergeStateStatus":
 			status.CanMerge = fields[1] == "CLEAN"
@@ -229,44 +247,11 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 				status.IsInMergeQueue = true
 			}
 		default:
-			slog.Warn(fmt.Sprint("unexpected key in pr view output: ", fields[0]))
+			slog.Warn(fmt.Sprint("unexpected key in graphql output: ", fields[0]))
 		}
-	}
-	if !status.IsInMergeQueue && status.State == PullRequestStateOpen {
-		status.IsInMergeQueue = isInMergeQueue(branchName, prNumber)
 	}
 	if prNumber > 0 && status.etag.prNumber == 0 {
 		status.etag = etagEntry{prNumber: prNumber, etag: fetchPRWithETag(prNumber, "")}
 	}
 	return status
-}
-
-func isInMergeQueue(branchName string, prNumber int) (result bool) {
-	if prNumber <= 0 {
-		return false
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Debug(fmt.Sprint("merge queue check failed: ", r))
-			result = false
-		}
-	}()
-	nameWithOwner := GetRepoNameWithOwner()
-	parts := strings.SplitN(nameWithOwner, "/", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	query := `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){mergeQueueEntry{id}}}}`
-	out, err := util.Execute(util.ExecuteOptions{},
-		"gh", "api", "graphql",
-		"-f", "query="+query,
-		"-f", "owner="+parts[0],
-		"-f", "repo="+parts[1],
-		"-F", fmt.Sprintf("number=%d", prNumber),
-		"--jq", ".data.repository.pullRequest.mergeQueueEntry.id")
-	if err != nil {
-		slog.Debug(fmt.Sprint("merge queue check failed: ", err))
-		return false
-	}
-	return strings.TrimSpace(out) != "" && strings.TrimSpace(out) != "null"
 }

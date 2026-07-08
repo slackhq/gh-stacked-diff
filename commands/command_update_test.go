@@ -162,7 +162,7 @@ func TestSdUpdate_WithReviewers_AddReviewers(t *testing.T) {
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("update", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "2", "1")
 
@@ -456,7 +456,7 @@ func TestSdUpdate_WhenNoReviewers_ConfirmReady_MarksPrReady(t *testing.T) {
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// What commits do you want to add?
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
