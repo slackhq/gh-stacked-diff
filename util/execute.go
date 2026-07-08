@@ -55,7 +55,7 @@ func defaultShouldRetry(programName string) ShouldRetryFunc {
 	case "git":
 		return RetryOnIndexLock
 	case "gh":
-		return RetryUpTo(GhRetries)
+		return RetryGhOnNetworkError
 	default:
 		return nil
 	}

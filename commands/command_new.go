@@ -199,7 +199,7 @@ func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft b
 			firstLine, _, _ := strings.Cut(strings.Join(draftArgs, " "), "\n")
 			slog.Warn("Retrying: " + "\"gh " + firstLine + "\": " + createPrErr.Error())
 			util.Sleep(util.RetryDelay)
-			return util.ExecuteOrDie(util.ExecuteOptions{ShouldRetry: util.RetryUpTo(util.GhRetries - 1)}, "gh", draftArgs, gitutil.GhRepoArgs())
+			return util.ExecuteOrDie(util.ExecuteOptions{ShouldRetry: util.RetryGhOnNetworkError}, "gh", draftArgs, gitutil.GhRepoArgs())
 		}
 	} else {
 		return createPrOutput

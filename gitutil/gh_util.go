@@ -46,6 +46,7 @@ type PullRequestStatus struct {
 	CanMerge       bool
 	IsDraft        bool
 	IsInMergeQueue bool
+	etag           etagEntry
 }
 
 /*
@@ -130,7 +131,7 @@ Example jq output:
 	mergeStateStatus,CLEAN
 	isDraft,false
 */
-func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
+func GetPullRequestStatus(branchName string, minChecks int, previousStatus *PullRequestStatus) PullRequestStatus {
 	/*
 		Turn each type into a CSV with initial key field.
 		gh pr view 73 --json "state,statusCheckRollup,latestReviews,reviewRequests,mergeStateStatus,isDraft" --jq '...'
@@ -143,6 +144,24 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	*/
 	if minChecks == -1 {
 		minChecks = getMinChecks()
+	}
+	// Use a conditional request (ETag) to detect changes without counting against
+	// the rate limit. A 304 means nothing changed, so we return the cached result.
+	// When data has changed, we still need the full "gh pr view" call below because
+	// the REST pulls endpoint lacks statusCheckRollup and latestReviews (those are
+	// GraphQL-only fields that gh pr view fetches internally).
+	if previousStatus != nil && previousStatus.etag.prNumber > 0 && previousStatus.etag.etag != "" {
+		statusCode, newETag, err := fetchPRWithETag(previousStatus.etag.prNumber, previousStatus.etag.etag)
+		if err == nil && statusCode == 304 {
+			slog.Debug(fmt.Sprint("ETag cache hit for branch: ", branchName))
+			return *previousStatus
+		}
+		if err == nil && statusCode == 200 && newETag != "" {
+			previousStatus.etag.etag = newETag
+		}
+		if err != nil {
+			slog.Debug(fmt.Sprint("ETag conditional request failed, falling back: ", err))
+		}
 	}
 	jq := "(.statusCheckRollup[] | \"check,\" + .status + \",\"+.conclusion+\",\"+.state)," +
 		"(\"state,\" + .state)," +
@@ -219,6 +238,15 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	}
 	if !status.IsInMergeQueue && status.State == PullRequestStateOpen {
 		status.IsInMergeQueue = isInMergeQueue(branchName, prNumber)
+	}
+	if prNumber > 0 {
+		status.etag.prNumber = prNumber
+		if status.etag.etag == "" {
+			_, etag, err := fetchPRWithETag(prNumber, "")
+			if err == nil && etag != "" {
+				status.etag.etag = etag
+			}
+		}
 	}
 	return status
 }
