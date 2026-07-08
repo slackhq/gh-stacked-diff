@@ -40,7 +40,7 @@ func runPromptForReviewTest(t *testing.T, tt promptForReviewTestCase, setupCommi
 
 	if tt.expectPrReady {
 		testExecutor.SetResponse(
-			strings.Repeat("SUCCESS\nSUCCESS\nSUCCESS\n", gitutil.DefaultMinChecks),
+			prStatusWithChecks(gitutil.DefaultMinChecks),
 			nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
 	}
 

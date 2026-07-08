@@ -1,7 +1,6 @@
 package gitutil
 
 import (
-	"bufio"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -49,30 +48,6 @@ func (s PullRequestChecksStatus) Total() int {
 /*
  * Logic copied from https://github.com/cli/cli/blob/57fbe4f317ca7d0849eeeedb16c1abc21a81913b/api/queries_pr.go#L258-L274
  */
-func GetChecksStatus(branchName string, minChecks int) PullRequestChecksStatus {
-	if minChecks == -1 {
-		minChecks = getMinChecks()
-	}
-	summary := PullRequestChecksStatus{MinChecks: minChecks}
-	stateString := util.ExecuteOrDie(util.ExecuteOptions{},
-		"gh", "pr", "view", branchName, "--json", "statusCheckRollup",
-		"--jq", ".statusCheckRollup[] | .status, .conclusion, .state", GhRepoArgs())
-	scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(stateString)))
-	for scanner.Scan() {
-		status := scanner.Text()
-		if !scanner.Scan() {
-			break
-		}
-		conclusion := scanner.Text()
-		if !scanner.Scan() {
-			break
-		}
-		state := scanner.Text()
-		updatePullRequestChecksStatus(&summary, status, conclusion, state)
-	}
-	return summary
-}
-
 func updatePullRequestChecksStatus(checks *PullRequestChecksStatus, status string, conclusion string, state string) {
 	if state == "" {
 		if status == "COMPLETED" {

@@ -126,8 +126,11 @@ func waitForChecks(targetCommit templates.GitLog, opts AddReviewersOptions, prog
 	if opts.WaitBeforePolling > 0 {
 		countdown(progressIndicator, index, int(opts.WaitBeforePolling.Seconds()), "for Github to add checks to pushed changes")
 	}
+	var previousStatus *gitutil.PullRequestStatus
 	for {
-		summary := gitutil.GetChecksStatus(targetCommit.Branch, opts.MinChecks)
+		status := gitutil.GetPullRequestStatus(targetCommit.Branch, opts.MinChecks, previousStatus)
+		previousStatus = &status
+		summary := status.Checks
 		progressIndicator.SetProgress(index, float64(summary.PercentageComplete()))
 		if summary.IsFailing() {
 			if !opts.Silent {
