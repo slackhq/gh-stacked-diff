@@ -3,6 +3,7 @@ package util
 import (
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,6 +41,9 @@ func RetryGhOnNetworkError(executionCount int, stderr string) bool {
 		if (code >= 300 && code < 400) || code == 429 {
 			return false
 		}
+	}
+	if strings.Contains(stderr, "rate limit already exceeded") {
+		return false
 	}
 	Sleep(time.Duration(executionCount) * RetryDelay)
 	return true
