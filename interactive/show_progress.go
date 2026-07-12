@@ -39,9 +39,8 @@ func (m progressIndicatorModel) Init() tea.Cmd {
 func (m progressIndicatorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			m.cancelled = true
+		switch msg.String() {
+		case "q", "Q", "esc", "ctrl+c":
 			return m, tea.Quit
 		}
 	case setProgressMsg:
