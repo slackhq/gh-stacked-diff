@@ -46,7 +46,6 @@ type PullRequestStatus struct {
 	CanMerge       bool
 	IsDraft        bool
 	IsInMergeQueue bool
-	etag           etagEntry
 }
 
 /*
@@ -123,7 +122,6 @@ jq query that produces CSV lines. Example output:
 	check,COMPLETED,SUCCESS,
 	check,,,SUCCESS
 	state,OPEN
-	number,42
 	reviewRequestCount,3
 	latestReview,someuser,APPROVED,4,0
 	latestReview,otheruser,CHANGES_REQUESTED,0,2
@@ -131,23 +129,9 @@ jq query that produces CSV lines. Example output:
 	isDraft,false
 	autoMerge,false
 */
-func GetPullRequestStatus(branchName string, minChecks int, previousStatus *PullRequestStatus) PullRequestStatus {
+func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	if minChecks == -1 {
 		minChecks = getMinChecks()
-	}
-	// Use a conditional request (ETag) to detect changes without counting against
-	// the rate limit. A 304 means nothing changed, so we return the cached result.
-	// When data has changed, we still need the full graphql call below because
-	// the REST pulls endpoint lacks statusCheckRollup and latestReviews (those are
-	// GraphQL-only fields).
-	var cachedETag etagEntry
-	if previousStatus != nil && previousStatus.etag.prNumber > 0 {
-		newETag := fetchPRWithETag(previousStatus.etag.prNumber, previousStatus.etag.etag)
-		if previousStatus.etag.etag != "" && newETag == previousStatus.etag.etag {
-			slog.Debug(fmt.Sprint("ETag cache hit for branch: ", branchName))
-			return *previousStatus
-		}
-		cachedETag = etagEntry{prNumber: previousStatus.etag.prNumber, etag: newETag}
 	}
 	nameWithOwner := GetRepoNameWithOwner()
 	parts := strings.SplitN(nameWithOwner, "/", 2)
@@ -157,7 +141,7 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 	query := `query($owner:String!,$repo:String!,$prHeadRef:String!){` +
 		`repository(owner:$owner,name:$repo){` +
 		`pullRequests(headRefName:$prHeadRef,states:[OPEN,CLOSED,MERGED],first:1){nodes{` +
-		`number state isDraft mergeStateStatus mergeQueueEntry{id} autoMergeRequest{enabledAt}` +
+		`state isDraft mergeStateStatus mergeQueueEntry{id} autoMergeRequest{enabledAt}` +
 		`reviewRequests{totalCount}` +
 		`latestReviews(last:100){nodes{author{login} state body comments{totalCount}}}` +
 		`commits(last:1){nodes{commit{statusCheckRollup{contexts(last:100){nodes{` +
@@ -170,7 +154,6 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 		`("rateLimit," + (.data.rateLimit.cost|tostring) + "," + (.data.rateLimit.remaining|tostring) + "," + (.data.rateLimit.limit|tostring) + "," + .data.rateLimit.resetAt),` +
 		`(pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]? | if .__typename=="CheckRun" then "check,"+.status+","+(.conclusion//"")+","  else "check,,,"+(.state//"") end),` +
 		`("state," + pr.state),` +
-		`("number," + (pr.number|tostring)),` +
 		`("reviewRequestCount," + (pr.reviewRequests.totalCount|tostring)),` +
 		`(pr.latestReviews.nodes[]? | "latestReview,"+.author.login+","+.state+","+(.body|length|tostring)+","+(.comments.totalCount|tostring)),` +
 		`("mergeStateStatus," + (pr.mergeStateStatus // "")),` +
@@ -184,8 +167,7 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 		"-f", "prHeadRef="+branchName,
 		"--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}, etag: cachedETag}
-	prNumber := 0
+	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
 		if len(fields) < 2 {
@@ -201,11 +183,6 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
 			} else {
 				slog.Warn(fmt.Sprint("malformed check line in graphql output: ", line))
-			}
-		case "number":
-			n, err := strconv.Atoi(fields[1])
-			if err == nil {
-				prNumber = n
 			}
 		case "state":
 			switch fields[1] {
@@ -249,9 +226,6 @@ func GetPullRequestStatus(branchName string, minChecks int, previousStatus *Pull
 		default:
 			slog.Warn(fmt.Sprint("unexpected key in graphql output: ", fields[0]))
 		}
-	}
-	if prNumber > 0 && status.etag.prNumber == 0 {
-		status.etag = etagEntry{prNumber: prNumber, etag: fetchPRWithETag(prNumber, "")}
 	}
 	return status
 }
