@@ -15,7 +15,7 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
-func TestSdUpdateBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
+func TestSdSyncBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -36,14 +36,14 @@ func TestSdUpdateBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
 	// Select the commit in the update dialog (enter selects current row and confirms)
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify branch was updated with the amended commit
 	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file1")
 	assert.Equal("amended", branchFileContent)
 }
 
-func TestSdUpdateBranches_NonDraftBranch_MergesOriginBranch(t *testing.T) {
+func TestSdSyncBranches_NonDraftBranch_MergesOriginBranch(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -72,7 +72,7 @@ func TestSdUpdateBranches_NonDraftBranch_MergesOriginBranch(t *testing.T) {
 	// Select the commit in the update dialog
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify origin/branch changes were merged in (file2 from the remote fixup)
 	branchFile2Content := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file2")
@@ -83,7 +83,7 @@ func TestSdUpdateBranches_NonDraftBranch_MergesOriginBranch(t *testing.T) {
 	assert.Equal("amended", branchFile1Content)
 }
 
-func TestSdUpdateBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
+func TestSdSyncBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
 	assert := assert.New(t)
 	_ = testutil.InitTest(t, slog.LevelError)
 
@@ -94,14 +94,14 @@ func TestSdUpdateBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
 
 	// No SendToProgram needed — dialog should not appear since diffs match
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify branch still exists unchanged
 	branches := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch")
 	assert.Contains(branches, allCommits[0].Branch)
 }
 
-func TestSdUpdateBranches_UserCancels_NoBranchUpdate(t *testing.T) {
+func TestSdSyncBranches_UserCancels_NoBranchUpdate(t *testing.T) {
 	assert := assert.New(t)
 	_ = testutil.InitTest(t, slog.LevelError)
 
@@ -119,22 +119,22 @@ func TestSdUpdateBranches_UserCancels_NoBranchUpdate(t *testing.T) {
 	// User cancels the dialog
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEsc))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify branch is unchanged
 	branchLogAfter := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
 	assert.Equal(branchLogBefore, branchLogAfter)
 }
 
-func TestSdUpdateBranches_NoCommitsAhead_LogsAndReturns(t *testing.T) {
+func TestSdSyncBranches_NoCommitsAhead_LogsAndReturns(t *testing.T) {
 	_ = testutil.InitTest(t, slog.LevelError)
 
 	// No commits ahead of origin/main, so nothing to do
-	out := testParseArguments("--log-level", "info", "update-branches")
+	out := testParseArguments("--log-level", "info", "sync-branches")
 	assert.Contains(t, out, "No commits ahead of origin/")
 }
 
-func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) {
+func TestSdSyncBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -172,7 +172,7 @@ func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) 
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Merge conflict in file1 is resolved (file1 is in commit diff), then cherry-pick applies amended content
 	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file1")
@@ -183,7 +183,7 @@ func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) 
 	assert.Contains(branchLog, "Merge")
 }
 
-func TestSdUpdateBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase(t *testing.T) {
+func TestSdSyncBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -224,7 +224,7 @@ func TestSdUpdateBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Should have fallen back to rebase - branch has amended content but no merge commit
 	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file1")
@@ -235,7 +235,7 @@ func TestSdUpdateBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase
 	assert.NotContains(branchLog, "Merge")
 }
 
-func TestSdUpdateBranches_CherryPickFails_SkipsBranch(t *testing.T) {
+func TestSdSyncBranches_CherryPickFails_SkipsBranch(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -261,14 +261,14 @@ func TestSdUpdateBranches_CherryPickFails_SkipsBranch(t *testing.T) {
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify we're back on main (command didn't panic)
 	currentBranch := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "HEAD"))
 	assert.Equal(gitutil.GetLocalMainBranchOrDie(), currentBranch)
 }
 
-func TestSdUpdateBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
+func TestSdSyncBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -296,7 +296,7 @@ func TestSdUpdateBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
 	// Only the branched commit is selectable, so enter selects it and confirms
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify the branched commit was updated with the amended content
 	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", branchedCommit.Branch+":file1")
@@ -307,7 +307,7 @@ func TestSdUpdateBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
 	assert.NotContains(branches, "no-branch")
 }
 
-func TestSdUpdateBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing.T) {
+func TestSdSyncBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -354,7 +354,7 @@ func TestSdUpdateBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing
 	// Select the commit in the update dialog
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// Verify branch was updated: parent should now be origin/main tip (Z = merge-base).
 	// updateWithRebase does: git branch -f branch Z, then cherry-pick E onto Z.
@@ -367,7 +367,7 @@ func TestSdUpdateBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing
 	assert.Equal("original", branchFileContent)
 }
 
-func TestSdUpdateBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
+func TestSdSyncBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
 
@@ -401,7 +401,7 @@ func TestSdUpdateBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
 
-	testParseArguments("update-branches")
+	testParseArguments("sync-branches")
 
 	// "second" branch (allCommits[0]) should still be updated despite "first" failing.
 	// Verify that branch tip commit now matches the local commit.

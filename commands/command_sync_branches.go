@@ -13,11 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createUpdateBranchesCommand() *cobra.Command {
+func createSyncBranchesCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "update-branches",
-		Short: "Update PR branches with contents of the local " + gitutil.GetMainBranchForHelp() + " commit",
-		Long: "Update PR branches so they match the contents of local " + gitutil.GetMainBranchForHelp() + ".\n" +
+		Use:   "sync-branches",
+		Short: "Sync PR branches with contents of the local " + gitutil.GetMainBranchForHelp() + " commit",
+		Long: "Sync PR branches so they match the contents of local " + gitutil.GetMainBranchForHelp() + ".\n" +
 			"\n" +
 			"This is the opposite of `replace-commit`. It updates PR branches to the contents of the corresponding \n" +
 			"commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR \n" +
@@ -36,12 +36,12 @@ func createUpdateBranchesCommand() *cobra.Command {
 			checkRepoAnnotation: "true",
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			updateBranches()
+			syncBranches()
 		},
 	}
 }
 
-func updateBranches() {
+func syncBranches() {
 	gitutil.RequireMainBranch()
 	newCommits := templates.GetNewCommits("HEAD", "")
 	if len(newCommits) == 0 {

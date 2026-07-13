@@ -69,8 +69,8 @@ source ~/.zshrc
 | [`rebase-main`](#rebase-main) | Bring your main branch up to date with remote |
 | [`replace-commit`](#replace-commit) | Replaces a commit on local main branch with its associated branch |
 | [`replace-conflicts`](#replace-conflicts) | For failed rebase: replace changes with its associated branch |
+| [`sync-branches`](#sync-branches) | Sync PR branches with contents of the local main commit |
 | [`update`](#update) | Add commits from main to an existing PR |
-| [`update-branches`](#update-branches) | Update PR branches with contents of the local main commit |
 | [`wait-for-merge`](#wait-for-merge) | Waits for a pull request to be merged |
 | [`worktree-move`](#worktree-move) | Cherry-pick commits from secondary worktree to main worktree |
 
@@ -505,15 +505,15 @@ Global Flags:
 
 </details>
 
-### update-branches
+### sync-branches
 
-Update PR branches with contents of the local main commit
+Sync PR branches with contents of the local main commit
 
 <details>
-<summary><code>sd update-branches --help</code></summary>
+<summary><code>sd sync-branches --help</code></summary>
 
 ```
-Update PR branches so they match the contents of local main.
+Sync PR branches so they match the contents of local main.
 
 This is the opposite of `replace-commit`. It updates PR branches to the contents of the corresponding 
 commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR 
@@ -529,10 +529,10 @@ Non-draft PRs: origin/main is merged into the branch, creating
 a merge commit, then pushed.
 
 Usage:
-  sd update-branches [flags]
+  sd sync-branches [flags]
 
 Flags:
-  -h, --help   help for update-branches
+  -h, --help   help for sync-branches
 
 Global Flags:
   -c, --config stringToString   Set a config value as key=value (see Global Flags)
