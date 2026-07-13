@@ -130,13 +130,13 @@ func TestSdUpdateBranches_NoCommitsAhead_LogsAndReturns(t *testing.T) {
 	_ = testutil.InitTest(t, slog.LevelError)
 
 	// No commits ahead of origin/main, so nothing to do
-	out := testParseArguments("update-branches")
+	out := testParseArguments("--log-level", "info", "update-branches")
 	assert.Contains(t, out, "No commits ahead of origin/")
 }
 
 func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 
 	// Set up base file in origin/main
 	testutil.CommitFileChange("add-file1", "file1", "base")

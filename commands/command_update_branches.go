@@ -190,7 +190,10 @@ func resolveMergeConflict(commit templates.GitLog, appConfig util.AppConfig) {
 	// because applyCommitDiff overwrites these files with the commit's version next.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "--theirs", ".")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
-	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "--continue")
+	// GIT_EDITOR=true prevents merge --continue from opening an editor for the
+	// merge commit message, which fails on CI where no editor is configured.
+	continueOptions := util.ExecuteOptions{Io: appConfig.Io, EnvironmentVariables: []string{"GIT_EDITOR=true"}}
+	util.ExecuteOrDie(continueOptions, "git", "merge", "--continue")
 }
 
 func applyCommitDiff(commit templates.GitLog, appConfig util.AppConfig) {
