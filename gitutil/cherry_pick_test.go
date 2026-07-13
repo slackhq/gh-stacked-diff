@@ -62,6 +62,50 @@ func TestCherryPick_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds
 	assert.NoFileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
 }
 
+// Same scenario as the CherryPick test above but exercising CherryPickAndSkipAllEmpty,
+// which previously did not recover from index.lock contention mid-sequence.
+func TestCherryPickAndSkipAllEmpty_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	mainBranch := GetLocalMainBranchOrDie()
+
+	// Create feature commits on a branch.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", "-c", "feat")
+	testutil.CommitFileChange("pick A", "fa", "A")
+	commitA := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "HEAD")
+	testutil.CommitFileChange("pick B", "fb", "B")
+	commitB := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "HEAD")
+
+	// Add a divergent commit on main so --ff cannot fast-forward and must create
+	// new commits (which triggers the post-commit hook).
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", mainBranch)
+	testutil.CommitFileChange("main diverge", "other", "X")
+
+	gitDir := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--absolute-git-dir")
+	lockPath := filepath.Join(gitDir, "index.lock")
+	hookPath := filepath.Join(gitDir, "hooks", "post-commit")
+	markerPath := filepath.Join(gitDir, "sd-test-lock-fired")
+
+	hook := "#!/bin/sh\n" +
+		"if [ ! -f '" + markerPath + "' ]; then\n" +
+		"  : > '" + markerPath + "'\n" +
+		"  : > '" + lockPath + "'\n" +
+		"fi\n"
+	if err := os.WriteFile(hookPath, []byte(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	util.SetDefaultSleep(func(d time.Duration) { _ = os.Remove(lockPath) })
+	defer util.SetDefaultSleep(time.Sleep)
+
+	CherryPickAndSkipAllEmpty("", []string{commitA, commitB})
+
+	logOut := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "--pretty=format:%s")
+	assert.Equal(1, strings.Count(logOut, "pick A"))
+	assert.Equal(1, strings.Count(logOut, "pick B"))
+	assert.NoFileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
+}
+
 // A merge conflict is not index.lock contention: CherryPick must return the error
 // to the caller without aborting, so the caller can run its own conflict recovery.
 func TestCherryPick_WhenConflict_ReturnsErrorWithoutAborting(t *testing.T) {

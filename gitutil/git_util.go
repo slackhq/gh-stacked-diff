@@ -378,8 +378,9 @@ func PrependGitDir(dir string, args ...string) []string {
 	return append([]string{"-C", dir}, args...)
 }
 
-// CherryPick runs "git cherry-pick" for the given commits, recovering from
-// ".git/index.lock" contention that interrupts a multi-commit cherry-pick partway.
+// cherryPickWithRetry runs "git cherry-pick" with the given args, recovering
+// from ".git/index.lock" contention that interrupts a multi-commit cherry-pick
+// partway.
 //
 // When a background git process (e.g. an IDE's VCS integration) holds index.lock,
 // a multi-commit cherry-pick can apply its first commit, then fail to create the
@@ -392,39 +393,39 @@ func PrependGitDir(dir string, args ...string) []string {
 //
 // Genuine failures (merge conflicts) are returned to the caller with the
 // cherry-pick left in progress, so the caller can run its own conflict recovery.
-func CherryPick(options util.ExecuteOptions, commits ...string) (string, error) {
-	cherryPickArgs := append([]string{"cherry-pick"}, commits...)
-	out, err := util.Execute(options, "git", cherryPickArgs)
+func cherryPickWithRetry(options util.ExecuteOptions, gitDir string, cherryPickArgs ...string) (string, error) {
+	fullArgs := PrependGitDir(gitDir, append([]string{"cherry-pick"}, cherryPickArgs...)...)
+	out, err := util.Execute(options, "git", fullArgs)
 	if err == nil || !strings.Contains(out, "cherry-pick is already in progress") {
 		return out, err
 	}
-	// index.lock contention left a partial cherry-pick in progress. Abort and restart
-	// from a clean state. The abort goes through util.Execute, which retries the abort
-	// itself on any further index.lock contention.
 	slog.Warn("Cherry-pick was interrupted by index.lock contention; aborting partial cherry-pick and restarting")
-	if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", "cherry-pick", "--abort"); abortErr != nil {
+	abortArgs := PrependGitDir(gitDir, "cherry-pick", "--abort")
+	if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", abortArgs); abortErr != nil {
 		return out, fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
 	}
-	return util.Execute(options, "git", cherryPickArgs)
+	return util.Execute(options, "git", fullArgs)
 }
 
-// CherryPickAndSkipAllEmpty cherry-picks all commits and skips any that are empty
-// (i.e., commits that are already on main and would result in no changes).
+// CherryPick runs "git cherry-pick" for the given commits, recovering from
+// index.lock contention via [cherryPickWithRetry].
+func CherryPick(options util.ExecuteOptions, commits ...string) (string, error) {
+	return cherryPickWithRetry(options, "", commits...)
+}
+
+// CherryPickAndSkipAllEmpty cherry-picks all commits with --ff and skips any
+// that are empty (i.e., commits that are already on main and would result in
+// no changes). Uses [cherryPickWithRetry] to recover from index.lock contention.
 func CherryPickAndSkipAllEmpty(gitDir string, commits []string) {
-	cherryPickArgs := make([]string, 2+len(commits))
-	cherryPickArgs[0] = "cherry-pick"
-	cherryPickArgs[1] = "--ff"
-	for i, commit := range commits {
-		cherryPickArgs[i+2] = commit
-	}
-	out, err := util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, cherryPickArgs...))
+	cherryPickArgs := append([]string{"--ff"}, commits...)
+	out, err := cherryPickWithRetry(util.ExecuteOptions{}, gitDir, cherryPickArgs...)
 	for err != nil {
 		if strings.Contains(out, "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")
 			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip"))
 		} else {
 			slog.Error("Unexpected cherry-pick error: " + out)
-			panic("Unexpected cherry-pick error: " + out + " args: " + strings.Join(cherryPickArgs, " ") + " error: " + err.Error())
+			panic("Unexpected cherry-pick error: " + out + " args: cherry-pick " + strings.Join(cherryPickArgs, " ") + " error: " + err.Error())
 		}
 	}
 }
