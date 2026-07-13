@@ -252,6 +252,13 @@ func ApplyDiffFromRef(fromRef string, toRef string) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
 }
 
+// IsAncestor reports whether ancestor is reachable from descendant through parent
+// relationships (git merge-base --is-ancestor exits 0 when true, 1 when false).
+func IsAncestor(ancestor string, descendant string) bool {
+	_, err := util.Execute(util.ExecuteOptions{}, "git", "merge-base", "--is-ancestor", ancestor, descendant)
+	return err == nil
+}
+
 // GetMergeBaseWithOriginMain returns the merge-base (divergence point) between branchName and origin/main.
 func GetMergeBaseWithOriginMain(branchName string) string {
 	if !GetLocalHasBranchOrDie(branchName) {

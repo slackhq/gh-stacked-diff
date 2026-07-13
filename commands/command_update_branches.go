@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
@@ -53,13 +54,14 @@ func updateBranches() {
 	}
 	prBranches := gitutil.CheckLocalBranches("", branchNames)
 
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	disabledBranches := make(map[string]bool)
 	hasEnabledBranch := false
 	for _, commit := range newCommits {
 		if !slices.Contains(prBranches, commit.Branch) {
 			continue
 		}
-		if !branchNeedsDiffUpdate(commit) {
+		if !branchNeedsUpdate(commit, mainBranch) {
 			disabledBranches[commit.Branch] = true
 		} else {
 			hasEnabledBranch = true
@@ -73,14 +75,12 @@ func updateBranches() {
 	selectedCommits, err := interactive.GetCommitSelection(interactive.CommitSelectionOptions{
 		CommitType:       interactive.CommitTypePr,
 		MultiSelect:      true,
-		Prompt:           "Select PR branches to update with " + gitutil.GetLocalMainBranchOrDie() + ":",
+		Prompt:           "Select PR branches to update with " + mainBranch + ":",
 		DisabledBranches: disabledBranches,
 	})
 	if err != nil || len(selectedCommits) == 0 {
 		return
 	}
-
-	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	for _, commit := range selectedCommits {
 		func() {
 			defer func() {
@@ -94,28 +94,45 @@ func updateBranches() {
 	}
 }
 
-func branchNeedsDiffUpdate(commit templates.GitLog) bool {
-	commitDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", commit.Commit+"~1", commit.Commit)
-	mergeBase := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "merge-base", "origin/"+gitutil.GetRemoteMainBranchOrDie(), commit.Branch)
-	branchDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", mergeBase, commit.Branch)
-	return commitDiff != branchDiff
+func branchNeedsUpdate(commit templates.GitLog, mainBranch string) bool {
+	commitDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", commit.Commit+"~1", commit.Commit)
+	mergeBase := gitutil.GetMergeBaseWithOriginMain(commit.Branch)
+	branchDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", mergeBase, commit.Branch)
+	if commitDiff != branchDiff {
+		return true
+	}
+	mainMergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
+	return !gitutil.IsAncestor(mainMergeBase, commit.Branch)
 }
 
 func updatePrBranch(commit templates.GitLog, mainBranch string) {
 	appConfig := util.GetAppConfig()
-	prStatus := gitutil.GetPullRequestStatus(commit.Branch, 0, nil)
+	prStatus := gitutil.GetPullRequestStatus(commit.Branch, 0)
 	if prStatus.IsDraft {
-		updateDraftBranch(commit, mainBranch, appConfig)
+		updateWithRebase(commit, mainBranch, appConfig)
 	} else {
-		updateNonDraftBranch(commit, mainBranch, appConfig)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Warn(fmt.Sprint("Merge failed for ", commit.Branch, ": ", r, ". Falling back to rebase."))
+					// nolint:errcheck
+					util.Execute(util.ExecuteOptions{}, "git", "merge", "--abort")
+					// nolint:errcheck
+					util.Execute(util.ExecuteOptions{}, "git", "reset", "--hard")
+					gitutil.GitSwitch(mainBranch)
+					updateWithRebase(commit, mainBranch, appConfig)
+				}
+			}()
+			updateWithMerge(commit, mainBranch, appConfig)
+		}()
 	}
 }
 
-func updateDraftBranch(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
+func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating draft PR branch: ", branch))
-	remoteBranch := "origin/" + gitutil.GetRemoteMainBranchOrDie()
-	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, remoteBranch)
+	mergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, mergeBase)
 	gitutil.GitSwitch(branch)
 	if _, err := gitutil.CherryPick(util.ExecuteOptions{Io: appConfig.Io}, commit.Commit); err != nil {
 		slog.Warn(fmt.Sprint("Cherry-pick failed for ", branch, ". Skipping update for this branch."))
@@ -129,23 +146,56 @@ func updateDraftBranch(commit templates.GitLog, mainBranch string, appConfig uti
 	slog.Info(fmt.Sprint("Updated draft PR branch: ", branch))
 }
 
-func updateNonDraftBranch(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
+func updateWithMerge(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating PR branch: ", branch))
-	remoteBranch := "origin/" + gitutil.GetRemoteMainBranchOrDie()
+	mergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
 	gitutil.GitSwitch(branch)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branch)
-	if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "--ff-only", "origin/"+branch); err != nil {
-		slog.Warn(fmt.Sprint("Could not fast-forward ", branch, " to remote. Continuing with merge."))
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "origin/"+branch)
+	if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", mergeBase); err != nil {
+		resolveMergeConflict(commit, appConfig)
 	}
-	if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", remoteBranch); err != nil {
-		slog.Warn(fmt.Sprint("Merge conflict updating ", branch, ". Skipping update for this branch."))
-		// nolint:errcheck
-		util.Execute(util.ExecuteOptions{}, "git", "merge", "--abort")
-		gitutil.GitSwitch(mainBranch)
-		return
-	}
+	applyCommitDiff(commit, appConfig)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "commit", "-m", "Apply commit diff")
 	gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "origin", branch+":"+branch)
 	gitutil.GitSwitch(mainBranch)
 	slog.Info(fmt.Sprint("Updated PR branch: ", branch))
+}
+
+func resolveMergeConflict(commit templates.GitLog, appConfig util.AppConfig) {
+	defer func() {
+		if r := recover(); r != nil {
+			// nolint:errcheck
+			util.Execute(util.ExecuteOptions{}, "git", "merge", "--abort")
+			panic(r)
+		}
+	}()
+	commitDiffFiles := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--name-only", commit.Commit+"~1", commit.Commit))
+	commitDiffFileSet := make(map[string]bool)
+	if commitDiffFiles != "" {
+		for _, f := range strings.Split(commitDiffFiles, "\n") {
+			commitDiffFileSet[f] = true
+		}
+	}
+	conflictedFiles := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--name-only", "--diff-filter=U"))
+	if conflictedFiles != "" {
+		for _, f := range strings.Split(conflictedFiles, "\n") {
+			if !commitDiffFileSet[f] {
+				panic(fmt.Sprint("Merge conflict in a file that is not part of commit diff: ", f))
+			}
+		}
+	}
+	// Resolve the conflict by taking the mergeBase version; the content is transient
+	// because applyCommitDiff overwrites these files with the commit's version next.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "--theirs", ".")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
+	// GIT_EDITOR=true prevents merge --continue from opening an editor for the
+	// merge commit message, which fails on CI where no editor is configured.
+	continueOptions := util.ExecuteOptions{Io: appConfig.Io, EnvironmentVariables: []string{"GIT_EDITOR=true"}}
+	util.ExecuteOrDie(continueOptions, "git", "merge", "--continue")
+}
+
+func applyCommitDiff(commit templates.GitLog, appConfig util.AppConfig) {
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "cherry-pick", "--no-commit", "--strategy-option=theirs", commit.Commit)
 }

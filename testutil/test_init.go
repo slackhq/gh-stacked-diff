@@ -169,6 +169,10 @@ func setTestExecutor() *util.TestExecutor {
 	testExecutor := util.TestExecutor{}
 	testExecutor.SetResponse("Ok", nil, "gh", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse("Ok", nil, "say", util.MatchAnyRemainingArgs)
+	// Return a valid "owner/repo" format for GetRepoNameWithOwner calls so tests
+	// that exercise GetPullRequestStatus (which now calls GetRepoNameWithOwner
+	// unconditionally) do not fail with "could not parse repo name with owner".
+	testExecutor.SetResponse("testowner/testrepo", nil, "gh", "repo", "view", util.MatchAnyRemainingArgs)
 	util.SetGlobalExecutor(&testExecutor)
 	return &testExecutor
 }

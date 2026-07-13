@@ -348,7 +348,7 @@ type LogDataFunc func() ([]templates.GitLog, []string, []WorktreeLogSection)
 
 func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterval time.Duration, refreshFunc LogDataFunc, worktreeSections []WorktreeLogSection) {
 	appConfig := util.GetAppConfig()
-	rows := buildRows(logs, checkedBranches, worktreeSections, nil)
+	rows := buildRows(logs, checkedBranches, worktreeSections)
 	polling := pollInterval > 0
 	hasAnyPR := false
 	for _, row := range rows {
@@ -376,21 +376,10 @@ func ShowLogStatus(logs []templates.GitLog, checkedBranches []string, pollInterv
 	runProgram(appConfig.Io, program)
 }
 
-func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSections []WorktreeLogSection, oldRows []logStatusRow) []logStatusRow {
+func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSections []WorktreeLogSection) []logStatusRow {
 	rows := appendLogRows(make([]logStatusRow, 0, len(logs)), logs, checkedBranches, "")
 	for _, section := range worktreeSections {
 		rows = appendLogRows(rows, section.Logs, section.CheckedBranches, section.DirName)
-	}
-	if len(oldRows) > 0 {
-		byBranch := make(map[string]*gitutil.PullRequestStatus, len(oldRows))
-		for _, row := range oldRows {
-			if row.status != nil {
-				byBranch[row.log.Branch] = row.status
-			}
-		}
-		for i, row := range rows {
-			rows[i].status = byBranch[row.log.Branch]
-		}
 	}
 	return rows
 }
@@ -435,8 +424,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					sem <- struct{}{}
 					defer func() { <-sem }()
 					// Use 1 for minChecks as this flow does not need to have it calculated.
-					status := gitutil.GetPullRequestStatus(row.log.Branch, 1, rows[i].status)
-					rows[i].status = &status
+					status := gitutil.GetPullRequestStatus(row.log.Branch, 1)
 					program.Send(updateLogStatusRowMsg{index: i, status: status, generation: gen})
 				}()
 			}
@@ -451,7 +439,7 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 		program.Send(pollFetchStartMsg{})
 		// Refresh the full log data (new commits, new PRs, etc.)
 		logs, checkedBranches, worktreeSections := refreshFunc()
-		rows = buildRows(logs, checkedBranches, worktreeSections, rows)
+		rows = buildRows(logs, checkedBranches, worktreeSections)
 		program.Send(updateAllRowsMsg{rows: rows, generation: generation})
 	}
 }

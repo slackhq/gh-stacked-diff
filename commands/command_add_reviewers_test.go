@@ -22,7 +22,8 @@ import (
 )
 
 func prStatusWithChecks(numChecks int) string {
-	return strings.Repeat("check,COMPLETED,SUCCESS,SUCCESS\n", numChecks) +
+	return "rateLimit,1,4999,5000,2025-01-01T00:00:00Z\n" +
+		strings.Repeat("check,COMPLETED,SUCCESS,\n", numChecks) +
 		"state,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
 }
 
@@ -38,7 +39,7 @@ func TestSdAddReviewers_AddReviewers(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", allCommits[0].Commit)
 
@@ -63,7 +64,7 @@ func TestSdAddReviewers_WhenUsingListIndicator_AddReviewers(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--indicator=list", "--reviewers=mybestie", "1")
 
@@ -88,7 +89,7 @@ func TestSdAddReviewers_WhenOmittingCommitIndicator_AsksForSelection(t *testing.
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--indicator=list", "--reviewers=mybestie")
@@ -113,10 +114,7 @@ func TestSdAddReviewers_WhenUserAlreadyApproved_DoesNotRequestReview(t *testing.
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
-		return programName == "gh" &&
-			args[0] == "pr" &&
-			args[1] == "view" &&
-			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
+		return programName == "gh" && len(args) >= 2 && args[0] == "api" && args[1] == "graphql"
 	})
 
 	approvedUsers := "alreadyapproved1\nalreadyapproved2"
@@ -151,10 +149,7 @@ func TestSdAddReviewers_UserChoosesHistory_ChoosesSameReviewers(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
-		return programName == "gh" &&
-			args[0] == "pr" &&
-			args[1] == "view" &&
-			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
+		return programName == "gh" && len(args) >= 2 && args[0] == "api" && args[1] == "graphql"
 	})
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie", "1")
@@ -189,10 +184,7 @@ func TestSdAddReviewers_UserChoosesHistoryFromTyped_ChoosesSameReviewers(t *test
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
-		return programName == "gh" &&
-			args[0] == "pr" &&
-			args[1] == "view" &&
-			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
+		return programName == "gh" && len(args) >= 2 && args[0] == "api" && args[1] == "graphql"
 	})
 
 	// What reviewers?
@@ -231,7 +223,7 @@ func TestSdAddReviewers_WhenNoReviewersSelected_DoesNotAddReviewers(t *testing.T
 
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Select PR, then enter empty reviewers.
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -253,7 +245,7 @@ func TestSdAddReviewers_WhenMergeFlag_EnablesAutoMerge(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponse(
 		prStatusWithChecks(gitutil.DefaultMinChecks),
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--merge", "--reviewers=mybestie", allCommits[0].Commit)
 
@@ -275,10 +267,10 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 
 	testParseArguments("new", "1")
 
-	failingChecks := "check,COMPLETED,SUCCESS,SUCCESS\ncheck,COMPLETED,FAILURE,FAILURE\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false"
+	failingChecks := "rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\ncheck,COMPLETED,FAILURE,\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false"
 	testExecutor.SetResponse(
 		failingChecks,
-		nil, "gh", "pr", "view", util.MatchAnyRemainingArgs)
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// The panic from checks failing should be caught by SendErrorOnPanic and
 	// propagated through the bubbletea program, then re-panicked in runProgram,
@@ -305,10 +297,7 @@ func TestSdAddReviewers_WhenMinChecksFails_UsesDefault(t *testing.T) {
 
 	allCommits := templates.GetAllCommits()
 	testExecutor.SetResponseFunc(prStatusWithChecks(gitutil.DefaultMinChecks), nil, func(programName string, args ...string) bool {
-		return programName == "gh" &&
-			args[0] == "pr" &&
-			args[1] == "view" &&
-			slices.ContainsFunc(args, func(a string) bool { return strings.Contains(a, "statusCheckRollup") })
+		return programName == "gh" && len(args) >= 2 && args[0] == "api" && args[1] == "graphql"
 	})
 
 	testExecutor.SetResponse("", errors.New("error"), "gh", "pr", "list", "--state", "merged", util.MatchAnyRemainingArgs)
