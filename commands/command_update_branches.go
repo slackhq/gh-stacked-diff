@@ -54,13 +54,14 @@ func updateBranches() {
 	}
 	prBranches := gitutil.CheckLocalBranches("", branchNames)
 
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	disabledBranches := make(map[string]bool)
 	hasEnabledBranch := false
 	for _, commit := range newCommits {
 		if !slices.Contains(prBranches, commit.Branch) {
 			continue
 		}
-		if !branchNeedsDiffUpdate(commit) {
+		if !branchNeedsUpdate(commit, mainBranch) {
 			disabledBranches[commit.Branch] = true
 		} else {
 			hasEnabledBranch = true
@@ -74,14 +75,12 @@ func updateBranches() {
 	selectedCommits, err := interactive.GetCommitSelection(interactive.CommitSelectionOptions{
 		CommitType:       interactive.CommitTypePr,
 		MultiSelect:      true,
-		Prompt:           "Select PR branches to update with " + gitutil.GetLocalMainBranchOrDie() + ":",
+		Prompt:           "Select PR branches to update with " + mainBranch + ":",
 		DisabledBranches: disabledBranches,
 	})
 	if err != nil || len(selectedCommits) == 0 {
 		return
 	}
-
-	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	for _, commit := range selectedCommits {
 		func() {
 			defer func() {
@@ -95,11 +94,15 @@ func updateBranches() {
 	}
 }
 
-func branchNeedsDiffUpdate(commit templates.GitLog) bool {
+func branchNeedsUpdate(commit templates.GitLog, mainBranch string) bool {
 	commitDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", commit.Commit+"~1", commit.Commit)
 	mergeBase := gitutil.GetMergeBaseWithOriginMain(commit.Branch)
 	branchDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", mergeBase, commit.Branch)
-	return commitDiff != branchDiff
+	if commitDiff != branchDiff {
+		return true
+	}
+	mainMergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
+	return !gitutil.IsAncestor(mainMergeBase, commit.Branch)
 }
 
 func updatePrBranch(commit templates.GitLog, mainBranch string) {

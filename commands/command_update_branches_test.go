@@ -136,7 +136,7 @@ func TestSdUpdateBranches_NoCommitsAhead_LogsAndReturns(t *testing.T) {
 
 func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelInfo)
 
 	// Set up base file in origin/main
 	testutil.CommitFileChange("add-file1", "file1", "base")
@@ -185,7 +185,7 @@ func TestSdUpdateBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) 
 
 func TestSdUpdateBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelInfo)
 
 	// Set up base files in origin/main
 	testutil.CommitFileChange("add-file1", "file1", "base")
@@ -237,7 +237,7 @@ func TestSdUpdateBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase
 
 func TestSdUpdateBranches_CherryPickFails_SkipsBranch(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelInfo)
 
 	// Create an initial file so we can cause a conflict
 	testutil.CommitFileChange("setup", "file1", "base-content")
@@ -307,9 +307,69 @@ func TestSdUpdateBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
 	assert.NotContains(branches, "no-branch")
 }
 
+func TestSdUpdateBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+
+	// Step 1: Create the "first" commit and its PR branch.
+	// origin/main is still at the initial commit (A), so the branch is based at A.
+	//   origin/main: A
+	//   local main:  A -> B ("first")
+	//   branch:      A -> D (cherry-pick of B)
+	testutil.CommitFileChange("first", "file1", "original")
+	testParseArguments("new", "1")
+	branchName := templates.GetAllCommits()[0].Branch
+
+	// Step 2: Advance origin/main to Z via a side path that does NOT include B.
+	// This simulates a colleague pushing an unrelated commit to origin/main.
+	//   origin/main after: A -> Z ("unrelated", no file1)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "tmp-advance", "HEAD~1")
+	testutil.CommitFileChange("unrelated", "file2", "unrelated-content")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", "tmp-advance:"+mainBranch)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "-D", "tmp-advance")
+
+	// Step 3: Fetch and rebase local main onto origin/main (simulates `sd rebase-main`).
+	// B (adds file1) replays on top of Z, producing E.
+	//   origin/main: A -> Z
+	//   local main:  A -> Z -> E (rebased "first", adds file1 with "original")
+	//   branch:      A -> D (still based at A, not updated yet)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rebase", "origin/"+mainBranch)
+
+	// Verify preconditions (state is as expected):
+	//   commitDiff(E) = adds file1 with "original"
+	//   branchDiff(D from merge-base=A) = adds file1 with "original"
+	//   → branchNeedsUpdate condition 1 = false (diffs match)
+	//   mainMergeBase = merge-base(origin/main=Z, local-main=E) = Z
+	//   IsAncestor(Z, D): Z is NOT in D's ancestry (D's parent is A)
+	//   → branchNeedsUpdate condition 2 = true → branch is selectable
+
+	// Mock PR status as draft
+	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	// Select the commit in the update dialog
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+
+	testParseArguments("update-branches")
+
+	// Verify branch was updated: parent should now be origin/main tip (Z = merge-base).
+	// updateWithRebase does: git branch -f branch Z, then cherry-pick E onto Z.
+	originMainTip := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "origin/"+mainBranch))
+	branchParent := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", branchName+"^1"))
+	assert.Equal(originMainTip, branchParent, "branch parent should be origin/main tip (Z) after update")
+
+	// And file1 still has the original content (diff was preserved via cherry-pick)
+	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", branchName+":file1")
+	assert.Equal("original", branchFileContent)
+}
+
 func TestSdUpdateBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
 	assert := assert.New(t)
-	testExecutor := testutil.InitTest(t, slog.LevelDebug)
+	testExecutor := testutil.InitTest(t, slog.LevelInfo)
 
 	// Create two commits and branches
 	testutil.AddCommit("first", "file1")
