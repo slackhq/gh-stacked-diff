@@ -378,6 +378,32 @@ func PrependGitDir(dir string, args ...string) []string {
 	return append([]string{"-C", dir}, args...)
 }
 
+// CherryPick cherry-picks all commits with --ff and skips any
+// that are empty (i.e., commits that are already on main and would result in
+// no changes). Uses [cherryPickWithRetry] to recover from index.lock contention.
+func CherryPickOrDie(options util.ExecuteOptions, gitDir string, commits ...string) {
+	if out, err := CherryPick(options, gitDir, commits...); err != nil {
+		panic("Unexpected cherry-pick error: " + out + " args: cherry-pick " + strings.Join(commits, " ") + " error: " + err.Error())
+	}
+}
+
+// CherryPick cherry-picks all commits with --ff and skips any
+// that are empty (i.e., commits that are already on main and would result in
+// no changes). Uses [cherryPickWithRetry] to recover from index.lock contention.
+func CherryPick(options util.ExecuteOptions, gitDir string, commits ...string) (string, error) {
+	cherryPickArgs := append([]string{"--ff"}, commits...)
+	out, err := cherryPickWithRetry(util.ExecuteOptions{}, gitDir, cherryPickArgs...)
+	for err != nil {
+		if strings.Contains(out, "git commit --allow-empty") {
+			slog.Debug("Skipping empty commit (already on main)")
+			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip"))
+		} else {
+			break
+		}
+	}
+	return out, err
+}
+
 // cherryPickWithRetry runs "git cherry-pick" with the given args, recovering
 // from ".git/index.lock" contention that interrupts a multi-commit cherry-pick
 // partway.
@@ -405,29 +431,6 @@ func cherryPickWithRetry(options util.ExecuteOptions, gitDir string, cherryPickA
 		return out, fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
 	}
 	return util.Execute(options, "git", fullArgs)
-}
-
-// CherryPick runs "git cherry-pick" for the given commits, recovering from
-// index.lock contention via [cherryPickWithRetry].
-func CherryPick(options util.ExecuteOptions, commits ...string) (string, error) {
-	return cherryPickWithRetry(options, "", commits...)
-}
-
-// CherryPickAndSkipAllEmpty cherry-picks all commits with --ff and skips any
-// that are empty (i.e., commits that are already on main and would result in
-// no changes). Uses [cherryPickWithRetry] to recover from index.lock contention.
-func CherryPickAndSkipAllEmpty(gitDir string, commits []string) {
-	cherryPickArgs := append([]string{"--ff"}, commits...)
-	out, err := cherryPickWithRetry(util.ExecuteOptions{}, gitDir, cherryPickArgs...)
-	for err != nil {
-		if strings.Contains(out, "git commit --allow-empty") {
-			slog.Debug("Skipping empty commit (already on main)")
-			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip"))
-		} else {
-			slog.Error("Unexpected cherry-pick error: " + out)
-			panic("Unexpected cherry-pick error: " + out + " args: cherry-pick " + strings.Join(cherryPickArgs, " ") + " error: " + err.Error())
-		}
-	}
 }
 
 func RebaseAndSkipAllEmpty(options util.ExecuteOptions, otherRebaseArgs ...string) (string, error) {

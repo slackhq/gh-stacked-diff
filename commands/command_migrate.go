@@ -432,7 +432,7 @@ func handleBranchWithoutPR(branch string, baseCommit string, commitsAhead []stri
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
 
 	slog.Info(fmt.Sprint("Cherry-picking ", len(finalCommits), " commits to ", mainBranch, " (oldest to newest)"))
-	gitutil.CherryPickAndSkipAllEmpty("", finalCommits)
+	gitutil.CherryPickOrDie(util.ExecuteOptions{}, "", finalCommits...)
 
 	return migrationResult{
 		branchName: branch,
