@@ -28,14 +28,10 @@ type cherryPickRecoveryOptions struct {
 	AdditionalAbortSteps []string
 }
 
-// cherryPickWithRecovery runs CherryPickAndSkipAllEmpty and handles failures
+// cherryPickWithRecovery runs CherryPickOrDie and handles failures
 // by prompting the user to rollback or continue manually.
 func cherryPickWithRecovery(gitDir string, commits []string, opts cherryPickRecoveryOptions) {
-	cherryPickErr := func() (r any) {
-		defer func() { r = recover() }()
-		gitutil.CherryPickAndSkipAllEmpty(gitDir, commits)
-		return nil
-	}()
+	_, cherryPickErr := gitutil.CherryPick(util.ExecuteOptions{}, gitDir, commits...)
 	if cherryPickErr == nil {
 		return
 	}

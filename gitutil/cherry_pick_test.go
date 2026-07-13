@@ -51,9 +51,7 @@ func TestCherryPick_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds
 	util.SetDefaultSleep(func(d time.Duration) { _ = os.Remove(lockPath) })
 	defer util.SetDefaultSleep(time.Sleep)
 
-	_, err := CherryPick(util.ExecuteOptions{}, "feat~1", "feat")
-
-	assert.NoError(err)
+	CherryPickOrDie(util.ExecuteOptions{}, "", "feat~1", "feat")
 	logOut := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "--pretty=format:%s")
 	// Both commits applied exactly once (idempotent restart, not doubled).
 	assert.Equal(1, strings.Count(logOut, "pick A"))
@@ -62,9 +60,9 @@ func TestCherryPick_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds
 	assert.NoFileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
 }
 
-// Same scenario as the CherryPick test above but exercising CherryPickAndSkipAllEmpty,
+// Same scenario as the CherryPick test above but exercising CherryPickOrDie,
 // which previously did not recover from index.lock contention mid-sequence.
-func TestCherryPickAndSkipAllEmpty_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds(t *testing.T) {
+func TestCherryPickOrDie_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSucceeds(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
 	mainBranch := GetLocalMainBranchOrDie()
@@ -98,7 +96,7 @@ func TestCherryPickAndSkipAllEmpty_WhenIndexLockInterruptsMultiCommit_AbortsRest
 	util.SetDefaultSleep(func(d time.Duration) { _ = os.Remove(lockPath) })
 	defer util.SetDefaultSleep(time.Sleep)
 
-	CherryPickAndSkipAllEmpty("", []string{commitA, commitB})
+	CherryPickOrDie(util.ExecuteOptions{}, "", commitA, commitB)
 
 	logOut := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "--pretty=format:%s")
 	assert.Equal(1, strings.Count(logOut, "pick A"))
@@ -119,8 +117,7 @@ func TestCherryPick_WhenConflict_ReturnsErrorWithoutAborting(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", mainBranch)
 	testutil.CommitFileChange("main change", "shared", "main version")
 
-	_, err := CherryPick(util.ExecuteOptions{}, "feat")
-
+	_, err := CherryPick(util.ExecuteOptions{}, "", "feat")
 	assert.Error(err)
 	gitDir := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--absolute-git-dir")
 	// The conflicted cherry-pick is left in progress for the caller to recover.

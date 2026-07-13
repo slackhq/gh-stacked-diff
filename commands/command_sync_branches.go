@@ -134,13 +134,7 @@ func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util
 	mergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, mergeBase)
 	gitutil.GitSwitch(branch)
-	if _, err := gitutil.CherryPick(util.ExecuteOptions{Io: appConfig.Io}, commit.Commit); err != nil {
-		slog.Warn(fmt.Sprint("Cherry-pick failed for ", branch, ". Skipping update for this branch."))
-		// nolint:errcheck
-		util.Execute(util.ExecuteOptions{}, "git", "cherry-pick", "--abort")
-		gitutil.GitSwitch(mainBranch)
-		return
-	}
+	gitutil.CherryPickOrDie(util.ExecuteOptions{Io: appConfig.Io}, "", commit.Commit)
 	gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "--force-with-lease", "origin", branch+":"+branch)
 	gitutil.GitSwitch(mainBranch)
 	slog.Info(fmt.Sprint("Updated draft PR branch: ", branch))
