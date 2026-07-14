@@ -2,6 +2,16 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.8](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.7...v2.1.8) - 2026-07-13
+
+### Changed
+
+- `update-branches` renamed to `sync-branches`.
+- Revert ETags as it didn't always work.
+- Optimize status check queries (1 query instead of 3).
+- "Q" key also exits status check polling.
+- Fixed retry cherry-picks on `update` as well.
+
 ## [2.1.7](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.6...v2.1.7) - 2026-07-07
 
 ### Added
