@@ -14,8 +14,8 @@ import (
 )
 
 func createSyncBranchesCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "sync-branches",
+	cmd := &cobra.Command{
+		Use:   "sync-branches [commitIndicator [commitIndicator...]]",
 		Short: "Sync PR branches with contents of the local " + gitutil.GetMainBranchForHelp() + " commit",
 		Long: "Sync PR branches so they match the contents of local " + gitutil.GetMainBranchForHelp() + ".\n" +
 			"\n" +
@@ -23,7 +23,8 @@ func createSyncBranchesCommand() *cobra.Command {
 			"commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR \n" +
 			"branches. Uses `git rebase` if the PR is in draft status, or `git merge` if the PR is open.\n" +
 			"\n" +
-			"Shows a selection dialog with PR branches whose diffs differ from the\n" +
+			"Pass one or more commit indicators to sync those PR branches non-interactively.\n" +
+			"Otherwise, shows a selection dialog with PR branches whose diffs differ from the\n" +
 			"commit on local " + gitutil.GetMainBranchForHelp() + ". Branches already in sync are not selectable.\n" +
 			"\n" +
 			"Draft PRs: Branch is recreated from origin/" + gitutil.GetMainBranchForHelp() + " with the commit\n" +
@@ -31,17 +32,19 @@ func createSyncBranchesCommand() *cobra.Command {
 			"\n" +
 			"Non-draft PRs: origin/" + gitutil.GetMainBranchForHelp() + " is merged into the branch, creating\n" +
 			"a merge commit, then pushed.",
-		Args: cobra.NoArgs,
+		Args: cobra.ArbitraryArgs,
 		Annotations: map[string]string{
 			checkRepoAnnotation: "true",
 		},
-		Run: func(cmd *cobra.Command, args []string) {
-			syncBranches()
-		},
 	}
+	indicatorTypeString := addIndicatorFlag(cmd)
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		syncBranches(args, indicatorTypeString)
+	}
+	return cmd
 }
 
-func syncBranches() {
+func syncBranches(args []string, indicatorTypeString *string) {
 	gitutil.RequireMainBranch()
 	newCommits := templates.GetNewCommits("HEAD", "")
 	if len(newCommits) == 0 {
@@ -67,18 +70,19 @@ func syncBranches() {
 			hasEnabledBranch = true
 		}
 	}
-	if !hasEnabledBranch {
+	if len(args) == 0 && !hasEnabledBranch {
 		slog.Info("All PR branches are already in sync")
 		return
 	}
-
-	selectedCommits, err := interactive.GetCommitSelection(interactive.CommitSelectionOptions{
+	targetCommits := getTargetCommits(args, indicatorTypeString, interactive.CommitSelectionOptions{
 		CommitType:       interactive.CommitTypePr,
 		MultiSelect:      true,
 		Prompt:           "Select PR branches to update with " + mainBranch + ":",
 		DisabledBranches: disabledBranches,
 	})
-	if err != nil || len(selectedCommits) == 0 {
+	selectedCommits := filterSyncableCommits(targetCommits, prBranches, disabledBranches)
+	if len(selectedCommits) == 0 {
+		slog.Info("All selected PR branches are already in sync")
 		return
 	}
 	for _, commit := range selectedCommits {
@@ -92,6 +96,26 @@ func syncBranches() {
 			updatePrBranch(commit, mainBranch)
 		}()
 	}
+}
+
+// filterSyncableCommits validates and filters commits selected for syncing.
+// Commits without a PR branch cause a panic; commits already in sync (in
+// disabledBranches) are skipped with a log message. Commits chosen via the
+// interactive dialog already satisfy both conditions, so this only has an effect
+// for commits resolved from command-line indicators.
+func filterSyncableCommits(commits []templates.GitLog, prBranches []string, disabledBranches map[string]bool) []templates.GitLog {
+	syncable := make([]templates.GitLog, 0, len(commits))
+	for _, commit := range commits {
+		if !slices.Contains(prBranches, commit.Branch) {
+			panic(fmt.Sprint("Commit ", commit.Commit, " (", commit.Subject, ") has no PR branch to sync"))
+		}
+		if disabledBranches[commit.Branch] {
+			slog.Info(fmt.Sprint("Branch ", commit.Branch, " is already in sync, skipping"))
+			continue
+		}
+		syncable = append(syncable, commit)
+	}
+	return syncable
 }
 
 func branchNeedsUpdate(commit templates.GitLog, mainBranch string) bool {

@@ -116,14 +116,18 @@ func TestSdSyncBranches_UserCancels_NoBranchUpdate(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 	branchLogBefore := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
 
+	// Cancelling the dialog exits cleanly (via appConfig.Exit(0), which the test
+	// harness turns into a panic). Verify the branch is left unchanged.
+	defer func() {
+		_ = recover()
+		branchLogAfter := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
+		assert.Equal(branchLogBefore, branchLogAfter)
+	}()
+
 	// User cancels the dialog
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEsc))
 
 	testParseArguments("sync-branches")
-
-	// Verify branch is unchanged
-	branchLogAfter := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
-	assert.Equal(branchLogBefore, branchLogAfter)
 }
 
 func TestSdSyncBranches_NoCommitsAhead_LogsAndReturns(t *testing.T) {
@@ -365,6 +369,96 @@ func TestSdSyncBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing.T
 	// And file1 still has the original content (diff was preserved via cherry-pick)
 	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", branchName+":file1")
 	assert.Equal("original", branchFileContent)
+}
+
+func TestSdSyncBranches_CommandLineListIndicator_UpdatesBranchWithoutDialog(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Add "first" commit and create PR branch
+	testutil.CommitFileChange("first", "file1", "original")
+	testParseArguments("new", "1")
+
+	// Amend the commit on main so its diff differs from the branch
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--soft", "HEAD~1")
+	testutil.CommitFileChange("first", "file1", "amended")
+
+	allCommits := templates.GetAllCommits()
+
+	// Mock PR status as draft
+	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	// No SendToProgram — the list indicator "1" selects the branch non-interactively
+	testParseArguments("sync-branches", "1")
+
+	// Verify branch was updated with the amended commit
+	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file1")
+	assert.Equal("amended", branchFileContent)
+}
+
+func TestSdSyncBranches_CommandLineCommitIndicator_UpdatesBranch(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Add "first" commit and create PR branch
+	testutil.CommitFileChange("first", "file1", "original")
+	testParseArguments("new", "1")
+
+	// Amend the commit on main so its diff differs from the branch
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--soft", "HEAD~1")
+	testutil.CommitFileChange("first", "file1", "amended")
+
+	allCommits := templates.GetAllCommits()
+
+	// Mock PR status as draft
+	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	testParseArguments("sync-branches", "--indicator", "commit", allCommits[0].Commit)
+
+	// Verify branch was updated with the amended commit
+	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":file1")
+	assert.Equal("amended", branchFileContent)
+}
+
+func TestSdSyncBranches_CommandLineIndicatorAlreadyInSync_SkipsWithLog(t *testing.T) {
+	assert := assert.New(t)
+	_ = testutil.InitTest(t, slog.LevelError)
+
+	// Branch is created and stays in sync (no amend)
+	testutil.AddCommit("first", "file1")
+	testParseArguments("new", "1")
+
+	allCommits := templates.GetAllCommits()
+	branchLogBefore := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
+
+	out := testParseArguments("--log-level", "info", "sync-branches", "1")
+	assert.Contains(out, "already in sync")
+
+	// Verify branch is unchanged
+	branchLogAfter := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "--format=%H", allCommits[0].Branch)
+	assert.Equal(branchLogBefore, branchLogAfter)
+}
+
+func TestSdSyncBranches_CommandLineIndicatorNoPrBranch_Panics(t *testing.T) {
+	assert := assert.New(t)
+	_ = testutil.InitTest(t, slog.LevelError)
+
+	// Commit WITH a PR branch (so there is something ahead of origin/main)
+	testutil.CommitFileChange("with-branch", "file1", "original")
+	testParseArguments("new", "1")
+
+	// Commit WITHOUT a PR branch, referenced by list index 1 (newest)
+	testutil.CommitFileChange("no-branch", "file2", "content")
+
+	defer func() {
+		r := recover()
+		assert.NotNil(r, "expected panic for commit with no PR branch")
+	}()
+
+	testParseArguments("sync-branches", "1")
+	assert.Fail("did not panic for commit with no PR branch")
 }
 
 func TestSdSyncBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
