@@ -519,7 +519,8 @@ This is the opposite of `replace-commit`. It updates PR branches to the contents
 commits on local main and pushes to remote. Use this after `sd rebase-main` to update your PR 
 branches. Uses `git rebase` if the PR is in draft status, or `git merge` if the PR is open.
 
-Shows a selection dialog with PR branches whose diffs differ from the
+Pass one or more commit indicators to sync those PR branches non-interactively.
+Otherwise, shows a selection dialog with PR branches whose diffs differ from the
 commit on local main. Branches already in sync are not selectable.
 
 Draft PRs: Branch is recreated from origin/main with the commit
@@ -529,10 +530,20 @@ Non-draft PRs: origin/main is merged into the branch, creating
 a merge commit, then pushed.
 
 Usage:
-  sd sync-branches [flags]
+  sd sync-branches [commitIndicator [commitIndicator...]] [flags]
 
 Flags:
-  -h, --help   help for sync-branches
+  -h, --help               help for sync-branches
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
 
 Global Flags:
   -c, --config stringToString   Set a config value as key=value (see Global Flags)
