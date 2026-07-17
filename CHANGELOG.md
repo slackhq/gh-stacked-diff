@@ -2,6 +2,13 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.9](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.8...v2.1.9) - 2026-07-17
+
+### Changed
+
+- `sync-branches` now can take commit indicators as parameters from the command line.
+- `log --status` only includes comments that were made on the latest commit.
+
 ## [2.1.8](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.7...v2.1.8) - 2026-07-13
 
 ### Changed
