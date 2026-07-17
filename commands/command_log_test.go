@@ -329,7 +329,7 @@ func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,APPROVED,50,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
+		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0,deadbeef\nlatestReview,bob,APPROVED,50,0,deadbeef\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -338,6 +338,50 @@ func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
 	assert.Contains(out, "alice requested changes")
 	assert.Contains(out, "bob approved with comments")
 	assert.NotContains(out, "[can merge]")
+}
+
+func TestSdLog_WhenStatusFlag_IgnoresCommentsOnOlderCommit(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	// bob's approving comments are on an older commit (staleoid), so they are
+	// stale relative to the PR head (deadbeef) and should not surface.
+	testExecutor.SetResponse(
+		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,bob,APPROVED,50,0,staleoid\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Contains(out, "bob approved")
+	assert.NotContains(out, "approved with comments")
+	assert.Contains(out, "[approved: 1/1]")
+}
+
+func TestSdLog_WhenStatusFlag_IgnoresCommentedReviewOnOlderCommit(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	testExecutor.SetResponse(
+		"abc123def456abc123def456abc123def456abc123",
+		nil, "git", "log", util.MatchAnyRemainingArgs)
+	// richa's COMMENTED review has no commit oid (empty), so it is not on the PR
+	// head (deadbeef) and should not surface as "commented".
+	testExecutor.SetResponse(
+		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,richa,COMMENTED,50,0,\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.NotContains(out, "richa commented")
 }
 
 func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {

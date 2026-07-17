@@ -3,6 +3,7 @@ package gitutil
 import (
 	"fmt"
 	"log/slog"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,12 +30,21 @@ type LatestReview struct {
 	State        string
 	BodyLength   int
 	CommentCount int
+	// OnLatestCommit is true when the review was submitted against the PR's
+	// latest commit. Comments left on older commits are considered stale.
+	OnLatestCommit bool
 }
 
 // minMeaningfulCommentLength filters out short auto-generated or boilerplate review bodies.
 const minMeaningfulCommentLength = 10
 
+// HasComments reports whether the review has meaningful comments on the latest
+// commit. Comments left on older commits are ignored so that stale feedback
+// does not keep surfacing after the PR has been updated.
 func (r LatestReview) HasComments() bool {
+	if !r.OnLatestCommit {
+		return false
+	}
 	return r.BodyLength > minMeaningfulCommentLength || r.CommentCount > 0
 }
 
@@ -119,12 +129,13 @@ GetPullRequestStatus fetches PR status via a single gh api graphql call using a
 jq query that produces CSV lines. Example output:
 
 	rateLimit,1,4999,5000,2025-01-01T00:00:00Z
+	headCommit,af01bdf8eb5649956096a608717f7de5eeb97e45
 	check,COMPLETED,SUCCESS,
 	check,,,SUCCESS
 	state,OPEN
 	reviewRequestCount,3
-	latestReview,someuser,APPROVED,4,0
-	latestReview,otheruser,CHANGES_REQUESTED,0,2
+	latestReview,someuser,APPROVED,4,0,af01bdf8eb5649956096a608717f7de5eeb97e45
+	latestReview,otheruser,CHANGES_REQUESTED,0,2,0000000000000000000000000000000000000000
 	mergeStateStatus,CLEAN
 	isDraft,false
 	autoMerge,false
@@ -138,27 +149,90 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	if len(parts) != 2 {
 		panic("could not parse repo name with owner: " + nameWithOwner)
 	}
-	query := `query($owner:String!,$repo:String!,$prHeadRef:String!){` +
-		`repository(owner:$owner,name:$repo){` +
-		`pullRequests(headRefName:$prHeadRef,states:[OPEN,CLOSED,MERGED],first:1){nodes{` +
-		`state isDraft mergeStateStatus mergeQueueEntry{id} autoMergeRequest{enabledAt}` +
-		`reviewRequests{totalCount}` +
-		`latestReviews(last:100){nodes{author{login} state body comments{totalCount}}}` +
-		`commits(last:1){nodes{commit{statusCheckRollup{contexts(last:100){nodes{` +
-		`__typename ... on CheckRun{status conclusion} ... on StatusContext{state}` +
-		`}}}}}}` +
-		`}}}` +
-		`rateLimit{limit cost remaining resetAt}` +
-		`}`
-	jq := "def pr: .data.repository.pullRequests.nodes[0];" +
-		`("rateLimit," + (.data.rateLimit.cost|tostring) + "," + (.data.rateLimit.remaining|tostring) + "," + (.data.rateLimit.limit|tostring) + "," + .data.rateLimit.resetAt),` +
-		`(pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]? | if .__typename=="CheckRun" then "check,"+.status+","+(.conclusion//"")+","  else "check,,,"+(.state//"") end),` +
-		`("state," + pr.state),` +
-		`("reviewRequestCount," + (pr.reviewRequests.totalCount|tostring)),` +
-		`(pr.latestReviews.nodes[]? | "latestReview,"+.author.login+","+.state+","+(.body|length|tostring)+","+(.comments.totalCount|tostring)),` +
-		`("mergeStateStatus," + (pr.mergeStateStatus // "")),` +
-		`("isDraft," + (if pr.isDraft then "true" else "false" end)),` +
-		`("autoMerge," + (if (pr.autoMergeRequest != null) or (pr.mergeQueueEntry != null) then "true" else "false" end))`
+	query := squashWhitespace(`
+		query($owner: String!, $repo: String!, $prHeadRef: String!) {
+			repository(owner: $owner, name: $repo) {
+				pullRequests(headRefName: $prHeadRef, states: [OPEN, CLOSED, MERGED], first: 1) {
+					nodes {
+						state
+						isDraft
+						mergeStateStatus
+						mergeQueueEntry { id }
+						autoMergeRequest { enabledAt }
+						reviewRequests { totalCount }
+						latestReviews(last: 100) {
+							nodes {
+								author { login }
+								state
+								body
+								comments { totalCount }
+								commit { oid }
+							}
+						}
+						commits(last: 1) {
+							nodes {
+								commit {
+									oid
+									statusCheckRollup {
+										contexts(last: 100) {
+											nodes {
+												__typename
+												... on CheckRun { status conclusion }
+												... on StatusContext { state }
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			rateLimit { limit cost remaining resetAt }
+		}`)
+	jq := squashWhitespace(`
+		def pr: .data.repository.pullRequests.nodes[0];
+		(
+			"rateLimit,"
+			+ (.data.rateLimit.cost | tostring) + ","
+			+ (.data.rateLimit.remaining | tostring) + ","
+			+ (.data.rateLimit.limit | tostring) + ","
+			+ .data.rateLimit.resetAt
+		),
+		(
+			"headCommit," + (pr.commits.nodes[0].commit.oid // "")
+		),
+		(
+			pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
+			| if .__typename == "CheckRun"
+				then "check," + .status + "," + (.conclusion // "") + ","
+				else "check,,," + (.state // "")
+			  end
+		),
+		(
+			"state," + pr.state
+		),
+		(
+			"reviewRequestCount," + (pr.reviewRequests.totalCount | tostring)
+		),
+		(
+			pr.latestReviews.nodes[]?
+			| "latestReview,"
+			+ .author.login + ","
+			+ .state + ","
+			+ (.body | length | tostring) + ","
+			+ (.comments.totalCount | tostring) + ","
+			+ (.commit.oid // "")
+		),
+		(
+			"mergeStateStatus," + (pr.mergeStateStatus // "")
+		),
+		(
+			"isDraft," + (if pr.isDraft then "true" else "false" end)
+		),
+		(
+			"autoMerge," + (if (pr.autoMergeRequest != null) or (pr.mergeQueueEntry != null) then "true" else "false" end)
+		)`)
 	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "api", "graphql",
 		"-f", "query="+query,
@@ -168,6 +242,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		"--jq", jq)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
+	var headCommit string
 	for _, line := range lines {
 		fields := strings.Split(line, ",")
 		if len(fields) < 2 {
@@ -178,6 +253,8 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 			if len(fields) >= 5 {
 				slog.Debug(fmt.Sprint("GetPullRequestStatus rateLimit: cost=", fields[1], " remaining=", fields[2], " limit=", fields[3], " resetAt=", fields[4]))
 			}
+		case "headCommit":
+			headCommit = fields[1]
 		case "check":
 			if len(fields) >= 4 {
 				updatePullRequestChecksStatus(&status.Checks, fields[1], fields[2], fields[3])
@@ -206,11 +283,16 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				if len(fields) > 4 {
 					commentCount, _ = strconv.Atoi(fields[4])
 				}
+				reviewCommit := ""
+				if len(fields) > 5 {
+					reviewCommit = fields[5]
+				}
 				status.LatestReviews = append(status.LatestReviews, LatestReview{
-					Login:        fields[1],
-					State:        fields[2],
-					BodyLength:   bodyLen,
-					CommentCount: commentCount,
+					Login:          fields[1],
+					State:          fields[2],
+					BodyLength:     bodyLen,
+					CommentCount:   commentCount,
+					OnLatestCommit: reviewCommit != "" && reviewCommit == headCommit,
 				})
 			} else {
 				slog.Warn(fmt.Sprint("malformed latestReview line in graphql output: ", line))
@@ -228,4 +310,10 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 		}
 	}
 	return status
+}
+
+// Converts multiple occurances of whitespace with one space
+func squashWhitespace(input string) string {
+	re := regexp.MustCompile(`\s+`)
+	return re.ReplaceAllString(input, " ")
 }
