@@ -300,7 +300,12 @@ func getReviewStatusKey(review gitutil.LatestReview) string {
 	case gitutil.ReviewStateChangesRequested:
 		return "changesRequested"
 	case gitutil.ReviewStateCommented:
-		return "commented"
+		// Only surface comments left on the latest commit; stale comments on
+		// older commits are ignored.
+		if review.HasComments() {
+			return "commented"
+		}
+		return ""
 	default:
 		return ""
 	}
