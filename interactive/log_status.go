@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/fatih/color"
 	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
@@ -48,6 +49,7 @@ type logStatusModel struct {
 	error          any
 	generation     int
 	terminalHeight int
+	terminalWidth  int
 }
 
 var _ failableModel = logStatusModel{}
@@ -130,6 +132,7 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.WindowSizeMsg:
 		m.terminalHeight = msg.Height
+		m.terminalWidth = msg.Width
 		return m, nil
 	case errorMsg:
 		m.error = msg.error
@@ -196,20 +199,35 @@ func (m logStatusModel) View() string {
 			break
 		}
 		totalLines += lineCount
-		out.WriteString(rendered)
+		out.WriteString(m.truncateLines(rendered))
 	}
 	if hasDuplicates && util.GetUserConfig().ShowDuplicateSubjectLegend {
 		countLegendShown(util.LegendDuplicateSubject)
-		out.WriteString(color.YellowString(templates.DuplicateSubjectLegend) + "\n")
+		out.WriteString(m.truncateLines(color.YellowString(templates.DuplicateSubjectLegend) + "\n"))
 	}
 	if hiddenRows > 0 {
-		out.WriteString(hidingColor.Sprint(fmt.Sprintf("[hiding %d more...]", hiddenRows)) + "\n")
+		out.WriteString(m.truncateLines(hidingColor.Sprint(fmt.Sprintf("[hiding %d more...]", hiddenRows)) + "\n"))
 	}
 	if m.polling && m.loading && !m.hasInlineSpinner() {
 		// Note: do not use eol here.
 		out.WriteString(m.spinner.View())
 	}
 	return out.String()
+}
+
+// truncateLines prevents lines from wrapping past terminal width, which would
+// cause bubbletea to miscalculate the number of lines to clear on re-render.
+func (m logStatusModel) truncateLines(s string) string {
+	if m.terminalWidth <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = ansi.Truncate(line, m.terminalWidth, "")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m logStatusModel) hasInlineSpinner() bool {
