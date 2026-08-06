@@ -18,6 +18,7 @@ type progressIndicatorModel struct {
 	cancelled    bool
 	logLines     []string
 	error        any
+	windowWidth  int
 }
 
 var _ failableModel = progressIndicatorModel{}
@@ -47,6 +48,13 @@ func (m progressIndicatorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.progressBars[msg.index].SetPercent(msg.progress)
 	case setLogLineMsg:
 		m.logLines[msg.index] = msg.logLine
+		return m, nil
+	case tea.WindowSizeMsg:
+		prevWidth := m.windowWidth
+		m.windowWidth = msg.Width
+		if prevWidth > 0 && msg.Width < prevWidth {
+			return m, tea.ClearScreen
+		}
 		return m, nil
 	case errorMsg:
 		m.error = msg.error

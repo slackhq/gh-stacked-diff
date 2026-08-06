@@ -34,6 +34,7 @@ type CommitSelector struct {
 	completed    bool
 	prompt       string
 	footer       string
+	windowWidth  int
 }
 
 var _ tea.Model = CommitSelector{}
@@ -87,7 +88,12 @@ func (m CommitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	case tea.WindowSizeMsg:
+		prevWidth := m.windowWidth
+		m.windowWidth = msg.Width
 		m.table.SetHeight(min(max(msg.Height-10, 5), 20))
+		if prevWidth > 0 && msg.Width < prevWidth {
+			return m, tea.ClearScreen
+		}
 		return m, nil
 	case updateCommitSelectorSummaryMsg:
 		rows := m.table.Rows()

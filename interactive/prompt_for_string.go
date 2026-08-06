@@ -7,9 +7,10 @@ import (
 )
 
 type stringModel struct {
-	textInput textinput.Model
-	prompt    string
-	confirmed bool
+	textInput   textinput.Model
+	prompt      string
+	confirmed   bool
+	windowWidth int
 }
 
 var _ tea.Model = stringModel{}
@@ -29,8 +30,13 @@ func (m stringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
+		prevWidth := m.windowWidth
+		m.windowWidth = msg.Width
 		// Leave room for the prompt prefix on the same line.
 		m.textInput.Width = msg.Width - len(m.prompt) - 2
+		if prevWidth > 0 && msg.Width < prevWidth {
+			return m, tea.ClearScreen
+		}
 	}
 	var cmd tea.Cmd
 	m.textInput, cmd = m.textInput.Update(msg)
