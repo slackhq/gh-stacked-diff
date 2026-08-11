@@ -12,6 +12,8 @@ import (
 // Returns "repository-owner/repository-name" for the origin remote.
 // Uses the origin URL explicitly so that forks resolve to the fork itself,
 // not the parent repository.
+// Note: this should be used, rather than GetRepoName, when using it in API calls, because
+// GetRepoName may be pointing to a renamed repository.
 func GetRepoNameWithOwner() string {
 	cache.repoNameWithOwnerOnce.Do(func() {
 		originURL := getOriginURL()
