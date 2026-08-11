@@ -48,6 +48,7 @@ type logStatusModel struct {
 	error          any
 	generation     int
 	terminalHeight int
+	terminalWidth  int
 }
 
 var _ failableModel = logStatusModel{}
@@ -129,7 +130,12 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.WindowSizeMsg:
+		prevWidth := m.terminalWidth
 		m.terminalHeight = msg.Height
+		m.terminalWidth = msg.Width
+		if prevWidth > 0 && msg.Width < prevWidth {
+			return m, tea.ClearScreen
+		}
 		return m, nil
 	case errorMsg:
 		m.error = msg.error

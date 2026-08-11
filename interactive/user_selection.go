@@ -61,7 +61,12 @@ func (m userSelectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setSuggestions()
 		return m, nil
 	case tea.WindowSizeMsg:
+		prevWidth := m.windowWidth
 		m.windowWidth = msg.Width
+		m.textInput.Width = max(10, msg.Width-4)
+		if prevWidth > 0 && msg.Width < prevWidth {
+			return m, tea.ClearScreen
+		}
 		return m, nil
 	case errorMsg:
 		m.error = msg.error
@@ -206,7 +211,6 @@ func UserSelection() string {
 	appConfig := util.GetAppConfig()
 	input := textinput.New()
 	input.Focus()
-	input.Width = 100
 	input.Placeholder = "None (mark ready only)"
 	input.ShowSuggestions = true
 	history := ReviewersHistory.ReadHistory()
