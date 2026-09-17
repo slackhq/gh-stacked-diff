@@ -128,7 +128,6 @@ func GetBranchLatestCommit(branchName string) string {
 GetPullRequestStatus fetches PR status via a single gh api graphql call using a
 jq query that produces CSV lines. Example output:
 
-	rateLimit,1,4999,5000,2025-01-01T00:00:00Z
 	headCommit,af01bdf8eb5649956096a608717f7de5eeb97e45
 	check,COMPLETED,SUCCESS,
 	check,,,SUCCESS
@@ -188,20 +187,12 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 					}
 				}
 			}
-			rateLimit { limit cost remaining resetAt }
-		}`)
+}`)
 	jq := squashWhitespace(`
 		def pr:
 			.data.repository.pullRequests.nodes
 			| (map(select(.state == "OPEN")) | first)
 				// first;
-		(
-			"rateLimit,"
-			+ (.data.rateLimit.cost | tostring) + ","
-			+ (.data.rateLimit.remaining | tostring) + ","
-			+ (.data.rateLimit.limit | tostring) + ","
-			+ .data.rateLimit.resetAt
-		),
 		(
 			"headCommit," + (pr.commits.nodes[0].commit.oid // "")
 		),
@@ -252,10 +243,6 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 			continue
 		}
 		switch fields[0] {
-		case "rateLimit":
-			if len(fields) >= 5 {
-				slog.Debug(fmt.Sprint("GetPullRequestStatus rateLimit: cost=", fields[1], " remaining=", fields[2], " limit=", fields[3], " resetAt=", fields[4]))
-			}
 		case "headCommit":
 			headCommit = fields[1]
 		case "check":
