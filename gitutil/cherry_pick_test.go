@@ -104,6 +104,36 @@ func TestCherryPickOrDie_WhenIndexLockInterruptsMultiCommit_AbortsRestartsAndSuc
 	assert.NoFileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
 }
 
+// When the first commit in a multi-commit cherry-pick is empty (already on main)
+// and the second conflicts, CherryPick must skip the empty commit and then return
+// the conflict error. Regression test: if the output from the first cherry-pick
+// ("git commit --allow-empty") accumulated across iterations, the skip loop would
+// never break on the conflict and instead loop forever.
+func TestCherryPick_WhenEmptyCommitFollowedByConflict_SkipsThenReturnsError(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	mainBranch := GetLocalMainBranchOrDie()
+
+	// Create a commit on main.
+	testutil.CommitFileChange("base", "shared", "base")
+
+	// Branch: first commit is the same as main (will be empty on cherry-pick),
+	// second commit conflicts with a divergent change on main.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", "-c", "feat")
+	emptyCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "HEAD")
+	testutil.CommitFileChange("feat change", "shared", "feat version")
+	featTip := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "HEAD")
+
+	// Diverge main so the empty commit can't fast-forward and the second conflicts.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", mainBranch)
+	testutil.CommitFileChange("main diverge", "shared", "main version")
+
+	_, err := CherryPick(util.ExecuteOptions{}, "", emptyCommit, featTip)
+	assert.Error(err)
+	gitDir := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--absolute-git-dir")
+	assert.FileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
+}
+
 // A merge conflict is not index.lock contention: CherryPick must return the error
 // to the caller without aborting, so the caller can run its own conflict recovery.
 func TestCherryPick_WhenConflict_ReturnsErrorWithoutAborting(t *testing.T) {
