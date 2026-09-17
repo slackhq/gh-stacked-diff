@@ -247,7 +247,7 @@ func ApplyDiffFromRef(fromRef string, toRef string) {
 	diff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", fromRef, toRef)
 	util.ExecuteOrDie(
 		util.ExecuteOptions{Io: util.StdIo{In: strings.NewReader(diff), Out: nil, Err: nil}},
-		"git", "apply",
+		"git", "apply", "--3way",
 	)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
 }
