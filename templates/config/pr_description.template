@@ -24,6 +24,11 @@
 
 -->
 
+{{- if .TicketNumber}}
+
 #### Ticket: [{{.TicketNumber}}]({{.TicketUrlPattern}})
+{{- end}}
+{{- if .FeatureFlag}}
 
 #### Feature flag(s): `{{.FeatureFlag}}`
+{{- end}}
