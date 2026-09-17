@@ -392,11 +392,11 @@ func CherryPickOrDie(options util.ExecuteOptions, gitDir string, commits ...stri
 // no changes). Uses [cherryPickWithRetry] to recover from index.lock contention.
 func CherryPick(options util.ExecuteOptions, gitDir string, commits ...string) (string, error) {
 	cherryPickArgs := append([]string{"--ff"}, commits...)
-	out, err := cherryPickWithRetry(util.ExecuteOptions{}, gitDir, cherryPickArgs...)
+	out, err := cherryPickWithRetry(options, gitDir, cherryPickArgs...)
 	for err != nil {
 		if strings.Contains(out, "git commit --allow-empty") {
 			slog.Debug("Skipping empty commit (already on main)")
-			out, err = util.Execute(util.ExecuteOptions{}, "git", PrependGitDir(gitDir, "cherry-pick", "--skip"))
+			out, err = cherryPickWithRetry(options, gitDir, "--skip")
 		} else {
 			break
 		}
@@ -420,17 +420,22 @@ func CherryPick(options util.ExecuteOptions, gitDir string, commits ...string) (
 // Genuine failures (merge conflicts) are returned to the caller with the
 // cherry-pick left in progress, so the caller can run its own conflict recovery.
 func cherryPickWithRetry(options util.ExecuteOptions, gitDir string, cherryPickArgs ...string) (string, error) {
+	outRecorder := util.NewWriteRecorder(options.Io.Out)
+	recorderOptions := options
+	recorderOptions.Io.Out = outRecorder
+	recorderOptions.Io.Err = outRecorder
 	fullArgs := PrependGitDir(gitDir, append([]string{"cherry-pick"}, cherryPickArgs...)...)
-	out, err := util.Execute(options, "git", fullArgs)
-	if err == nil || !strings.Contains(out, "cherry-pick is already in progress") {
-		return out, err
+	_, err := util.Execute(recorderOptions, "git", fullArgs)
+	if err == nil || !strings.Contains(outRecorder.String(), "cherry-pick is already in progress") {
+		return outRecorder.String(), err
 	}
 	slog.Warn("Cherry-pick was interrupted by index.lock contention; aborting partial cherry-pick and restarting")
 	abortArgs := PrependGitDir(gitDir, "cherry-pick", "--abort")
 	if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", abortArgs); abortErr != nil {
-		return out, fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
+		return outRecorder.String(), fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
 	}
-	return util.Execute(options, "git", fullArgs)
+	_, err = util.Execute(recorderOptions, "git", fullArgs)
+	return outRecorder.String(), err
 }
 
 func RebaseAndSkipAllEmpty(options util.ExecuteOptions, otherRebaseArgs ...string) (string, error) {

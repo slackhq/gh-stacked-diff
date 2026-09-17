@@ -32,7 +32,10 @@ func (r *WriteRecorder) Write(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.buffer.Write(p)
-	return r.out.Write(p)
+	if r.out != nil {
+		return r.out.Write(p)
+	}
+	return len(p), nil
 }
 
 func (r *WriteRecorder) String() string {

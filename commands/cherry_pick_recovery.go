@@ -31,11 +31,11 @@ type cherryPickRecoveryOptions struct {
 // cherryPickWithRecovery runs CherryPickOrDie and handles failures
 // by prompting the user to rollback or continue manually.
 func cherryPickWithRecovery(gitDir string, commits []string, opts cherryPickRecoveryOptions) {
-	_, cherryPickErr := gitutil.CherryPick(util.ExecuteOptions{}, gitDir, commits...)
+	appConfig := util.GetAppConfig()
+	_, cherryPickErr := gitutil.CherryPick(util.ExecuteOptions{Io: appConfig.Io}, gitDir, commits...)
 	if cherryPickErr == nil {
 		return
 	}
-	appConfig := util.GetAppConfig()
 	util.Fprintln(appConfig.Io.Out, fmt.Sprint("Cherry-pick failed: ", cherryPickErr))
 	onError := opts.OnCherryPickError
 	if onError == "" {
