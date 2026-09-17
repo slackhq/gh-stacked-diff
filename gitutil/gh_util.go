@@ -152,7 +152,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 	query := squashWhitespace(`
 		query($owner: String!, $repo: String!, $prHeadRef: String!) {
 			repository(owner: $owner, name: $repo) {
-				pullRequests(headRefName: $prHeadRef, states: [OPEN, CLOSED, MERGED], first: 1) {
+				pullRequests(headRefName: $prHeadRef, states: [OPEN, CLOSED, MERGED], first: 10, orderBy: {field: UPDATED_AT, direction: DESC}) {
 					nodes {
 						state
 						isDraft
@@ -191,7 +191,10 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 			rateLimit { limit cost remaining resetAt }
 		}`)
 	jq := squashWhitespace(`
-		def pr: .data.repository.pullRequests.nodes[0];
+		def pr:
+			.data.repository.pullRequests.nodes
+			| (map(select(.state == "OPEN")) | first)
+				// first;
 		(
 			"rateLimit,"
 			+ (.data.rateLimit.cost | tostring) + ","
