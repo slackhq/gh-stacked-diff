@@ -2,6 +2,7 @@ package commands
 
 import (
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 
@@ -506,4 +507,39 @@ func TestSdSyncBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
 	// Verify we're back on main
 	currentBranch := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "HEAD"))
 	assert.Equal(gitutil.GetLocalMainBranchOrDie(), currentBranch)
+}
+
+func TestSdSyncBranches_UncommittedChanges_StashesAndRestores(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	// Add "first" commit and create PR branch
+	testutil.CommitFileChange("first", "file1", "original")
+	testParseArguments("new", "1")
+
+	// Amend the commit on main so its diff differs from the branch
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--soft", "HEAD~1")
+	testutil.CommitFileChange("first", "file1", "amended")
+
+	// Create uncommitted changes (tracked and untracked)
+	assert.NoError(os.WriteFile("file1", []byte("uncommitted-tracked"), 0644))
+	assert.NoError(os.WriteFile("untracked-file", []byte("uncommitted-untracked"), 0644))
+
+	// Mock PR status as draft
+	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+
+	testParseArguments("sync-branches")
+
+	// Verify uncommitted tracked change was restored
+	trackedContent, err := os.ReadFile("file1")
+	assert.NoError(err)
+	assert.Equal("uncommitted-tracked", string(trackedContent))
+
+	// Verify untracked file was restored
+	untrackedContent, err := os.ReadFile("untracked-file")
+	assert.NoError(err)
+	assert.Equal("uncommitted-untracked", string(untrackedContent))
 }

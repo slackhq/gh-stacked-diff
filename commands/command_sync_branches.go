@@ -46,6 +46,8 @@ func createSyncBranchesCommand() *cobra.Command {
 
 func syncBranches(args []string, indicatorTypeString *string) {
 	gitutil.RequireMainBranch()
+	shouldPopStash := gitutil.Stash("sync-branches")
+	defer gitutil.PopStash(shouldPopStash)
 	newCommits := templates.GetNewCommits("HEAD", "")
 	if len(newCommits) == 0 {
 		slog.Info("No commits ahead of origin/" + gitutil.GetRemoteMainBranchOrDie())
