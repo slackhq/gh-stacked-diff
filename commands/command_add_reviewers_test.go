@@ -22,7 +22,7 @@ import (
 )
 
 func prStatusWithChecks(numChecks int) string {
-	return "rateLimit,1,4999,5000,2025-01-01T00:00:00Z\n" +
+	return "" +
 		strings.Repeat("check,COMPLETED,SUCCESS,\n", numChecks) +
 		"state,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
 }
@@ -267,7 +267,7 @@ func TestSdAddReviewers_WhenChecksFail_ShowsErrorInsteadOfStackTrace(t *testing.
 
 	testParseArguments("new", "1")
 
-	failingChecks := "rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\ncheck,COMPLETED,FAILURE,\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false"
+	failingChecks := "check,COMPLETED,SUCCESS,\ncheck,COMPLETED,FAILURE,\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false"
 	testExecutor.SetResponse(
 		failingChecks,
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)

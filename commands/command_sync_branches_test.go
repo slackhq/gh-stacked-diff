@@ -31,7 +31,7 @@ func TestSdSyncBranches_DraftBranch_RecreatesFromOriginMain(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Select the commit in the update dialog (enter selects current row and confirms)
@@ -67,7 +67,7 @@ func TestSdSyncBranches_NonDraftBranch_MergesOriginBranch(t *testing.T) {
 	testutil.CommitFileChange("first", "file1", "amended")
 
 	// Mock PR status as NOT draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
+	testExecutor.SetResponse("isDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Select the commit in the update dialog
@@ -172,7 +172,7 @@ func TestSdSyncBranches_NonDraftMergeConflict_AppliesCommitDiff(t *testing.T) {
 	allCommits = templates.GetAllCommits()
 
 	// Mock PR status as NOT draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
+	testExecutor.SetResponse("isDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -224,7 +224,7 @@ func TestSdSyncBranches_NonDraftMergeConflictInUnrelatedFile_FallsBackToRebase(t
 	allCommits = templates.GetAllCommits()
 
 	// Mock PR status as NOT draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
+	testExecutor.SetResponse("isDraft,false\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,CLEAN",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -261,7 +261,7 @@ func TestSdSyncBranches_CherryPickFails_SkipsBranch(t *testing.T) {
 	testutil.CommitFileChange("first", "file1", "commit-content-v2")
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
@@ -295,7 +295,7 @@ func TestSdSyncBranches_CommitWithoutBranch_IsSkipped(t *testing.T) {
 	testutil.CommitFileChange("no-branch", "file2", "content-changed")
 
 	// Mock PR status as draft for the branched commit
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Only the branched commit is selectable, so enter selects it and confirms
@@ -353,7 +353,7 @@ func TestSdSyncBranches_BranchDiffMatchesButBehindMain_IsSelectable(t *testing.T
 	//   → branchNeedsUpdate condition 2 = true → branch is selectable
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Select the commit in the update dialog
@@ -387,7 +387,7 @@ func TestSdSyncBranches_CommandLineListIndicator_UpdatesBranchWithoutDialog(t *t
 	allCommits := templates.GetAllCommits()
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// No SendToProgram — the list indicator "1" selects the branch non-interactively
@@ -413,7 +413,7 @@ func TestSdSyncBranches_CommandLineCommitIndicator_UpdatesBranch(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	testParseArguments("sync-branches", "--indicator", "commit", allCommits[0].Commit)
@@ -480,9 +480,9 @@ func TestSdSyncBranches_MultipleBranches_ContinuesAfterFailure(t *testing.T) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
 
 	// Mock both PRs as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,2\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,2\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	// Delete the "first" branch from origin so push fails (causing updateWithRebase to panic)
@@ -526,7 +526,7 @@ func TestSdSyncBranches_UncommittedChanges_StashesAndRestores(t *testing.T) {
 	assert.NoError(os.WriteFile("untracked-file", []byte("uncommitted-untracked"), 0644))
 
 	// Mock PR status as draft
-	testExecutor.SetResponse("rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nisDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
