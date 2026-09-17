@@ -200,7 +200,7 @@ func TestSdLog_WhenPollFlag_PollsAndQuitsOnInput(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := util.NewWriteRecorder(new(bytes.Buffer))
@@ -242,7 +242,7 @@ func TestSdLog_WhenStatusFlag_BranchCommitsAppearBeforeApiCalls(t *testing.T) {
 
 	// Block gh api graphql calls until we release them.
 	apiGate := make(chan struct{})
-	prResponse := "rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
+	prResponse := "state,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false"
 	testExecutor.SetResponseFunc(prResponse, nil, func(programName string, args ...string) bool {
 		if programName == "gh" && len(args) >= 2 && args[0] == "api" && args[1] == "graphql" {
 			<-apiGate
@@ -306,7 +306,7 @@ func TestSdLog_WhenStatusFlag_ShowsStatusInfo(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -329,7 +329,7 @@ func TestSdLog_WhenStatusFlag_ShowsChangesRequested(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0,deadbeef\nlatestReview,bob,APPROVED,50,0,deadbeef\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
+		"headCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,1\nlatestReview,alice,CHANGES_REQUESTED,0,0,deadbeef\nlatestReview,bob,APPROVED,50,0,deadbeef\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -353,7 +353,7 @@ func TestSdLog_WhenStatusFlag_IgnoresCommentsOnOlderCommit(t *testing.T) {
 	// bob's approving comments are on an older commit (staleoid), so they are
 	// stale relative to the PR head (deadbeef) and should not surface.
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,bob,APPROVED,50,0,staleoid\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"headCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,bob,APPROVED,50,0,staleoid\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -376,7 +376,7 @@ func TestSdLog_WhenStatusFlag_IgnoresCommentedReviewOnOlderCommit(t *testing.T) 
 	// richa's COMMENTED review has no commit oid (empty), so it is not on the PR
 	// head (deadbeef) and should not surface as "commented".
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nheadCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,richa,COMMENTED,50,0,\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"headCommit,deadbeef\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,richa,COMMENTED,50,0,\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -395,7 +395,7 @@ func TestSdLog_WhenStatusFlag_CombinesUsersWithSameStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,alice,CHANGES_REQUESTED,0,0\nlatestReview,bob,CHANGES_REQUESTED,0,0\nlatestReview,carol,APPROVED,0,0\nlatestReview,dave,APPROVED,0,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -417,7 +417,7 @@ func TestSdLog_WhenStatusFlag_ShowsMergedStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"check,COMPLETED,SUCCESS,\nstate,MERGED\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -437,7 +437,7 @@ func TestSdLog_WhenStatusFlag_ShowsMergingStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,true",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,true",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -462,7 +462,7 @@ func TestSdLog_WhenStatusFlag_ShowsMergeQueueStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nnumber,42\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,true",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nnumber,42\nreviewRequestCount,0\nlatestReview,someuser,APPROVED,4,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,true",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -496,7 +496,7 @@ func TestSdLog_WhenStatusFlag_ShowsDraftStatus(t *testing.T) {
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true\nautoMerge,false",
+		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,true\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "--status")
@@ -567,7 +567,7 @@ func TestSdLog_WhenStatusFlagAndOtherWorktree_ShowsWorktreeCommits(t *testing.T)
 		"abc123def456abc123def456abc123def456abc123",
 		nil, "git", "log", util.MatchAnyRemainingArgs)
 	testExecutor.SetResponse(
-		"rateLimit,1,4999,5000,2025-01-01T00:00:00Z\ncheck,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
+		"check,COMPLETED,SUCCESS,\nstate,OPEN\nreviewRequestCount,0\nmergeStateStatus,CLEAN\nisDraft,false\nautoMerge,false",
 		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
 
 	out := testParseArguments("log", "-c", "showWorktrees=true", "--status")
