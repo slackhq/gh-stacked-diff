@@ -2,6 +2,22 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.10](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.9...v2.1.10) - 2026-09-24
+
+### Changed
+
+- `sync-branches`
+    - stashes before synching.
+    - add support for pushing when only remote it out of date.
+- PR description: only include feature flag and ticket number template if set.
+- When doing a `cherry-pick` (via `replace-commit`), displays `cherry-pick` output.
+
+### Fixed
+
+- Clear screen when window shrinks to avoid repetitive output lines.
+- When checking PR status (via `add-reviewers` or`log --status`) open PRs are preferred
+- Better merging (3way) when applying diff (via `replace-commit` or `replace-conflicts`)
+
 ## [2.1.9](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.8...v2.1.9) - 2026-07-17
 
 ### Changed
