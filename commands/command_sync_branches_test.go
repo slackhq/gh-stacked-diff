@@ -102,6 +102,45 @@ func TestSdSyncBranches_BranchAlreadyInSync_SkipsDialog(t *testing.T) {
 	assert.Contains(branches, allCommits[0].Branch)
 }
 
+func TestSdSyncBranches_LocalInSyncButRemoteBehind_PushesOnly(t *testing.T) {
+	assert := assert.New(t)
+	_ = testutil.InitTest(t, slog.LevelError)
+
+	// Add "first" commit and create PR branch
+	testutil.CommitFileChange("first", "file1", "original")
+	testParseArguments("new", "1")
+
+	allCommits := templates.GetAllCommits()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+
+	// Amend the local branch commit to change its hash while keeping the same diff.
+	// This simulates the local branch having been updated but not pushed.
+	gitutil.GitSwitch(allCommits[0].Branch)
+	util.ExecuteOrDie(util.ExecuteOptions{
+		EnvironmentVariables: []string{"GIT_COMMITTER_DATE=2020-01-01T00:00:00"},
+	}, "git", "commit", "--amend", "--no-edit", "--date=2020-01-01T00:00:00")
+	gitutil.GitSwitch(mainBranch)
+
+	// Verify precondition: local and remote branch tips differ
+	localTip := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", allCommits[0].Branch))
+	remoteTip := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "origin/"+allCommits[0].Branch))
+	assert.NotEqual(localTip, remoteTip, "precondition: local and remote branch tips should differ")
+
+	// Select the commit in the dialog
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+
+	testParseArguments("sync-branches")
+
+	// Verify origin/branch was updated to match local branch (pushed)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", allCommits[0].Branch)
+	remoteTipAfter := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "origin/"+allCommits[0].Branch))
+	assert.Equal(localTip, remoteTipAfter, "remote branch should match local branch after push")
+
+	// Verify we're back on main
+	currentBranch := strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "--abbrev-ref", "HEAD"))
+	assert.Equal(mainBranch, currentBranch)
+}
+
 func TestSdSyncBranches_UserCancels_NoBranchUpdate(t *testing.T) {
 	assert := assert.New(t)
 	_ = testutil.InitTest(t, slog.LevelError)

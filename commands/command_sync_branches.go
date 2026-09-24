@@ -44,6 +44,14 @@ func createSyncBranchesCommand() *cobra.Command {
 	return cmd
 }
 
+type branchUpdateType int
+
+const (
+	branchUpToDate branchUpdateType = iota
+	branchNeedsPushOnly
+	branchNeedsContentUpdate
+)
+
 func syncBranches(args []string, indicatorTypeString *string) {
 	gitutil.RequireMainBranch()
 	shouldPopStash := gitutil.Stash("sync-branches")
@@ -61,12 +69,15 @@ func syncBranches(args []string, indicatorTypeString *string) {
 
 	mainBranch := gitutil.GetLocalMainBranchOrDie()
 	disabledBranches := make(map[string]bool)
+	updateTypes := make(map[string]branchUpdateType)
 	hasEnabledBranch := false
 	for _, commit := range newCommits {
 		if !slices.Contains(prBranches, commit.Branch) {
 			continue
 		}
-		if !branchNeedsUpdate(commit, mainBranch) {
+		updateType := getBranchUpdateType(commit, mainBranch)
+		updateTypes[commit.Branch] = updateType
+		if updateType == branchUpToDate {
 			disabledBranches[commit.Branch] = true
 		} else {
 			hasEnabledBranch = true
@@ -95,7 +106,12 @@ func syncBranches(args []string, indicatorTypeString *string) {
 					gitutil.GitSwitch(mainBranch)
 				}
 			}()
-			updatePrBranch(commit, mainBranch)
+			if updateTypes[commit.Branch] == branchNeedsPushOnly {
+				slog.Info(fmt.Sprint("Branch ", commit.Branch, " is up to date locally but remote branch needs to be pushed"))
+				pushPrBranch(commit)
+			} else {
+				updatePrBranch(commit, mainBranch)
+			}
 		}()
 	}
 }
@@ -120,15 +136,38 @@ func filterSyncableCommits(commits []templates.GitLog, prBranches []string, disa
 	return syncable
 }
 
-func branchNeedsUpdate(commit templates.GitLog, mainBranch string) bool {
+func getBranchUpdateType(commit templates.GitLog, mainBranch string) branchUpdateType {
 	commitDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", commit.Commit+"~1", commit.Commit)
 	mergeBase := gitutil.GetMergeBaseWithOriginMain(commit.Branch)
 	branchDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", mergeBase, commit.Branch)
 	if commitDiff != branchDiff {
-		return true
+		return branchNeedsContentUpdate
 	}
 	mainMergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
-	return !gitutil.IsAncestor(mainMergeBase, commit.Branch)
+	if !gitutil.IsAncestor(mainMergeBase, commit.Branch) {
+		return branchNeedsContentUpdate
+	}
+	if remoteBranchDiffersFromLocal(commit.Branch) {
+		return branchNeedsPushOnly
+	}
+	return branchUpToDate
+}
+
+func remoteBranchDiffersFromLocal(branch string) bool {
+	if !gitutil.RemoteHasBranch(branch) {
+		return false
+	}
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branch)
+	localTip := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", branch)
+	remoteTip := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "origin/"+branch)
+	return localTip != remoteTip
+}
+
+func pushPrBranch(commit templates.GitLog) {
+	if _, err := gitutil.GitPush(util.ExecuteOptions{}, "push", "origin", commit.Branch+":"+commit.Branch); err != nil {
+		slog.Info("Regular push failed, force pushing instead.")
+		gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "--force-with-lease", "origin", commit.Branch+":"+commit.Branch)
+	}
 }
 
 func updatePrBranch(commit templates.GitLog, mainBranch string) {
