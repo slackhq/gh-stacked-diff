@@ -582,3 +582,54 @@ func TestSdSyncBranches_UncommittedChanges_StashesAndRestores(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal("uncommitted-untracked", string(untrackedContent))
 }
+
+func TestSdSyncBranches_WhenPRTargetsNonMainBase_UsesCorrectBase(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+
+	// Create a base commit and push to establish origin/main.
+	testutil.AddCommit("base", "base-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+
+	// Create a "release" branch from the base commit and push it.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "release", "HEAD")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", "release")
+
+	// Add a commit on main that only exists on main (not on release).
+	testutil.AddCommit("main-only", "main-only-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+
+	// Add the feature commit and create a PR targeting release.
+	testutil.CommitFileChange("feature", "feature-file", "original")
+	testParseArguments("new", "--base", "release", "1")
+
+	// Amend the commit on main so sync-branches has something to sync.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--soft", "HEAD~1")
+	testutil.CommitFileChange("feature", "feature-file", "amended")
+
+	allCommits := templates.GetAllCommits()
+
+	// Mock gh pr view to return "release" as the base branch.
+	testExecutor.SetResponse("release", nil, "gh", "pr", "view", allCommits[0].Branch, "--json", "baseRefName", util.MatchAnyRemainingArgs)
+
+	// Mock PR status as draft so sync-branches uses rebase strategy.
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	// Select the commit in the update dialog.
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+
+	testParseArguments("sync-branches")
+
+	// Verify branch was updated with the amended content.
+	branchFileContent := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":feature-file")
+	assert.Equal("amended", branchFileContent)
+
+	// Verify the branch is based on origin/release (not origin/main).
+	// The branch should contain "base-file" (from release) but NOT "main-only-file".
+	branchFiles := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "ls-tree", "--name-only", allCommits[0].Branch)
+	assert.Contains(branchFiles, "base-file")
+	assert.NotContains(branchFiles, "main-only-file")
+}

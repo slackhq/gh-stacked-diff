@@ -143,7 +143,7 @@ func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPatte
 func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
 	var commitToBranchFrom string
 	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
-		commitToBranchFrom = gitutil.GetMergeBaseWithOriginMain(gitutil.GetLocalMainBranchOrDie())
+		commitToBranchFrom = gitutil.GetMergeBase(gitutil.GetRemoteMainBranchOrDie(), gitutil.GetLocalMainBranchOrDie())
 		slog.Info(fmt.Sprint("Switching to branch ", gitLog.Branch, " based off commit ", commitToBranchFrom))
 	} else {
 		commitToBranchFrom = baseBranch

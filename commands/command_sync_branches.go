@@ -71,7 +71,8 @@ func syncBranches(args []string, indicatorTypeString *string) {
 	disabledBranches := make(map[string]bool)
 	updateTypes := make(map[string]branchUpdateType)
 	hasEnabledBranch := false
-	for _, commit := range newCommits {
+	for i := range newCommits {
+		commit := &newCommits[i]
 		if !slices.Contains(prBranches, commit.Branch) {
 			continue
 		}
@@ -136,15 +137,15 @@ func filterSyncableCommits(commits []templates.GitLog, prBranches []string, disa
 	return syncable
 }
 
-func getBranchUpdateType(commit templates.GitLog, mainBranch string) branchUpdateType {
+func getBranchUpdateType(commit *templates.GitLog, mainBranch string) branchUpdateType {
 	commitDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", commit.Commit+"~1", commit.Commit)
-	mergeBase := gitutil.GetMergeBaseWithOriginMain(commit.Branch)
+	mergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), commit.Branch)
 	branchDiff := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "diff", "--binary", mergeBase, commit.Branch)
 	if commitDiff != branchDiff {
 		return branchNeedsContentUpdate
 	}
-	mainMergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
-	if !gitutil.IsAncestor(mainMergeBase, commit.Branch) {
+	baseMergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
+	if !gitutil.IsAncestor(baseMergeBase, commit.Branch) {
 		return branchNeedsContentUpdate
 	}
 	if remoteBranchDiffersFromLocal(commit.Branch) {
@@ -196,7 +197,7 @@ func updatePrBranch(commit templates.GitLog, mainBranch string) {
 func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating draft PR branch: ", branch))
-	mergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
+	mergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, mergeBase)
 	gitutil.GitSwitch(branch)
 	gitutil.CherryPickOrDie(util.ExecuteOptions{Io: appConfig.Io}, "", commit.Commit)
@@ -208,7 +209,7 @@ func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util
 func updateWithMerge(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating PR branch: ", branch))
-	mergeBase := gitutil.GetMergeBaseWithOriginMain(mainBranch)
+	mergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
 	gitutil.GitSwitch(branch)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branch)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "origin/"+branch)

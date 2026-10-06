@@ -34,6 +34,7 @@ type gitCache struct {
 	repoHostnameOnce      sync.Once
 	isFork                bool
 	isForkOnce            sync.Once
+	baseBranchForPr       map[string]string
 }
 
 var cache = &gitCache{}
@@ -259,12 +260,39 @@ func IsAncestor(ancestor string, descendant string) bool {
 	return err == nil
 }
 
-// GetMergeBaseWithOriginMain returns the merge-base (divergence point) between branchName and origin/main.
-func GetMergeBaseWithOriginMain(branchName string) string {
-	if !GetLocalHasBranchOrDie(branchName) {
-		panic("Branch does not exist " + branchName)
+// GetBaseBranchForPr returns the base branch name (e.g. "main" or "release-1.0")
+// for the given branch by looking up its open PR's baseRefName. Falls back to the
+// remote main branch if no open PR exists or if branchName is the main branch itself.
+func GetBaseBranchForPr(branchName string) string {
+	if cached, ok := cache.baseBranchForPr[branchName]; ok {
+		return cached
 	}
-	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "merge-base", "origin/"+GetRemoteMainBranchOrDie(), branchName)
+	remoteMain := GetRemoteMainBranchOrDie()
+	result := remoteMain
+	if branchName != remoteMain && branchName != GetLocalMainBranchOrDie() {
+		output, err := util.Execute(util.ExecuteOptions{}, "gh", "pr", "view", branchName, "--json", "baseRefName", "-q", ".baseRefName", GhRepoArgs())
+		baseBranch := strings.TrimSpace(output)
+		if err == nil && baseBranch != "" {
+			if _, verifyErr := util.Execute(util.ExecuteOptions{}, "git", "rev-parse", "--verify", "origin/"+baseBranch); verifyErr != nil {
+				slog.Debug(fmt.Sprint("PR base branch origin/", baseBranch, " not found locally, falling back to ", remoteMain))
+			} else {
+				result = baseBranch
+			}
+		}
+	}
+	if cache.baseBranchForPr == nil {
+		cache.baseBranchForPr = make(map[string]string)
+	}
+	cache.baseBranchForPr[branchName] = result
+	return result
+}
+
+// GetMergeBase returns the merge-base between localBranchName and origin/<remoteBaseBranch>.
+func GetMergeBase(remoteBaseBranch string, localBranchName string) string {
+	if !GetLocalHasBranchOrDie(localBranchName) {
+		panic("Branch does not exist " + localBranchName)
+	}
+	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "merge-base", "origin/"+remoteBaseBranch, localBranchName)
 }
 
 // Returns whether branchName is on remote.
