@@ -328,7 +328,7 @@ func findMostRecentMainCommit(branches []string) string {
 
 	// For each branch, find its merge-base with origin/main
 	for _, branch := range allBranches {
-		mergeBase := gitutil.GetMergeBaseWithOriginMain(branch)
+		mergeBase := gitutil.GetMergeBase(gitutil.GetRemoteMainBranchOrDie(), branch)
 		slog.Debug(fmt.Sprint("Merge-base for ", branch, " with origin/main: ", mergeBase))
 
 		// Get the timestamp of this commit

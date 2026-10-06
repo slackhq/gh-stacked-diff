@@ -86,7 +86,9 @@ func changedFilesOwners(changedFiles []string) map[string][]string {
 Returns changed files against main.
 */
 func getChangedFiles() []string {
-	firstOriginCommit := gitutil.GetMergeBaseWithOriginMain(util.GetCurrentBranchName())
+	currentBranch := util.GetCurrentBranchName()
+	baseBranch := gitutil.GetBaseBranchForPr(currentBranch)
+	firstOriginCommit := gitutil.GetMergeBase(baseBranch, currentBranch)
 	filenamesRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "--no-pager",
 		"log", "--pretty=format:\"\"", "--name-only", firstOriginCommit+"..HEAD")
 	return strings.Split(strings.TrimSpace(filenamesRaw), "\n")

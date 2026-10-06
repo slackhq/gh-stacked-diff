@@ -39,7 +39,7 @@ func replaceConflicts(confirmed bool) {
 	checkConfirmed(confirmed)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", "HEAD")
 	slog.Info(fmt.Sprint("Replacing changes (merge conflicts) for failed rebase of commit ", commitWithConflicts, ", with changes from associated branch, ", gitLog.Branch))
-	gitutil.ApplyDiffFromRef("origin/"+gitutil.GetRemoteMainBranchOrDie(), gitLog.Branch)
+	gitutil.ApplyDiffFromRef("origin/"+gitutil.GetBaseBranchForPr(gitLog.Branch), gitLog.Branch)
 	slog.Info("Adding changes and continuing rebase")
 	continueOptions := util.ExecuteOptions{EnvironmentVariables: []string{"GIT_EDITOR=true"}}
 	// Note: --continue cannot be used with --no-verify.

@@ -62,7 +62,7 @@ func replaceCommitOfBranchInfo(rollbackManager *gitutil.GitRollbackManager, onCh
 	rollbackCommit := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "log", "-n", "1", "--pretty=format:%H")
 	commitsAfter := strings.Fields(util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "--no-pager", "log", gitLog.Commit+"..HEAD", "--pretty=format:%h"))
 	slices.Reverse(commitsAfter)
-	commitToDiffFrom := gitutil.GetMergeBaseWithOriginMain(gitLog.Branch)
+	commitToDiffFrom := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(gitLog.Branch), gitLog.Branch)
 	slog.Info("Resetting to " + gitLog.Commit + "~1")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", gitLog.Commit+"~1")
 	slog.Info("Adding diff from commits " + gitLog.Branch)

@@ -194,3 +194,43 @@ func TestSdReplaceCommit_WhenCherryPickFails_AndPromptDeclined_DoesNotRestore(t 
 
 	assert.Fail("did not panic on cherry-pick conflict")
 }
+
+func TestSdReplaceCommit_WhenPRTargetsNonMainBase_UsesPRBaseBranch(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+
+	// Create a base commit and push to establish origin/main.
+	testutil.AddCommit("base", "base-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+
+	// Create a "release" branch from the base commit and push it.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "release", "HEAD")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", "release")
+
+	// Add a commit on main that only exists on main (not on release).
+	testutil.AddCommit("main-only", "main-only-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+
+	// Add the commit we'll create a PR from, targeting the release branch.
+	testutil.AddCommit("feature", "feature-file")
+	testParseArguments("new", "--base", "release", "1")
+
+	allCommits := templates.GetAllCommits()
+
+	// On the PR branch, add extra content so replace-commit has something to pull back.
+	testParseArguments("checkout", allCommits[0].Commit)
+	testutil.CommitFileChange("extra-on-branch", "feature-file", "updated-content")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", mainBranch)
+
+	// Mock gh pr view to return "release" as the base branch.
+	testExecutor.SetResponse("release", nil, "gh", "pr", "view", allCommits[0].Branch, "--json", "baseRefName", util.MatchAnyRemainingArgs)
+
+	testParseArguments("replace-commit", allCommits[0].Commit)
+
+	// Verify the replacement was applied — the file should have the updated content from the branch.
+	content, err := os.ReadFile("feature-file")
+	assert.NoError(err)
+	assert.Equal("updated-content", string(content))
+}
