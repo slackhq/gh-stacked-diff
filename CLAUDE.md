@@ -23,7 +23,7 @@ make test
 make test -o lint
 
 # Run a specific test
-make TEST_ARGS="-timeout 10s -run TestSdUpdate_WhenDestinationCommitNotSpecified" -o lint test
+make TEST_ARGS="-timeout 60s -run TestSdUpdate_WhenDestinationCommitNotSpecified" -o lint test
 
 # Build and manually test a command
 make build && ./bin/gh-stacked-diff <command-name>
