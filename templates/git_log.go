@@ -81,6 +81,37 @@ func RequireCommitOnMain(commit string) {
 	if !slices.ContainsFunc(newCommits, func(gitLog GitLog) bool {
 		return gitLog.Commit == commit
 	}) {
-		panic("Commit " + commit + " does not exist on " + gitutil.GetLocalMainBranchOrDie() + ". Check `sd log` for available commits.")
+		panic(commitNotOnMainMessage(commit))
 	}
+}
+
+func commitNotOnMainMessage(commit string) string {
+	return "Commit " + commit + " does not exist on " + gitutil.GetLocalMainBranchOrDie() + ". Check `sd log` for available commits."
+}
+
+// SortEarliestFirst returns a copy of commits ordered earliest first, so that they can be cherry-picked in order.
+//
+// Panics if a commit is not one of the new commits (see [GetNewCommits]).
+func SortEarliestFirst(commits []GitLog, gitDir string) []GitLog {
+	// New commits are ordered newest first, so a higher index is an earlier commit.
+	newCommits := GetNewCommits("HEAD", gitDir)
+	indexOf := func(commit GitLog) int {
+		index := slices.IndexFunc(newCommits, func(newCommit GitLog) bool {
+			return newCommit.Commit == commit.Commit
+		})
+		if index == -1 {
+			panic(commitNotOnMainMessage(commit.Commit))
+		}
+		return index
+	}
+	// Look up every commit first, as sorting does not compare a lone commit.
+	indexes := make(map[string]int, len(commits))
+	for _, commit := range commits {
+		indexes[commit.Commit] = indexOf(commit)
+	}
+	sorted := slices.Clone(commits)
+	slices.SortStableFunc(sorted, func(a, b GitLog) int {
+		return indexes[b.Commit] - indexes[a.Commit]
+	})
+	return sorted
 }
