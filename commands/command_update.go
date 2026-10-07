@@ -114,17 +114,7 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		}
 		slog.Info("Switching back to " + gitutil.GetLocalMainBranchOrDie())
 		gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
-		slog.Info(fmt.Sprint("Rebasing, marking as fixup ", commitsToCherryPick, " for target ", destCommit.Commit))
-		commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
-			return commit.Commit
-		})
-		environmentVariables := []string{
-			sequenceEditorEnvVar("sequence-editor-mark-as-fixup", append([]string{destCommit.Commit}, commitHashes...)...),
-		}
-		slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
-		options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: appConfig.Io}
-		rebaseBase := earliestCommit(destCommit, commitsToCherryPick)
-		gitutil.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
+		squashFixupsOnCurrentBranch(destCommit, commitsToCherryPick)
 		// Do the push last so that if there is a rollback origin was not updated.
 		slog.Info("Pushing to remote")
 		if forcePush {
@@ -137,27 +127,6 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		}
 		rollbackManager.Clear()
 	})
-}
-
-// earliestCommit returns the commit hash of the oldest commit among destCommit
-// and commitsToCherryPick. GetNewCommits returns newest-first, so the highest
-// index is the oldest commit.
-func earliestCommit(destCommit templates.GitLog, commitsToCherryPick []templates.GitLog) string {
-	newCommits := templates.GetNewCommits("HEAD", "")
-	earliest := destCommit.Commit
-	earliestIdx := slices.IndexFunc(newCommits, func(gl templates.GitLog) bool {
-		return gl.Commit == destCommit.Commit
-	})
-	for _, cp := range commitsToCherryPick {
-		idx := slices.IndexFunc(newCommits, func(gl templates.GitLog) bool {
-			return gl.Commit == cp.Commit
-		})
-		if idx > earliestIdx {
-			earliestIdx = idx
-			earliest = cp.Commit
-		}
-	}
-	return earliest
 }
 
 func checkNotMerged(branchName string) {
