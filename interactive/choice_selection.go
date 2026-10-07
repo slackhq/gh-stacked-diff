@@ -8,6 +8,8 @@ import (
 	"github.com/slackhq/gh-stacked-diff/v2/util"
 )
 
+const maxNumberedChoiceOptions = 9
+
 type choiceModel struct {
 	options   []string
 	cursor    int
@@ -42,7 +44,8 @@ func (m choiceModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		default:
-			if len(msg.String()) == 1 && msg.String()[0] >= '1' && msg.String()[0] <= '9' {
+			if len(m.options) <= maxNumberedChoiceOptions &&
+				len(msg.String()) == 1 && msg.String()[0] >= '1' && msg.String()[0] <= '9' {
 				selected := int(msg.String()[0] - '1')
 				if selected < len(m.options) {
 					m.selected = selected
@@ -63,9 +66,17 @@ func (m choiceModel) View() string {
 	b.WriteString(promptStyle.Render(m.prompt) + "\n")
 	for i, option := range m.options {
 		if i == m.cursor {
-			b.WriteString(highlightEnabledStyle.Render(fmt.Sprintf(" ▸ %d. %s", i+1, option)))
+			if len(m.options) <= maxNumberedChoiceOptions {
+				b.WriteString(highlightEnabledStyle.Render(fmt.Sprintf(" ▸ %d. %s", i+1, option)))
+			} else {
+				b.WriteString(highlightEnabledStyle.Render(" ▸ " + option))
+			}
 		} else {
-			fmt.Fprintf(&b, "   %d. %s", i+1, option)
+			if len(m.options) <= maxNumberedChoiceOptions {
+				fmt.Fprintf(&b, "   %d. %s", i+1, option)
+			} else {
+				b.WriteString("   " + option)
+			}
 		}
 		b.WriteString("\n")
 	}

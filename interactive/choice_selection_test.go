@@ -50,6 +50,35 @@ func TestChoiceModel_UpdateIgnoresNumberWithoutMatchingOption(t *testing.T) {
 	assert.False(t, result.completed)
 }
 
+func TestChoiceModel_DoesNotNumberMoreThanNineOptions(t *testing.T) {
+	model := choiceModel{
+		options: []string{
+			"first", "second", "third", "fourth", "fifth",
+			"sixth", "seventh", "eighth", "ninth", "tenth",
+		},
+		cursor: 0,
+		prompt: "Choose one:",
+	}
+
+	view := ansi.Strip(model.View())
+
+	assert.Equal(t, "Choose one:\n ▸ first\n   second\n   third\n   fourth\n   fifth\n   sixth\n   seventh\n   eighth\n   ninth\n   tenth\n", view)
+}
+
+func TestChoiceModel_DoesNotSelectByNumberWithMoreThanNineOptions(t *testing.T) {
+	model := choiceModel{
+		options:  []string{"first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"},
+		selected: -1,
+	}
+
+	updated, cmd := model.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'2'}}))
+	result := updated.(choiceModel)
+
+	assert.Nil(t, cmd)
+	assert.Equal(t, -1, result.selected)
+	assert.False(t, result.completed)
+}
+
 func TestChoiceModel_ViewHasOneOptionPerLine(t *testing.T) {
 	model := choiceModel{
 		options: []string{"first", "second"},
