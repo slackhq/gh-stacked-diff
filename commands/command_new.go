@@ -65,7 +65,7 @@ func createNewCommand() *cobra.Command {
 			"                                Configured via config.yaml or --config.\n" +
 			"   Username                     Name as parsed from git config email.\n" +
 			"   UsernameCleaned              Username with dots (.) converted to dashes (-).\n",
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.ArbitraryArgs,
 		Annotations: map[string]string{
 			checkRepoAnnotation: "true",
 		},
@@ -92,11 +92,15 @@ func createNewCommand() *cobra.Command {
 			*noTemplate = userConfig.NoTemplate
 		}
 		selectCommitOptions := interactive.CommitSelectionOptions{
-			Prompt:      "What commit do you want to create a PR from?",
+			Prompt:      "What commit(s) do you want to create a PR from?",
 			CommitType:  interactive.CommitTypeNoPr,
-			MultiSelect: false,
+			MultiSelect: true,
 		}
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
+		if len(targetCommits) > 1 {
+			promptForMultiCommitStrategy(targetCommits)
+			return
+		}
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		var remoteBaseBranch string
 		if *baseBranch == "" {
@@ -179,6 +183,31 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 	gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
+}
+
+func promptForMultiCommitStrategy(targetCommits []templates.GitLog) {
+	appConfig := util.GetAppConfig()
+	util.Fprintln(appConfig.Io.Out, fmt.Sprint("Selected ", len(targetCommits), " commits:"))
+	for _, commit := range targetCommits {
+		util.Fprintln(appConfig.Io.Out, fmt.Sprint("  ", commit.Commit[:7], " ", commit.Subject))
+	}
+	util.Fprintln(appConfig.Io.Out, "")
+	options := []string{
+		"Create one PR with all commits (new + update)",
+		"Use GitHub Stacked PRs (gh stack)",
+		"Create separate PRs for each commit",
+	}
+	choice := interactive.GetChoiceSelection(options, "How would you like to create PRs?")
+	switch choice {
+	case 0:
+		panic("combined PR")
+	case 1:
+		panic("stacked PRs")
+	case 2:
+		panic("separate PRs")
+	default:
+		appConfig.Exit(0)
+	}
 }
 
 func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft bool) string {

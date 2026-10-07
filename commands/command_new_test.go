@@ -673,6 +673,91 @@ func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedRespons
 	return util.ExecutedResponse{}, false
 }
 
+func TestSdNew_WhenMultipleCommits_CombinedPr(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select first option
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		if r != nil {
+			assert.Contains(out.String(), "combined PR")
+		}
+	}()
+	testParseArgumentsWithOut(out, "new", "1", "2")
+	assert.Fail("expected panic")
+}
+
+func TestSdNew_WhenMultipleCommits_StackedPrs(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select second option
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		if r != nil {
+			assert.Contains(out.String(), "stacked PRs")
+		}
+	}()
+	testParseArgumentsWithOut(out, "new", "1", "2")
+	assert.Fail("expected panic")
+}
+
+func TestSdNew_WhenMultipleCommits_SeparatePrs(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select third option
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		if r != nil {
+			assert.Contains(out.String(), "separate PRs")
+		}
+	}()
+	testParseArgumentsWithOut(out, "new", "1", "2")
+	assert.Fail("expected panic")
+}
+
+func TestSdNew_WhenMultipleCommits_Cancelled(t *testing.T) {
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — cancel
+		interactive.NewMessageKey(tea.KeyEsc),
+	)
+
+	defer func() {
+		_ = recover()
+	}()
+	testParseArguments("new", "1", "2")
+}
+
 func TestSdNew_WhenInSecondaryWorktree_UsesRemoteMainForBaseBranch(t *testing.T) {
 	assert := assert.New(t)
 
