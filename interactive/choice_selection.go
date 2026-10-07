@@ -1,6 +1,7 @@
 package interactive
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -40,6 +41,15 @@ func (m choiceModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor >= len(m.options) {
 				m.cursor = 0
 			}
+		default:
+			if len(msg.String()) == 1 && msg.String()[0] >= '1' && msg.String()[0] <= '9' {
+				selected := int(msg.String()[0] - '1')
+				if selected < len(m.options) {
+					m.selected = selected
+					m.completed = true
+					return m, tea.Quit
+				}
+			}
 		}
 	}
 	return m, nil
@@ -53,9 +63,9 @@ func (m choiceModel) View() string {
 	b.WriteString(promptStyle.Render(m.prompt) + "\n")
 	for i, option := range m.options {
 		if i == m.cursor {
-			b.WriteString(highlightEnabledStyle.Render(" ▸ " + option))
+			b.WriteString(highlightEnabledStyle.Render(fmt.Sprintf(" ▸ %d. %s", i+1, option)))
 		} else {
-			b.WriteString("   " + option)
+			fmt.Fprintf(&b, "   %d. %s", i+1, option)
 		}
 		b.WriteString("\n")
 	}
