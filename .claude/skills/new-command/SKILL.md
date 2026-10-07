@@ -130,7 +130,7 @@ func TestSd<CommandName>_BasicTest(t *testing.T) {
    - Mark this todo as completed
 
 8. **Run Tests**: Mark this todo as in_progress
-   - Run `make TEST_ARGS="-timeout 10s -run TestSd<CommandName>" -o lint test` to verify the code compiles and basic tests pass
+   - Run `make TEST_ARGS="-timeout 60s -run TestSd<CommandName>" -o lint test` to verify the code compiles and basic tests pass
    - If tests fail, report the error to the user and keep this todo as in_progress
    - If tests pass, mark this todo as completed
 
