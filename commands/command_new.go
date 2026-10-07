@@ -97,10 +97,6 @@ func createNewCommand() *cobra.Command {
 			MultiSelect: true,
 		}
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
-		if len(targetCommits) > 1 {
-			promptForMultiCommitStrategy(targetCommits)
-			return
-		}
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
 		var remoteBaseBranch string
 		if *baseBranch == "" {
@@ -119,18 +115,63 @@ func createNewCommand() *cobra.Command {
 			)
 			util.SaveTicketUrlPattern(ticketUrlPattern)
 		}
-		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig, *merge)
-		createNewPr(*draft, *noTemplate, *featureFlag, ticketUrlPattern, *baseBranch, remoteBaseBranch, targetCommits[0])
-		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
-			WhenChecksPass: true,
-			Silent:         *silent,
-			MinChecks:      *minChecks,
-			PollFrequency:  userConfig.PollInterval,
-			AutoMerge:      *merge,
-		})
+		prOptions := newPrOptions{
+			draft:                 *draft,
+			noTemplate:            *noTemplate,
+			featureFlag:           *featureFlag,
+			ticketUrlPattern:      ticketUrlPattern,
+			baseBranch:            *baseBranch,
+			remoteBaseBranch:      remoteBaseBranch,
+			shouldPromptReviewers: len(args) == 0 && *draft && *reviewers == "",
+			userConfig:            userConfig,
+			reviewers:             *reviewers,
+			reviewerOptions: AddReviewersOptions{
+				WhenChecksPass: true,
+				Silent:         *silent,
+				MinChecks:      *minChecks,
+				PollFrequency:  userConfig.PollInterval,
+				AutoMerge:      *merge,
+			},
+		}
+		if len(targetCommits) > 1 {
+			strategy := promptForMultiCommitStrategy(targetCommits)
+			switch strategy {
+			case multiCommitStrategyCombined:
+				panic("combined PR")
+			case multiCommitStrategyStacked:
+				panic("stacked PRs")
+			case multiCommitStrategySeparate:
+				createNewPrs(targetCommits, prOptions)
+				return
+			default:
+				panic(fmt.Sprintf("unexpected multi-commit strategy: %d", strategy))
+			}
+		}
+		createNewPrs(targetCommits[:1], prOptions)
 	}
 
 	return cmd
+}
+
+type newPrOptions struct {
+	draft                 bool
+	noTemplate            bool
+	featureFlag           string
+	ticketUrlPattern      string
+	baseBranch            string
+	remoteBaseBranch      string
+	shouldPromptReviewers bool
+	userConfig            util.UserConfig
+	reviewers             string
+	reviewerOptions       AddReviewersOptions
+}
+
+func createNewPrs(targetCommits []templates.GitLog, opts newPrOptions) {
+	selectedReviewers, markReady := promptForReviewers(opts.shouldPromptReviewers, opts.userConfig, opts.reviewerOptions.AutoMerge)
+	for _, targetCommit := range targetCommits {
+		createNewPr(opts.draft, opts.noTemplate, opts.featureFlag, opts.ticketUrlPattern, opts.baseBranch, opts.remoteBaseBranch, targetCommit)
+	}
+	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, targetCommits, opts.reviewerOptions)
 }
 
 // Creates a new pull request via Github CLI.
@@ -185,7 +226,15 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
 }
 
-func promptForMultiCommitStrategy(targetCommits []templates.GitLog) {
+type multiCommitStrategy int
+
+const (
+	multiCommitStrategyCombined multiCommitStrategy = iota
+	multiCommitStrategyStacked
+	multiCommitStrategySeparate
+)
+
+func promptForMultiCommitStrategy(targetCommits []templates.GitLog) multiCommitStrategy {
 	appConfig := util.GetAppConfig()
 	util.Fprintln(appConfig.Io.Out, fmt.Sprint("Selected ", len(targetCommits), " commits:"))
 	for _, commit := range targetCommits {
@@ -200,13 +249,14 @@ func promptForMultiCommitStrategy(targetCommits []templates.GitLog) {
 	choice := interactive.GetChoiceSelection(options, "How would you like to create PRs?")
 	switch choice {
 	case 0:
-		panic("combined PR")
+		return multiCommitStrategyCombined
 	case 1:
-		panic("stacked PRs")
+		return multiCommitStrategyStacked
 	case 2:
-		panic("separate PRs")
+		return multiCommitStrategySeparate
 	default:
 		appConfig.Exit(0)
+		return multiCommitStrategyCombined
 	}
 }
 

@@ -720,7 +720,7 @@ func TestSdNew_WhenMultipleCommits_StackedPrs(t *testing.T) {
 
 func TestSdNew_WhenMultipleCommits_SeparatePrs(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelError)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "")
 
@@ -731,15 +731,25 @@ func TestSdNew_WhenMultipleCommits_SeparatePrs(t *testing.T) {
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
 
-	out := new(bytes.Buffer)
-	defer func() {
-		r := recover()
-		if r != nil {
-			assert.Contains(out.String(), "separate PRs")
+	testParseArguments("new", "1", "2")
+
+	prCreateCalls := slices.Collect(func(yield func(util.ExecutedResponse) bool) {
+		for _, response := range testExecutor.Responses {
+			if response.ProgramName == "gh" && len(response.Args) >= 2 &&
+				response.Args[0] == "pr" && response.Args[1] == "create" {
+				if !yield(response) {
+					return
+				}
+			}
 		}
-	}()
-	testParseArgumentsWithOut(out, "new", "1", "2")
-	assert.Fail("expected panic")
+	})
+	assert.Len(prCreateCalls, 2)
+	assert.Contains(prCreateCalls[0].Args, "--title")
+	assert.Contains(prCreateCalls[1].Args, "--title")
+
+	allCommits := templates.GetAllCommits()
+	assert.True(gitutil.RemoteHasBranch(allCommits[0].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
 }
 
 func TestSdNew_WhenMultipleCommits_Cancelled(t *testing.T) {
