@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Test Commands
 
-**IMPORTANT: Never call `go test` directly. Always use `make` with `TEST_ARGS` and include `-timeout 10s` to avoid hanging tests.**
+**IMPORTANT: Never call `go test` directly. Always use `make` with `TEST_ARGS` and include `-timeout 60s` to avoid hanging tests.**
 
 ```bash
 # First-time setup (configures pre-commit hook for lint)
@@ -23,7 +23,7 @@ make test
 make test -o lint
 
 # Run a specific test
-make TEST_ARGS="-timeout 10s -run TestSdUpdate_WhenDestinationCommitNotSpecified" -o lint test
+make TEST_ARGS="-timeout 60s -run TestSdUpdate_WhenDestinationCommitNotSpecified" -o lint test
 
 # Build and manually test a command
 make build && ./bin/gh-stacked-diff <command-name>
