@@ -673,6 +673,228 @@ func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedRespons
 	return util.ExecutedResponse{}, false
 }
 
+func TestSdNew_WhenMultipleCommits_CombinedPr(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	responsesBeforeNew := len(testExecutor.Responses)
+	commitsBeforeNew := templates.GetAllCommits()
+	secondBranch := commitsBeforeNew[0].Branch
+	firstBranch := commitsBeforeNew[1].Branch
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select first option
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	// Commit indicators are newest-first, so pass the older commit first to
+	// preserve the selected oldest-to-newest cherry-pick order.
+	testParseArguments("new", "2", "1")
+
+	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+	assert.True(gitutil.RemoteHasBranch(firstBranch))
+	assert.False(gitutil.RemoteHasBranch(secondBranch))
+
+	// Local main has the commits squashed into one.
+	commitsAfterNew := templates.GetAllCommits()
+	assert.Equal(len(commitsBeforeNew)-1, len(commitsAfterNew))
+	assert.Equal("first", commitsAfterNew[0].Subject)
+	assert.Equal("second", strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "-1", "--format=%s", firstBranch)))
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
+	combinedCommits := templates.GetNewCommits("HEAD", "")
+	assert.Equal([]string{"second", "first"}, []string{combinedCommits[0].Subject, combinedCommits[1].Subject})
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", gitutil.GetLocalMainBranchOrDie())
+
+	pushCount := 0
+	for _, response := range testExecutor.Responses[responsesBeforeNew:] {
+		if response.ProgramName == "git" && len(response.Args) > 0 && slices.Contains(response.Args, "push") {
+			pushCount++
+		}
+	}
+	assert.Equal(1, pushCount)
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+	titleIndex := slices.Index(prCreateCall.Args, "--title")
+	assert.Greater(titleIndex, -1, "expected --title flag")
+	assert.Equal("first", prCreateCall.Args[titleIndex+1])
+}
+
+func findGhStackInitCall(responses []util.ExecutedResponse) (util.ExecutedResponse, bool) {
+	for _, r := range responses {
+		if r.ProgramName == "gh" && len(r.Args) >= 2 && r.Args[0] == "stack" && r.Args[1] == "init" {
+			return r, true
+		}
+	}
+	return util.ExecutedResponse{}, false
+}
+
+func selectStackedStrategy() {
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select second option
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+}
+
+func TestSdNew_WhenMultipleCommits_StackedPrs(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testExecutor.SetResponse("", nil, "gh", "stack", "init", util.MatchAnyRemainingArgs)
+	selectStackedStrategy()
+
+	allCommits := templates.GetAllCommits()
+	secondBranch := allCommits[0].Branch
+	firstBranch := allCommits[1].Branch
+	responsesBeforeNew := len(testExecutor.Responses)
+	// Commit indicators are newest-first, so pass the older commit first.
+	testParseArguments("new", "2", "1")
+
+	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+	assert.Equal(allCommits, templates.GetAllCommits())
+	// The second branch is stacked on the first.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "merge-base", "--is-ancestor", firstBranch, secondBranch)
+	assert.Equal("second", strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "-1", "--format=%s", secondBranch)))
+
+	responsesFromNew := testExecutor.Responses[responsesBeforeNew:]
+	_, createPrCalled := findGhPrCreateCall(responsesFromNew)
+	assert.False(createPrCalled, "expected gh pr create to not be called")
+	for _, response := range responsesFromNew {
+		assert.False(response.ProgramName == "git" && slices.Contains(response.Args, "push"), "expected no push")
+	}
+	stackInitCall, found := findGhStackInitCall(responsesFromNew)
+	assert.True(found, "expected gh stack init to be called")
+	assert.Equal([]string{"stack", "init", firstBranch, secondBranch}, stackInitCall.Args)
+}
+
+func TestSdNew_WhenMultipleCommits_StackedPrsWithBase_PassesBaseToStackInit(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "feature-base")
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testExecutor.SetResponse("", nil, "gh", "stack", "init", util.MatchAnyRemainingArgs)
+	selectStackedStrategy()
+
+	allCommits := templates.GetAllCommits()
+	secondBranch := allCommits[0].Branch
+	firstBranch := allCommits[1].Branch
+	testParseArguments("new", "--base", "feature-base", "2", "1")
+
+	stackInitCall, found := findGhStackInitCall(testExecutor.Responses)
+	assert.True(found, "expected gh stack init to be called")
+	assert.Equal([]string{"stack", "init", "--base", "feature-base", firstBranch, secondBranch}, stackInitCall.Args)
+}
+
+func TestSdNew_WhenMultipleCommits_StackedPrsAndStackInitFails_RollsBack(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testExecutor.SetResponse("", errors.New("Exit Code 1"), "gh", "stack", "init", util.MatchAnyRemainingArgs)
+	selectStackedStrategy()
+
+	allCommits := templates.GetAllCommits()
+	restoreBranch := util.GetCurrentBranchName()
+	defer func() {
+		r := recover()
+		assert.NotNil(r, "did not panic on gh stack init")
+		assert.Equal(restoreBranch, util.GetCurrentBranchName())
+		assert.Equal(allCommits, templates.GetAllCommits())
+		for _, commit := range allCommits[:2] {
+			assert.False(gitutil.GetLocalHasBranchOrDie(commit.Branch), "expected branch to be deleted: "+commit.Branch)
+		}
+	}()
+
+	testParseArguments("new", "2", "1")
+}
+
+func TestSdNew_WhenMultipleCommits_SeparatePrs(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select third option
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyDown),
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	testParseArguments("new", "1", "2")
+
+	prCreateCalls := slices.Collect(func(yield func(util.ExecutedResponse) bool) {
+		for _, response := range testExecutor.Responses {
+			if response.ProgramName == "gh" && len(response.Args) >= 2 &&
+				response.Args[0] == "pr" && response.Args[1] == "create" {
+				if !yield(response) {
+					return
+				}
+			}
+		}
+	})
+	assert.Len(prCreateCalls, 2)
+	assert.Contains(prCreateCalls[0].Args, "--title")
+	assert.Contains(prCreateCalls[1].Args, "--title")
+
+	allCommits := templates.GetAllCommits()
+	assert.True(gitutil.RemoteHasBranch(allCommits[0].Branch))
+	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
+}
+
+func TestSdNew_WhenMultipleStrategyFlagSeparate_SkipsPrompt(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	testParseArguments("new", "--multiple-strategy", "separate", "1", "2")
+
+	prCreateCalls := 0
+	for _, response := range testExecutor.Responses {
+		if response.ProgramName == "gh" && len(response.Args) >= 2 && response.Args[0] == "pr" && response.Args[1] == "create" {
+			prCreateCalls++
+		}
+	}
+	assert.Equal(2, prCreateCalls)
+}
+
+func TestSdNew_WhenMultipleStrategyFlagInvalid_Fails(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	out := new(bytes.Buffer)
+	defer func() {
+		assert.NotNil(recover(), "expected exit")
+		assert.Contains(out.String(), "Invalid --multiple-strategy")
+	}()
+
+	testParseArgumentsWithOut(out, "new", "--multiple-strategy", "bogus", "1", "2")
+}
+
+func TestSdNew_WhenMultipleCommits_Cancelled(t *testing.T) {
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — cancel
+		interactive.NewMessageKey(tea.KeyEsc),
+	)
+
+	defer func() {
+		_ = recover()
+	}()
+	testParseArguments("new", "1", "2")
+}
+
 func TestSdNew_WhenInSecondaryWorktree_UsesRemoteMainForBaseBranch(t *testing.T) {
 	assert := assert.New(t)
 
@@ -724,4 +946,48 @@ func TestSdNew_WhenNoDraft_NoReadyPromptShown(t *testing.T) {
 	allCommits := templates.GetAllCommits()
 
 	assert.True(gitutil.RemoteHasBranch(allCommits[0].Branch))
+}
+
+func TestSdNew_WhenMultipleCommits_CombinedPrWithNonAdjacentCommits_SquashesOnMain(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testutil.AddCommit("third", "")
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select first option
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	testParseArguments("new", "3", "1")
+
+	// "third" is squashed into "first", and "second" is unchanged.
+	subjects := util.MapSlice(templates.GetNewCommits("HEAD", ""), func(commit templates.GitLog) string {
+		return commit.Subject
+	})
+	assert.Equal([]string{"second", "first"}, subjects)
+}
+
+func TestSdNew_WhenMultipleCommits_CombinedPrAndPrCreateFails_RestoresMain(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testExecutor.SetResponse("", errors.New("Exit Code 1"), "gh", "pr", "create", util.MatchAnyRemainingArgs)
+	interactive.SendToProgram(0,
+		// How would you like to create PRs? — select first option
+		interactive.NewMessageKey(tea.KeyEnter),
+	)
+
+	allCommits := templates.GetAllCommits()
+	restoreBranch := util.GetCurrentBranchName()
+	defer func() {
+		r := recover()
+		assert.NotNil(r, "did not panic on PR create")
+		assert.Equal(restoreBranch, util.GetCurrentBranchName())
+		// Squash on main was undone.
+		assert.Equal(allCommits, templates.GetAllCommits())
+	}()
+
+	testParseArguments("new", "2", "1")
 }

@@ -17,14 +17,28 @@ import (
 
 func createNewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "new [commitIndicator]",
+		Use:   "new [commitIndicator...]",
 		Short: "Create a new pull request from a commit on main",
-		Long: "Create a new PR with a cherry-pick of the given commit indicator.\n" +
+		Long: "Create a new PR with a cherry-pick of the given commit indicator(s).\n" +
 			"\n" +
 			"This command first creates an associated branch, (with a name based\n" +
 			"on the commit summary), and then uses Github CLI to create a PR.\n" +
 			"\n" +
 			"Can also add reviewers once PR checks have passed, see \"--reviewers\" flag.\n" +
+			"\n" +
+			color.HiWhiteString("Multiple Commits:") + "\n" +
+			"\n" +
+			"If more than one commit is selected, you are asked how to create the PRs:\n" +
+			"\n" +
+			"   One PR with all commits   The commits are squashed together on " + gitutil.GetMainBranchForHelp() + "\n" +
+			"                             (like \"sd update\") and a single PR is created.\n" +
+			"   GitHub Stacked PRs        A branch is created for each commit, each based on\n" +
+			"                             the previous one (earliest commit first), and then\n" +
+			"                             \"gh stack init\" is run with the branches. Nothing is\n" +
+			"                             pushed and no PRs are created.\n" +
+			"   Separate PRs              A PR is created for each commit.\n" +
+			"\n" +
+			"Use \"--multiple-strategy\" (combined, stacked, or separate) to skip the question.\n" +
 			"\n" +
 			color.HiWhiteString("Ticket Number:") + "\n" +
 			"\n" +
@@ -65,7 +79,7 @@ func createNewCommand() *cobra.Command {
 			"                                Configured via config.yaml or --config.\n" +
 			"   Username                     Name as parsed from git config email.\n" +
 			"   UsernameCleaned              Username with dots (.) converted to dashes (-).\n",
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.ArbitraryArgs,
 		Annotations: map[string]string{
 			checkRepoAnnotation: "true",
 		},
@@ -80,6 +94,11 @@ func createNewCommand() *cobra.Command {
 		return branches, cobra.ShellCompDirectiveNoFileComp
 	})
 
+	multipleStrategy := cmd.Flags().String("multiple-strategy", "", "How to handle multiple commits, skipping the prompt: "+strings.Join(multiCommitStrategyNames(), ", "))
+	_ = cmd.RegisterFlagCompletionFunc("multiple-strategy", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return multiCommitStrategyNames(), cobra.ShellCompDirectiveNoFileComp
+	})
+
 	cmd.MarkFlagsMutuallyExclusive("no-template", "feature-flag")
 
 	reviewers, silent, minChecks, merge := addReviewersFlags(cmd)
@@ -87,14 +106,19 @@ func createNewCommand() *cobra.Command {
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		gitutil.RequireMainBranch()
+		var flagStrategy *multiCommitStrategy
+		if *multipleStrategy != "" {
+			parsed := parseMultiCommitStrategyOrDie(*multipleStrategy)
+			flagStrategy = &parsed
+		}
 		userConfig := util.GetUserConfig()
 		if !cmd.Flags().Changed("no-template") {
 			*noTemplate = userConfig.NoTemplate
 		}
 		selectCommitOptions := interactive.CommitSelectionOptions{
-			Prompt:      "What commit do you want to create a PR from?",
+			Prompt:      "What commit(s) do you want to create a PR from?",
 			CommitType:  interactive.CommitTypeNoPr,
-			MultiSelect: false,
+			MultiSelect: true,
 		}
 		targetCommits := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		// Note: set the default here rather than via flags to avoid GetLocalMainBranchOrDie being called before Run.
@@ -115,32 +139,149 @@ func createNewCommand() *cobra.Command {
 			)
 			util.SaveTicketUrlPattern(ticketUrlPattern)
 		}
-		selectedReviewers, markReady := promptForReviewers(len(args) == 0 && *draft && *reviewers == "", userConfig, *merge)
-		createNewPr(*draft, *noTemplate, *featureFlag, ticketUrlPattern, *baseBranch, remoteBaseBranch, targetCommits[0])
-		maybeAddReviewers(*reviewers, selectedReviewers, markReady, targetCommits, AddReviewersOptions{
-			WhenChecksPass: true,
-			Silent:         *silent,
-			MinChecks:      *minChecks,
-			PollFrequency:  userConfig.PollInterval,
-			AutoMerge:      *merge,
-		})
+		prOptions := newPrOptions{
+			draft:                 *draft,
+			noTemplate:            *noTemplate,
+			featureFlag:           *featureFlag,
+			ticketUrlPattern:      ticketUrlPattern,
+			baseBranch:            *baseBranch,
+			remoteBaseBranch:      remoteBaseBranch,
+			shouldPromptReviewers: len(args) == 0 && *draft && *reviewers == "",
+			userConfig:            userConfig,
+			reviewers:             *reviewers,
+			reviewerOptions: AddReviewersOptions{
+				WhenChecksPass: true,
+				Silent:         *silent,
+				MinChecks:      *minChecks,
+				PollFrequency:  userConfig.PollInterval,
+				AutoMerge:      *merge,
+			},
+		}
+		if len(targetCommits) > 1 {
+			var strategy multiCommitStrategy
+			if flagStrategy != nil {
+				strategy = *flagStrategy
+			} else {
+				strategy = promptForMultiCommitStrategy(targetCommits)
+			}
+			switch strategy {
+			case multiCommitStrategyCombined:
+				createCombinedPr(targetCommits, prOptions)
+				return
+			case multiCommitStrategyStacked:
+				warnFlagsIgnoredForStackedBranches(cmd)
+				createStackedBranches(targetCommits, prOptions)
+				return
+			case multiCommitStrategySeparate:
+				createNewPrs(targetCommits, prOptions)
+				return
+			default:
+				panic(fmt.Sprintf("unexpected multi-commit strategy: %d", strategy))
+			}
+		}
+		createNewPrs(targetCommits[:1], prOptions)
 	}
 
 	return cmd
 }
 
+type newPrOptions struct {
+	draft                 bool
+	noTemplate            bool
+	featureFlag           string
+	ticketUrlPattern      string
+	baseBranch            string
+	remoteBaseBranch      string
+	shouldPromptReviewers bool
+	userConfig            util.UserConfig
+	reviewers             string
+	reviewerOptions       AddReviewersOptions
+}
+
+func createNewPrs(targetCommits []templates.GitLog, opts newPrOptions) {
+	selectedReviewers, markReady := promptForReviewers(opts.shouldPromptReviewers, opts.userConfig, opts.reviewerOptions.AutoMerge)
+	for _, targetCommit := range targetCommits {
+		createNewPr(opts.draft, opts.noTemplate, opts.featureFlag, opts.ticketUrlPattern, opts.baseBranch, opts.remoteBaseBranch, targetCommit)
+	}
+	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, targetCommits, opts.reviewerOptions)
+}
+
+func createCombinedPr(targetCommits []templates.GitLog, opts newPrOptions) {
+	selectedReviewers, markReady := promptForReviewers(opts.shouldPromptReviewers, opts.userConfig, opts.reviewerOptions.AutoMerge)
+	identityCommit := targetCommits[0]
+	createNewPrWithCommits(opts.draft, opts.noTemplate, opts.featureFlag, opts.ticketUrlPattern, opts.baseBranch, opts.remoteBaseBranch, identityCommit, targetCommits)
+	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, []templates.GitLog{identityCommit}, opts.reviewerOptions)
+}
+
+// Creates a local branch for each commit, each based on the previous one (earliest commit first),
+// and then registers them as a stack via "gh stack init". Does not push or create any PRs.
+func createStackedBranches(targetCommits []templates.GitLog, opts newPrOptions) {
+	for _, commit := range targetCommits {
+		templates.RequireCommitOnMain(commit.Commit)
+	}
+	gitutil.WithStashAndRollback("create stacked branches "+targetCommits[0].Commit+" "+targetCommits[0].Subject, func(rollbackManager *gitutil.GitRollbackManager) {
+		baseBranch := opts.baseBranch
+		var branches []string
+		for _, commit := range targetCommits {
+			createBranchAndCherryPick(rollbackManager, baseBranch, commit, []templates.GitLog{commit})
+			baseBranch = commit.Branch
+			branches = append(branches, commit.Branch)
+		}
+		slog.Info(fmt.Sprint("Initializing stack ", branches))
+		stackInitArgs := []string{"stack", "init"}
+		if opts.baseBranch != gitutil.GetLocalMainBranchOrDie() {
+			// Otherwise gh stack would use the default branch as the trunk.
+			stackInitArgs = append(stackInitArgs, "--base", opts.remoteBaseBranch)
+		}
+		util.ExecuteOrDie(util.ExecuteOptions{}, "gh", stackInitArgs, branches)
+		rollbackManager.Clear()
+		switchBackToMain()
+		slog.Info("Use gh stack to manage the stack. For example: `gh stack checkout && gh stack modify`")
+	})
+}
+
+// Warns about flags that only apply when creating PRs, as stacked branches are not pushed.
+func warnFlagsIgnoredForStackedBranches(cmd *cobra.Command) {
+	var ignored []string
+	for _, name := range []string{"draft", "no-template", "feature-flag", "reviewers", "silent", "min-checks", "merge"} {
+		if cmd.Flags().Changed(name) {
+			ignored = append(ignored, "--"+name)
+		}
+	}
+	if len(ignored) > 0 {
+		slog.Warn(fmt.Sprint("Ignoring ", strings.Join(ignored, ", "), " as PRs are not created for stacked branches"))
+	}
+}
+
 // Creates a new pull request via Github CLI.
 func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog) {
+	createNewPrWithCommits(draft, noTemplate, featureFlag, ticketUrlPattern, baseBranch, remoteBaseBranch, gitLog, []templates.GitLog{gitLog})
+}
+
+func createNewPrWithCommits(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog, commitsToCherryPick []templates.GitLog) {
 	templates.RequireCommitOnMain(gitLog.Commit)
+	for _, commit := range commitsToCherryPick {
+		templates.RequireCommitOnMain(commit.Commit)
+	}
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
-		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog)
-		pushAndCreateGhPr(draft, noTemplate, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
+		// Get the PR text before squashing, as squashing changes the commit hash.
+		var prText templates.PullRequestText
+		if noTemplate {
+			prText = templates.GetPullRequestTextRaw(gitLog.Commit)
+		} else {
+			prText = templates.GetPullRequestText(gitLog.Commit, featureFlag, ticketUrlPattern)
+		}
+		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog, commitsToCherryPick)
+		if len(commitsToCherryPick) > 1 {
+			squashCommitsOnLocalMain(gitLog, commitsToCherryPick)
+		}
+		pushAndCreateGhPr(prText, draft, remoteBaseBranch)
 		rollbackManager.Clear()
 		openPrAndSwitchBack(gitLog)
 	})
 }
 
-func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
+func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog, commitsToCherryPick []templates.GitLog) {
 	var commitToBranchFrom string
 	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
 		commitToBranchFrom = gitutil.GetMergeBase(gitutil.GetRemoteMainBranchOrDie(), gitutil.GetLocalMainBranchOrDie())
@@ -152,20 +293,32 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "--no-track", gitLog.Branch, commitToBranchFrom)
 	rollbackManager.CreatedBranch(gitLog.Branch)
 	gitutil.GitSwitch(gitLog.Branch)
-	slog.Info(fmt.Sprint("Cherry picking ", gitLog.Commit))
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", gitLog.Commit)
+	commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
+		return commit.Commit
+	})
+	slog.Info(fmt.Sprint("Cherry picking ", commitHashes))
+	gitutil.CherryPickOrDie(util.ExecuteOptions{}, "", commitHashes...)
 }
 
-func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
+// Squashes commitsToSquash into gitLog on local main (like "sd update" does), then switches
+// back to the PR branch.
+func squashCommitsOnLocalMain(gitLog templates.GitLog, commitsToSquash []templates.GitLog) {
+	prBranch := util.GetCurrentBranchName()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+	slog.Info("Switching to " + mainBranch + " to squash commits")
+	// Note: the rollback manager saved the state of main at the start, so a rollback undoes the squash.
+	gitutil.GitSwitch(mainBranch)
+	fixups := util.FilterSlice(commitsToSquash, func(commit templates.GitLog) bool {
+		return commit.Commit != gitLog.Commit
+	})
+	squashFixupsOnCurrentBranch(gitLog, fixups)
+	gitutil.GitSwitch(prBranch)
+}
+
+func pushAndCreateGhPr(prText templates.PullRequestText, draft bool, remoteBaseBranch string) {
 	slog.Info("Pushing to remote")
 	// -u is required because in newer versions of Github CLI the upstream must be set.
 	gitutil.GitPushOrDie(util.ExecuteOptions{}, "-c", "push.default=current", "push", "--force-with-lease", "-u")
-	var prText templates.PullRequestText
-	if noTemplate {
-		prText = templates.GetPullRequestTextRaw(gitLog.Commit)
-	} else {
-		prText = templates.GetPullRequestText(gitLog.Commit, featureFlag, ticketUrlPattern)
-	}
 	slog.Info("Creating PR via gh")
 	createPrOutput := createPr(prText, remoteBaseBranch, draft)
 	slog.Info(fmt.Sprint("Created PR ", createPrOutput))
@@ -175,10 +328,66 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 	if _, err := util.Execute(util.ExecuteOptions{}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
 		slog.Warn("Could not view PR: " + err.Error())
 	}
+	switchBackToMain()
+}
+
+func switchBackToMain() {
 	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))
 	gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "config", "advice.skippedCherryPicks", "false")
+}
+
+type multiCommitStrategy int
+
+const (
+	multiCommitStrategyCombined multiCommitStrategy = iota
+	multiCommitStrategyStacked
+	multiCommitStrategySeparate
+)
+
+var multiCommitStrategyByName = map[string]multiCommitStrategy{
+	"combined": multiCommitStrategyCombined,
+	"stacked":  multiCommitStrategyStacked,
+	"separate": multiCommitStrategySeparate,
+}
+
+func multiCommitStrategyNames() []string {
+	return []string{"combined", "stacked", "separate"}
+}
+
+func parseMultiCommitStrategyOrDie(name string) multiCommitStrategy {
+	strategy, ok := multiCommitStrategyByName[name]
+	if !ok {
+		panic(fmt.Sprint("Invalid --multiple-strategy \"", name, "\", must be one of: ", strings.Join(multiCommitStrategyNames(), ", ")))
+	}
+	return strategy
+}
+
+func promptForMultiCommitStrategy(targetCommits []templates.GitLog) multiCommitStrategy {
+	appConfig := util.GetAppConfig()
+	util.Fprintln(appConfig.Io.Out, fmt.Sprint("Selected ", len(targetCommits), " commits:"))
+	for _, commit := range targetCommits {
+		util.Fprintln(appConfig.Io.Out, fmt.Sprint("  ", commit.Commit[:7], " ", commit.Subject))
+	}
+	util.Fprintln(appConfig.Io.Out, "")
+	options := []string{
+		"Create one PR with all commits (new + update)",
+		"Use GitHub Stacked PRs (gh stack)",
+		"Create separate PRs for each commit",
+	}
+	choice := interactive.GetChoiceSelection(options, "How would you like to create PRs?")
+	switch choice {
+	case 0:
+		return multiCommitStrategyCombined
+	case 1:
+		return multiCommitStrategyStacked
+	case 2:
+		return multiCommitStrategySeparate
+	default:
+		appConfig.Exit(0)
+		return multiCommitStrategyCombined
+	}
 }
 
 func createPr(prText templates.PullRequestText, remoteBaseBranch string, draft bool) string {
