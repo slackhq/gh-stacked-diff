@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/fatih/color"
@@ -137,9 +138,11 @@ func createNewCommand() *cobra.Command {
 			strategy := promptForMultiCommitStrategy(targetCommits)
 			switch strategy {
 			case multiCommitStrategyCombined:
-				panic("combined PR")
+				createCombinedPr(targetCommits, prOptions)
+				return
 			case multiCommitStrategyStacked:
-				panic("stacked PRs")
+				createStackedBranches(targetCommits, prOptions)
+				return
 			case multiCommitStrategySeparate:
 				createNewPrs(targetCommits, prOptions)
 				return
@@ -174,18 +177,66 @@ func createNewPrs(targetCommits []templates.GitLog, opts newPrOptions) {
 	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, targetCommits, opts.reviewerOptions)
 }
 
+func createCombinedPr(targetCommits []templates.GitLog, opts newPrOptions) {
+	selectedReviewers, markReady := promptForReviewers(opts.shouldPromptReviewers, opts.userConfig, opts.reviewerOptions.AutoMerge)
+	identityCommit := targetCommits[0]
+	createNewPrWithCommits(opts.draft, opts.noTemplate, opts.featureFlag, opts.ticketUrlPattern, opts.baseBranch, opts.remoteBaseBranch, identityCommit, targetCommits)
+	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, []templates.GitLog{identityCommit}, opts.reviewerOptions)
+}
+
+// Creates a local branch for each commit, each based on the previous one (earliest commit first),
+// and then registers them as a stack via "gh stack init". Does not push or create any PRs.
+func createStackedBranches(targetCommits []templates.GitLog, opts newPrOptions) {
+	for _, commit := range targetCommits {
+		templates.RequireCommitOnMain(commit.Commit)
+	}
+	orderedCommits := sortEarliestFirst(targetCommits)
+	gitutil.WithStashAndRollback("create stacked branches "+orderedCommits[0].Commit+" "+orderedCommits[0].Subject, func(rollbackManager *gitutil.GitRollbackManager) {
+		baseBranch := opts.baseBranch
+		var branches []string
+		for _, commit := range orderedCommits {
+			createBranchAndCherryPick(rollbackManager, baseBranch, commit, []templates.GitLog{commit})
+			baseBranch = commit.Branch
+			branches = append(branches, commit.Branch)
+		}
+		slog.Info(fmt.Sprint("Initializing stack ", branches))
+		util.ExecuteOrDie(util.ExecuteOptions{}, "gh", "stack", "init", branches)
+		rollbackManager.Clear()
+		switchBackToMain()
+	})
+}
+
+// Returns the given commits ordered from earliest to latest on the current branch.
+func sortEarliestFirst(commits []templates.GitLog) []templates.GitLog {
+	allCommits := templates.GetNewCommits("HEAD", "")
+	var ordered []templates.GitLog
+	for i := len(allCommits) - 1; i >= 0; i-- {
+		if slices.ContainsFunc(commits, func(commit templates.GitLog) bool { return commit.Commit == allCommits[i].Commit }) {
+			ordered = append(ordered, allCommits[i])
+		}
+	}
+	return ordered
+}
+
 // Creates a new pull request via Github CLI.
 func createNewPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog) {
+	createNewPrWithCommits(draft, noTemplate, featureFlag, ticketUrlPattern, baseBranch, remoteBaseBranch, gitLog, []templates.GitLog{gitLog})
+}
+
+func createNewPrWithCommits(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, baseBranch string, remoteBaseBranch string, gitLog templates.GitLog, commitsToCherryPick []templates.GitLog) {
 	templates.RequireCommitOnMain(gitLog.Commit)
+	for _, commit := range commitsToCherryPick {
+		templates.RequireCommitOnMain(commit.Commit)
+	}
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
-		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog)
+		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog, commitsToCherryPick)
 		pushAndCreateGhPr(draft, noTemplate, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
 		rollbackManager.Clear()
 		openPrAndSwitchBack(gitLog)
 	})
 }
 
-func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog) {
+func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, baseBranch string, gitLog templates.GitLog, commitsToCherryPick []templates.GitLog) {
 	var commitToBranchFrom string
 	if baseBranch == gitutil.GetLocalMainBranchOrDie() {
 		commitToBranchFrom = gitutil.GetMergeBase(gitutil.GetRemoteMainBranchOrDie(), gitutil.GetLocalMainBranchOrDie())
@@ -197,8 +248,11 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "--no-track", gitLog.Branch, commitToBranchFrom)
 	rollbackManager.CreatedBranch(gitLog.Branch)
 	gitutil.GitSwitch(gitLog.Branch)
-	slog.Info(fmt.Sprint("Cherry picking ", gitLog.Commit))
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "cherry-pick", gitLog.Commit)
+	commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
+		return commit.Commit
+	})
+	slog.Info(fmt.Sprint("Cherry picking ", commitHashes))
+	gitutil.CherryPickOrDie(util.ExecuteOptions{}, "", commitHashes...)
 }
 
 func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {
@@ -220,6 +274,10 @@ func openPrAndSwitchBack(gitLog templates.GitLog) {
 	if _, err := util.Execute(util.ExecuteOptions{}, "gh", "pr", "view", "--web", gitutil.GhRepoArgs(), gitLog.Branch); err != nil {
 		slog.Warn("Could not view PR: " + err.Error())
 	}
+	switchBackToMain()
+}
+
+func switchBackToMain() {
 	slog.Info(fmt.Sprint("Switching back to " + gitutil.GetLocalMainBranchOrDie()))
 	gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
 	// Suppress the "use --reapply-cherry-picks" hint which is not appropriate for stacked diff workflow.

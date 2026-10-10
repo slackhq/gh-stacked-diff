@@ -675,31 +675,51 @@ func findGhPrCreateCall(responses []util.ExecutedResponse) (util.ExecutedRespons
 
 func TestSdNew_WhenMultipleCommits_CombinedPr(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelError)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "")
+	responsesBeforeNew := len(testExecutor.Responses)
 
 	interactive.SendToProgram(0,
 		// How would you like to create PRs? — select first option
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
 
-	out := new(bytes.Buffer)
-	defer func() {
-		r := recover()
-		if r != nil {
-			assert.Contains(out.String(), "combined PR")
+	// Commit indicators are newest-first, so pass the older commit first to
+	// preserve the selected oldest-to-newest cherry-pick order.
+	testParseArguments("new", "2", "1")
+
+	allCommits := templates.GetAllCommits()
+	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
+	assert.False(gitutil.RemoteHasBranch(allCommits[0].Branch))
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", allCommits[1].Branch)
+	combinedCommits := templates.GetNewCommits("HEAD", "")
+	assert.Equal([]string{"second", "first"}, []string{combinedCommits[0].Subject, combinedCommits[1].Subject})
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", gitutil.GetLocalMainBranchOrDie())
+
+	pushCount := 0
+	for _, response := range testExecutor.Responses[responsesBeforeNew:] {
+		if response.ProgramName == "git" && len(response.Args) > 0 && slices.Contains(response.Args, "push") {
+			pushCount++
 		}
-	}()
-	testParseArgumentsWithOut(out, "new", "1", "2")
-	assert.Fail("expected panic")
+	}
+	assert.Equal(1, pushCount)
+
+	prCreateCall, found := findGhPrCreateCall(testExecutor.Responses)
+	assert.True(found, "expected gh pr create to be called")
+	titleIndex := slices.Index(prCreateCall.Args, "--title")
+	assert.Greater(titleIndex, -1, "expected --title flag")
+	assert.Equal("first", prCreateCall.Args[titleIndex+1])
 }
 
 func TestSdNew_WhenMultipleCommits_StackedPrs(t *testing.T) {
 	assert := assert.New(t)
-	testutil.InitTest(t, slog.LevelError)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "")
+	testExecutor.SetResponse("", nil, "gh", "stack", "init", util.MatchAnyRemainingArgs)
 
 	interactive.SendToProgram(0,
 		// How would you like to create PRs? — select second option
@@ -707,15 +727,33 @@ func TestSdNew_WhenMultipleCommits_StackedPrs(t *testing.T) {
 		interactive.NewMessageKey(tea.KeyEnter),
 	)
 
-	out := new(bytes.Buffer)
-	defer func() {
-		r := recover()
-		if r != nil {
-			assert.Contains(out.String(), "stacked PRs")
+	responsesBeforeNew := len(testExecutor.Responses)
+	// Select latest commit first to verify branches are stacked from earliest to latest commit.
+	testParseArguments("new", "1", "2")
+
+	allCommits := templates.GetAllCommits()
+	secondBranch := allCommits[0].Branch
+	firstBranch := allCommits[1].Branch
+	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+	assert.Equal(firstBranch, strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "--verify", "--abbrev-ref", firstBranch)))
+	assert.Equal(secondBranch, strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "rev-parse", "--verify", "--abbrev-ref", secondBranch)))
+	// The second branch is stacked on the first.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "merge-base", "--is-ancestor", firstBranch, secondBranch)
+	assert.Equal("second", strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "-1", "--format=%s", secondBranch)))
+
+	responsesFromNew := testExecutor.Responses[responsesBeforeNew:]
+	_, createPrCalled := findGhPrCreateCall(responsesFromNew)
+	assert.False(createPrCalled, "expected gh pr create to not be called")
+	for _, response := range responsesFromNew {
+		assert.False(response.ProgramName == "git" && slices.Contains(response.Args, "push"), "expected no push")
+	}
+	var stackInitArgs []string
+	for _, response := range responsesFromNew {
+		if response.ProgramName == "gh" && len(response.Args) >= 2 && response.Args[0] == "stack" && response.Args[1] == "init" {
+			stackInitArgs = response.Args
 		}
-	}()
-	testParseArgumentsWithOut(out, "new", "1", "2")
-	assert.Fail("expected panic")
+	}
+	assert.Equal([]string{"stack", "init", firstBranch, secondBranch}, stackInitArgs)
 }
 
 func TestSdNew_WhenMultipleCommits_SeparatePrs(t *testing.T) {
