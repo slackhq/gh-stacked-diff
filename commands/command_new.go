@@ -230,6 +230,9 @@ func createNewPrWithCommits(draft bool, noTemplate bool, featureFlag string, tic
 	}
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		createBranchAndCherryPick(rollbackManager, baseBranch, gitLog, commitsToCherryPick)
+		if len(commitsToCherryPick) > 1 {
+			squashCommitsOnLocalMain(gitLog, commitsToCherryPick)
+		}
 		pushAndCreateGhPr(draft, noTemplate, featureFlag, ticketUrlPattern, remoteBaseBranch, gitLog)
 		rollbackManager.Clear()
 		openPrAndSwitchBack(gitLog)
@@ -253,6 +256,21 @@ func createBranchAndCherryPick(rollbackManager *gitutil.GitRollbackManager, base
 	})
 	slog.Info(fmt.Sprint("Cherry picking ", commitHashes))
 	gitutil.CherryPickOrDie(util.ExecuteOptions{}, "", commitHashes...)
+}
+
+// Squashes commitsToSquash into gitLog on local main (like "sd update" does), then switches
+// back to the PR branch.
+func squashCommitsOnLocalMain(gitLog templates.GitLog, commitsToSquash []templates.GitLog) {
+	prBranch := util.GetCurrentBranchName()
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+	slog.Info("Switching to " + mainBranch + " to squash commits")
+	// Note: the rollback manager saved the state of main at the start, so a rollback undoes the squash.
+	gitutil.GitSwitch(mainBranch)
+	fixups := util.FilterSlice(commitsToSquash, func(commit templates.GitLog) bool {
+		return commit.Commit != gitLog.Commit
+	})
+	squashFixupsOnCurrentBranch(gitLog, fixups)
+	gitutil.GitSwitch(prBranch)
 }
 
 func pushAndCreateGhPr(draft bool, noTemplate bool, featureFlag string, ticketUrlPattern string, remoteBaseBranch string, gitLog templates.GitLog) {

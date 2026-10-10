@@ -114,17 +114,7 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		}
 		slog.Info("Switching back to " + gitutil.GetLocalMainBranchOrDie())
 		gitutil.GitSwitch(gitutil.GetLocalMainBranchOrDie())
-		slog.Info(fmt.Sprint("Rebasing, marking as fixup ", commitsToCherryPick, " for target ", destCommit.Commit))
-		commitHashes := util.MapSlice(commitsToCherryPick, func(commit templates.GitLog) string {
-			return commit.Commit
-		})
-		environmentVariables := []string{
-			sequenceEditorEnvVar("sequence-editor-mark-as-fixup", append([]string{destCommit.Commit}, commitHashes...)...),
-		}
-		slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
-		options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: appConfig.Io}
-		rebaseBase := earliestCommit(destCommit, commitsToCherryPick)
-		gitutil.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
+		squashFixupsOnCurrentBranch(destCommit, commitsToCherryPick)
 		// Do the push last so that if there is a rollback origin was not updated.
 		slog.Info("Pushing to remote")
 		if forcePush {
@@ -137,6 +127,22 @@ func updatePr(destCommit templates.GitLog, commitsToCherryPick []templates.GitLo
 		}
 		rollbackManager.Clear()
 	})
+}
+
+// Rebases the current branch (expected to be local main), marking fixupCommits as
+// fixups that are squashed into targetCommit.
+func squashFixupsOnCurrentBranch(targetCommit templates.GitLog, fixupCommits []templates.GitLog) {
+	slog.Info(fmt.Sprint("Rebasing, marking as fixup ", fixupCommits, " for target ", targetCommit.Commit))
+	commitHashes := util.MapSlice(fixupCommits, func(commit templates.GitLog) string {
+		return commit.Commit
+	})
+	environmentVariables := []string{
+		sequenceEditorEnvVar("sequence-editor-mark-as-fixup", append([]string{targetCommit.Commit}, commitHashes...)...),
+	}
+	slog.Debug(fmt.Sprint("Using sequence editor ", environmentVariables))
+	options := util.ExecuteOptions{EnvironmentVariables: environmentVariables, Io: util.GetAppConfig().Io}
+	rebaseBase := earliestCommit(targetCommit, fixupCommits)
+	gitutil.RebaseAndSkipAllEmptyOrDie(options, "-i", rebaseBase+"^")
 }
 
 // earliestCommit returns the commit hash of the oldest commit among destCommit

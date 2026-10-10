@@ -679,6 +679,9 @@ func TestSdNew_WhenMultipleCommits_CombinedPr(t *testing.T) {
 	testutil.AddCommit("first", "")
 	testutil.AddCommit("second", "")
 	responsesBeforeNew := len(testExecutor.Responses)
+	commitsBeforeNew := templates.GetAllCommits()
+	secondBranch := commitsBeforeNew[0].Branch
+	firstBranch := commitsBeforeNew[1].Branch
 
 	interactive.SendToProgram(0,
 		// How would you like to create PRs? — select first option
@@ -689,12 +692,17 @@ func TestSdNew_WhenMultipleCommits_CombinedPr(t *testing.T) {
 	// preserve the selected oldest-to-newest cherry-pick order.
 	testParseArguments("new", "2", "1")
 
-	allCommits := templates.GetAllCommits()
 	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
-	assert.True(gitutil.RemoteHasBranch(allCommits[1].Branch))
-	assert.False(gitutil.RemoteHasBranch(allCommits[0].Branch))
+	assert.True(gitutil.RemoteHasBranch(firstBranch))
+	assert.False(gitutil.RemoteHasBranch(secondBranch))
 
-	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", allCommits[1].Branch)
+	// Local main has the commits squashed into one.
+	commitsAfterNew := templates.GetAllCommits()
+	assert.Equal(len(commitsBeforeNew)-1, len(commitsAfterNew))
+	assert.Equal("first", commitsAfterNew[0].Subject)
+	assert.Equal("second", strings.TrimSpace(util.ExecuteOrDie(util.ExecuteOptions{}, "git", "log", "-1", "--format=%s", firstBranch)))
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", firstBranch)
 	combinedCommits := templates.GetNewCommits("HEAD", "")
 	assert.Equal([]string{"second", "first"}, []string{combinedCommits[0].Subject, combinedCommits[1].Subject})
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", gitutil.GetLocalMainBranchOrDie())
