@@ -37,7 +37,7 @@ update-readme: build
 	./update-readme-help.sh
 
 # Example TEST_ARGS:
-# make TEST_ARGS="-timeout 10s -run TestSdUpdate_WhenDestinationCommitNotSpecified_UpdatesSelectedPr" -o lint test
+# make TEST_ARGS="-timeout 60s -run TestSdUpdate_WhenDestinationCommitNotSpecified_UpdatesSelectedPr" -o lint test
 # Note: timeout is cumulative for all tests to run.
 .PHONY: test
 test: build lint
