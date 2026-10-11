@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -505,4 +506,25 @@ func TestSdUpdate_WhenNoReviewers_DeclineReady_PrStaysDraft(t *testing.T) {
 
 	// Verify gh pr ready was NOT called
 	assertGhSubcommandCalled(t, testExecutor.Responses, false, "pr", "ready")
+}
+
+func TestSdUpdate_WhenCommitToAddAlreadyOnRemoteMain_FailsAndRestores(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("pushed", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+	allCommits := templates.GetAllCommits()
+	firstCommit := allCommits[0].Commit
+	pushedCommit := allCommits[1].Commit
+
+	out := new(bytes.Buffer)
+	defer func() {
+		assert.NotNil(recover(), "expected exit")
+		assert.Contains(out.String(), "Commit "+pushedCommit+" does not exist on "+gitutil.GetLocalMainBranchOrDie())
+		assert.Equal(allCommits, templates.GetAllCommits())
+	}()
+
+	testParseArgumentsWithOut(out, "update", "--indicator", "commit", firstCommit, pushedCommit)
 }
