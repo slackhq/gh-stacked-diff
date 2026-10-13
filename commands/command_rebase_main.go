@@ -61,6 +61,12 @@ func rebaseMain() {
 
 	// Check for commits from closed PRs
 	closedCommits := getDropCommits(localLogs, closedBranches)
+	// Exclude commits that are also merged, since those are dropped and deleted anyway.
+	closedCommits = slices.DeleteFunc(closedCommits, func(closedCommit templates.GitLog) bool {
+		return slices.ContainsFunc(mergedCommits, func(mergedCommit templates.GitLog) bool {
+			return mergedCommit.Branch == closedCommit.Branch
+		})
+	})
 	slog.Debug(fmt.Sprint("closedBranches ", closedBranches, " closedCommits ", closedCommits))
 
 	var confirmedClosedCommits []templates.GitLog
