@@ -69,6 +69,8 @@ type AddReviewersOptions struct {
 	PollFrequency     time.Duration
 	AutoMerge         bool
 	WaitBeforePolling time.Duration
+	// Only wait for checks to pass, do not mark ready, add reviewers, or merge.
+	OnlyWaitForChecks bool
 }
 
 // Adds reviewers to a PR once checks have passed via Github CLI.
@@ -99,6 +101,9 @@ func checkBranch(targetCommit templates.GitLog, opts AddReviewersOptions, progre
 	defer progressIndicator.SendErrorOnPanic()
 	if opts.WhenChecksPass {
 		waitForChecks(targetCommit, opts, progressIndicator, index)
+	}
+	if opts.OnlyWaitForChecks {
+		return
 	}
 	markPrReady(targetCommit, progressIndicator, index)
 	if opts.Reviewers != "" {
