@@ -2,6 +2,22 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.11](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.10...v2.1.11) - 2026-10-13
+
+### Added
+
+- Create **Github Stacked Pull Requests** more easily. Using `gh stack` to create a stacked PR from existing commits is difficult because you have to create the branches for each commit yourself. Now `sd new` can take multiple commits and this is one of the options.
+- `new` command can now take multiple commits. There are three options:
+    - Create one PR with all commits (new + update)
+    - Use GitHub Stacked PRs (gh stack)
+    - Create separate PRs for each commit
+- `wait-for-checks` command that waits for checks to pass. This is useful for custom scripting.
+
+# Fixed
+
+- Correct base branch is used for commands, like `update`, when using a base branch other than `main` (important when using Stacked PRs)
+- `rebase-main` does not consider a PR branch as closed if it has also been merged.
+
 ## [2.1.10](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.9...v2.1.10) - 2026-09-24
 
 ### Changed
