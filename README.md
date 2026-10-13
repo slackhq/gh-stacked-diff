@@ -71,6 +71,7 @@ source ~/.zshrc
 | [`replace-conflicts`](#replace-conflicts) | For failed rebase: replace changes with its associated branch |
 | [`sync-branches`](#sync-branches) | Sync PR branches with contents of the local main commit |
 | [`update`](#update) | Add commits from main to an existing PR |
+| [`wait-for-checks`](#wait-for-checks) | Wait for the checks of a Pull Request on Github to pass |
 | [`wait-for-merge`](#wait-for-merge) | Waits for a pull request to be merged |
 | [`worktree-move`](#worktree-move) | Cherry-pick commits from secondary worktree to main worktree |
 
@@ -136,12 +137,26 @@ Use `--reviewers` to automatically add reviewers once checks pass.
 <summary><code>sd new --help</code></summary>
 
 ```
-Create a new PR with a cherry-pick of the given commit indicator.
+Create a new PR with a cherry-pick of the given commit indicator(s).
 
 This command first creates an associated branch, (with a name based
 on the commit summary), and then uses Github CLI to create a PR.
 
 Can also add reviewers once PR checks have passed, see "--reviewers" flag.
+
+Multiple Commits:
+
+If more than one commit is selected, you are asked how to create the PRs:
+
+   One PR with all commits   The commits are squashed together on main
+                             (like "sd update") and a single PR is created.
+   GitHub Stacked PRs        A branch is created for each commit, each based on
+                             the previous one (earliest commit first), and then
+                             "gh stack init" is run with the branches. Nothing is
+                             pushed and no PRs are created.
+   Separate PRs              A PR is created for each commit.
+
+Use "--multiple-strategy" (combined, stacked, or separate) to skip the question.
 
 Ticket Number:
 
@@ -184,34 +199,35 @@ The possible values for the templates are:
    UsernameCleaned              Username with dots (.) converted to dashes (-).
 
 Usage:
-  sd new [commitIndicator] [flags]
+  sd new [commitIndicator...] [flags]
 
 Flags:
-  -b, --base string           Base branch for Pull Request. Default is main
-  -d, --draft                 Whether to create the PR as draft (default true)
-  -f, --feature-flag string   Value for FEATURE_FLAG in PR description
-  -h, --help                  help for new
-  -i, --indicator string      Indicator type to use to interpret commitIndicator:
-                                 commit   a commit hash, can be abbreviated,
-                                 pr       a github Pull Request number,
-                                 list     the order of commit listed in the git log, as indicated
-                                          by "sd log"
-                                 guess    the command will guess the indicator type:
-                                    Number between 0 and 99:       list
-                                    Number between 100 and 999999: pr
-                                    Otherwise:                     commit
-                               (default "guess")
-  -m, --merge                 Enable auto-merge (squash) on the PR via Github CLI.
-                              Implies marking the PR as ready for review.
-      --min-checks int        Minimum number of checks to wait for before verifying that checks
-                              have passed before adding reviewers. It takes some time for checks
-                              to be added to a PR by Github, and if you add-reviewers too soon it
-                              will think that they have all passed. Default of -1 means to use 4 
-                              or the average number of checks of merged PRs, whatever is less. (default -1)
-  -T, --no-template           Use the commit body as the PR description without applying the PR description template
-  -r, --reviewers string      Comma-separated list of Github usernames to add as reviewers once
-                              checks have passed.
-  -s, --silent                Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
+  -b, --base string                Base branch for Pull Request. Default is main
+  -d, --draft                      Whether to create the PR as draft (default true)
+  -f, --feature-flag string        Value for FEATURE_FLAG in PR description
+  -h, --help                       help for new
+  -i, --indicator string           Indicator type to use to interpret commitIndicator:
+                                      commit   a commit hash, can be abbreviated,
+                                      pr       a github Pull Request number,
+                                      list     the order of commit listed in the git log, as indicated
+                                               by "sd log"
+                                      guess    the command will guess the indicator type:
+                                         Number between 0 and 99:       list
+                                         Number between 100 and 999999: pr
+                                         Otherwise:                     commit
+                                    (default "guess")
+  -m, --merge                      Enable auto-merge (squash) on the PR via Github CLI.
+                                   Implies marking the PR as ready for review.
+      --min-checks int             Minimum number of checks to wait for before verifying that checks
+                                   have passed before adding reviewers. It takes some time for checks
+                                   to be added to a PR by Github, and if you add-reviewers too soon it
+                                   will think that they have all passed. Default of -1 means to use 4 
+                                   or the average number of checks of merged PRs, whatever is less. (default -1)
+      --multiple-strategy string   How to handle multiple commits, skipping the prompt: combined, stacked, separate
+  -T, --no-template                Use the commit body as the PR description without applying the PR description template
+  -r, --reviewers string           Comma-separated list of Github usernames to add as reviewers once
+                                   checks have passed.
+  -s, --silent                     Whether to use voice output (false) or be silent (true) to notify that reviewers have been added.
 
 Global Flags:
   -c, --config stringToString   Set a config value as key=value (see Global Flags)
@@ -544,6 +560,47 @@ Flags:
                                  Number between 100 and 999999: pr
                                  Otherwise:                     commit
                             (default "guess")
+
+Global Flags:
+  -c, --config stringToString   Set a config value as key=value (see Global Flags)
+  -l, --log-level string        Log level: debug, info, warn, error
+```
+
+</details>
+
+### wait-for-checks
+
+Wait for the checks of a Pull Request on Github to pass
+
+<details>
+<summary><code>sd wait-for-checks --help</code></summary>
+
+```
+Wait for the checks of a Pull Request on Github to pass.
+
+Like add-reviewers, but does not mark the PR as ready for review or add any reviewers.
+
+Usage:
+  sd wait-for-checks [commitIndicator...] [flags]
+
+Flags:
+  -h, --help               help for wait-for-checks
+  -i, --indicator string   Indicator type to use to interpret commitIndicator:
+                              commit   a commit hash, can be abbreviated,
+                              pr       a github Pull Request number,
+                              list     the order of commit listed in the git log, as indicated
+                                       by "sd log"
+                              guess    the command will guess the indicator type:
+                                 Number between 0 and 99:       list
+                                 Number between 100 and 999999: pr
+                                 Otherwise:                     commit
+                            (default "guess")
+      --min-checks int     Minimum number of checks to wait for before verifying that checks
+                           have passed. It takes some time for checks to be added to a PR by
+                           Github, and if you wait-for-checks too soon it will think that they
+                           have all passed. Default of -1 means to use 4 or the average number
+                           of checks of merged PRs, whatever is less. (default -1)
+  -s, --silent             Whether to use voice output (false) or be silent (true) to notify that checks have failed.
 
 Global Flags:
   -c, --config stringToString   Set a config value as key=value (see Global Flags)
