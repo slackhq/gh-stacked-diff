@@ -350,6 +350,42 @@ func TestSdRebaseMain_WithMergedAndClosedPRs_DropsBothWhenConfirmed(t *testing.T
 	assert.Equal("3", dirEntries[3].Name())
 }
 
+func TestSdRebaseMain_WithBranchBothMergedAndClosed_DoesNotPromptForClosed(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "rebase-will-keep-this-file")
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
+
+	allOriginalCommits := templates.GetAllCommits()
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allOriginalCommits[1].Commit)
+
+	testutil.AddCommit("second", "rebase-will-drop-this-file")
+
+	newCommits := templates.GetAllCommits()
+
+	// Same branch is reported as both closed and merged.
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" "+newCommits[0].Commit,
+		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" abcd1234",
+		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", util.MatchAnyRemainingArgs)
+
+	// No confirmation is sent: the closed prompt must not be shown since the branch is merged.
+	testParseArguments("rebase-main")
+
+	dirEntries, err := os.ReadDir(".")
+	if err != nil {
+		panic("Could not read dir: " + err.Error())
+	}
+	assert.Equal(3, len(dirEntries))
+	assert.Equal(".git", dirEntries[0].Name())
+	assert.Equal("first", dirEntries[1].Name())
+	assert.Equal("rebase-will-keep-this-file", dirEntries[2].Name())
+}
+
 func TestSdRebaseMain_WhenCommitAlreadyCherryPickedToBranch_SkipsEmptyCommit(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)
