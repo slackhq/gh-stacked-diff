@@ -907,7 +907,7 @@ See the [Developer Guide](DEVELOPER_GUIDE.md) for build instructions and a code 
 
 # Stacked Pull Requests?
 
-This tool does *not* facilitate Stacked *Pull Requests*. GitHub adds friction to stacked PRs -- for example, merging one PR in a stack forces the others to require re-review. Instead, organize your PRs so they can each be rebased against main independently. When PRs depend on each other, wait for the dependency to merge before putting up the next one. In practice, you'll often be working on the next commit while the previous one is being reviewed.
+This tool does *not* directly facilitate Stacked *Pull Requests*. Instead, organize your PRs so they can each be rebased against main independently. When PRs depend on each other, wait for the dependency to merge before putting up the next one. In practice, this flow leads to the least friction, and you'll often be working on the next commit while the previous one is being reviewed. If you do want to create and manage Stacked *Pull Requests* regardless of the friction, you can try `gh stack` which `sd add` can help you with.
 
 # Acknowledgments
 
