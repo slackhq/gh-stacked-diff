@@ -252,6 +252,9 @@ func updateSuggestions(program *tea.Program, originalSuggestions []string) {
 	defer SendErrorOnPanic(program)
 	appConfig := util.GetAppConfig()
 	allCollaborators := getAllCollaborators()
+	allCollaborators = append(allCollaborators, getAllTeams()...)
+	slices.Sort(allCollaborators)
+	allCollaborators = slices.Compact(allCollaborators)
 	if appConfig.DemoMode {
 		program.Send(setSuggestionsMsg{suggestions: originalSuggestions})
 	} else {

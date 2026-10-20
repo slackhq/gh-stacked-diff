@@ -38,7 +38,7 @@ func checkIndicatorFlag(indicatorTypeString *string) templates.IndicatorType {
 
 func addReviewersFlags(cmd *cobra.Command) (*string, *bool, *int, *bool) {
 	reviewers := cmd.Flags().StringP("reviewers", "r", "",
-		"Comma-separated list of Github usernames to add as reviewers once\n"+
+		"Comma-separated list of Github usernames or org/team names to add as reviewers once\n"+
 			"checks have passed.")
 	_ = cmd.RegisterFlagCompletionFunc("reviewers", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return interactive.ReviewersHistory.ReadHistory(), cobra.ShellCompDirectiveNoFileComp

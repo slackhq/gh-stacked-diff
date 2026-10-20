@@ -92,6 +92,11 @@ func getAllCollaborators() []string {
 	return collaborators
 }
 
+// Returns "org/team" names from CODEOWNERS.
+func getAllTeams() []string {
+	return gitutil.GetCodeOwnersTeams()
+}
+
 func removeCurrentUser(users []string) []string {
 	return slices.DeleteFunc(users, func(next string) bool {
 		return next == gitutil.GetLoggedInUsername()
