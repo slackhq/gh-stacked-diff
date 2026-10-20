@@ -52,6 +52,31 @@ func TestSdAddReviewers_AddReviewers(t *testing.T) {
 	}))
 }
 
+func TestSdAddReviewers_WhenReviewersIncludeTeam_AddsTeamWithUsers(t *testing.T) {
+	assert := assert.New(t)
+
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+
+	testParseArguments("new", "1")
+
+	allCommits := templates.GetAllCommits()
+	testExecutor.SetResponse(
+		prStatusWithChecks(gitutil.DefaultMinChecks),
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	testParseArguments("add-reviewers", "--min-checks", fmt.Sprint(gitutil.DefaultMinChecks), "--reviewers=mybestie,testowner/myteam", allCommits[0].Commit)
+
+	contains := slices.ContainsFunc(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		ghExpectedArgs := []string{"pr", "edit", allCommits[0].Branch, "--add-reviewer", "mybestie,testowner/myteam"}
+		return next.ProgramName == "gh" && len(next.Args) >= len(ghExpectedArgs) && slices.Equal(next.Args[:len(ghExpectedArgs)], ghExpectedArgs)
+	})
+	assert.True(contains, util.FilterSlice(testExecutor.Responses, func(next util.ExecutedResponse) bool {
+		return next.ProgramName == "gh"
+	}))
+}
+
 func TestSdAddReviewers_WhenUsingListIndicator_AddReviewers(t *testing.T) {
 	assert := assert.New(t)
 
