@@ -2,6 +2,8 @@ module github.com/slackhq/gh-stacked-diff/v2
 
 go 1.24
 
+toolchain go1.26.10
+
 require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.4
