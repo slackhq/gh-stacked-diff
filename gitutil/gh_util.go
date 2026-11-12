@@ -124,6 +124,56 @@ func GetBranchLatestCommit(branchName string) string {
 	return strings.TrimSpace(out)
 }
 
+// Re-runs and cancelled superseded runs show up as duplicate check runs, so keep only the latest of each
+// (see latestContexts). Do not use jq comments here as whitespace is squashed.
+func pullRequestStatusJq() string {
+	return squashWhitespace(`
+		def pr:
+			.data.repository.pullRequests.nodes
+			| (map(select(.state == "OPEN")) | first)
+				// first;
+		def contexts: pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes // [];
+		def latestContexts:
+			([contexts[] | select(.__typename == "CheckRun")]
+				| group_by([.name, (.checkSuite.workflowRun.workflow.name // "")])
+				| map(max_by(.startedAt // "")))
+			+ [contexts[] | select(.__typename != "CheckRun")];
+		(
+			"headCommit," + (pr.commits.nodes[0].commit.oid // "")
+		),
+		(
+			latestContexts[]
+			| if .__typename == "CheckRun"
+				then "check," + .status + "," + (.conclusion // "") + ","
+				else "check,,," + (.state // "")
+			  end
+		),
+		(
+			"state," + pr.state
+		),
+		(
+			"reviewRequestCount," + (pr.reviewRequests.totalCount | tostring)
+		),
+		(
+			pr.latestReviews.nodes[]?
+			| "latestReview,"
+			+ .author.login + ","
+			+ .state + ","
+			+ (.body | length | tostring) + ","
+			+ (.comments.totalCount | tostring) + ","
+			+ (.commit.oid // "")
+		),
+		(
+			"mergeStateStatus," + (pr.mergeStateStatus // "")
+		),
+		(
+			"isDraft," + (if pr.isDraft then "true" else "false" end)
+		),
+		(
+			"autoMerge," + (if (pr.autoMergeRequest != null) or (pr.mergeQueueEntry != null) then "true" else "false" end)
+		)`)
+}
+
 /*
 GetPullRequestStatus fetches PR status via a single gh api graphql call using a
 jq query that produces CSV lines. Example output:
@@ -176,7 +226,10 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 										contexts(last: 100) {
 											nodes {
 												__typename
-												... on CheckRun { status conclusion }
+												... on CheckRun {
+													name status conclusion startedAt
+													checkSuite { workflowRun { workflow { name } } }
+												}
 												... on StatusContext { state }
 											}
 										}
@@ -188,52 +241,13 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				}
 			}
 }`)
-	jq := squashWhitespace(`
-		def pr:
-			.data.repository.pullRequests.nodes
-			| (map(select(.state == "OPEN")) | first)
-				// first;
-		(
-			"headCommit," + (pr.commits.nodes[0].commit.oid // "")
-		),
-		(
-			pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
-			| if .__typename == "CheckRun"
-				then "check," + .status + "," + (.conclusion // "") + ","
-				else "check,,," + (.state // "")
-			  end
-		),
-		(
-			"state," + pr.state
-		),
-		(
-			"reviewRequestCount," + (pr.reviewRequests.totalCount | tostring)
-		),
-		(
-			pr.latestReviews.nodes[]?
-			| "latestReview,"
-			+ .author.login + ","
-			+ .state + ","
-			+ (.body | length | tostring) + ","
-			+ (.comments.totalCount | tostring) + ","
-			+ (.commit.oid // "")
-		),
-		(
-			"mergeStateStatus," + (pr.mergeStateStatus // "")
-		),
-		(
-			"isDraft," + (if pr.isDraft then "true" else "false" end)
-		),
-		(
-			"autoMerge," + (if (pr.autoMergeRequest != null) or (pr.mergeQueueEntry != null) then "true" else "false" end)
-		)`)
 	out := util.ExecuteOrDie(util.ExecuteOptions{},
 		"gh", "api", "graphql",
 		"-f", "query="+query,
 		"-f", "owner="+parts[0],
 		"-f", "repo="+parts[1],
 		"-f", "prHeadRef="+branchName,
-		"--jq", jq)
+		"--jq", pullRequestStatusJq())
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	status := PullRequestStatus{Checks: PullRequestChecksStatus{MinChecks: minChecks}}
 	var headCommit string

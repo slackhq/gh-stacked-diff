@@ -144,8 +144,8 @@ func getBranchUpdateType(commit *templates.GitLog, mainBranch string) branchUpda
 	if commitDiff != branchDiff {
 		return branchNeedsContentUpdate
 	}
-	baseMergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
-	if !gitutil.IsAncestor(baseMergeBase, commit.Branch) {
+	startPoint := gitutil.GetSyncStartPoint(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
+	if !gitutil.IsAncestor(startPoint, commit.Branch) {
 		return branchNeedsContentUpdate
 	}
 	if remoteBranchDiffersFromLocal(commit.Branch) {
@@ -197,8 +197,8 @@ func updatePrBranch(commit templates.GitLog, mainBranch string) {
 func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating draft PR branch: ", branch))
-	mergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
-	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, mergeBase)
+	startPoint := gitutil.GetSyncStartPoint(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
+	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "branch", "-f", branch, startPoint)
 	gitutil.GitSwitch(branch)
 	gitutil.CherryPickOrDie(util.ExecuteOptions{Io: appConfig.Io}, "", commit.Commit)
 	gitutil.GitPushOrDie(util.ExecuteOptions{}, "push", "--force-with-lease", "origin", branch+":"+branch)
@@ -209,11 +209,11 @@ func updateWithRebase(commit templates.GitLog, mainBranch string, appConfig util
 func updateWithMerge(commit templates.GitLog, mainBranch string, appConfig util.AppConfig) {
 	branch := commit.Branch
 	slog.Info(fmt.Sprint("Updating PR branch: ", branch))
-	mergeBase := gitutil.GetMergeBase(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
+	startPoint := gitutil.GetSyncStartPoint(gitutil.GetBaseBranchForPr(commit.Branch), mainBranch)
 	gitutil.GitSwitch(branch)
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "fetch", "origin", branch)
 	util.ExecuteOrDie(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", "origin/"+branch)
-	if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", mergeBase); err != nil {
+	if _, err := util.Execute(util.ExecuteOptions{Io: appConfig.Io}, "git", "merge", startPoint); err != nil {
 		resolveMergeConflict(commit, appConfig)
 	}
 	applyCommitDiff(commit, appConfig)
@@ -246,7 +246,7 @@ func resolveMergeConflict(commit templates.GitLog, appConfig util.AppConfig) {
 			}
 		}
 	}
-	// Resolve the conflict by taking the mergeBase version; the content is transient
+	// Resolve the conflict by taking the start point version; the content is transient
 	// because applyCommitDiff overwrites these files with the commit's version next.
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "--theirs", ".")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "add", ".")
