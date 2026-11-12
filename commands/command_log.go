@@ -75,7 +75,7 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 func printGitLog() {
 	stdIo := util.GetAppConfig().Io
 	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
-		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit"}
+		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit", "--decorate"}
 		if gitutil.RemoteHasBranch(gitutil.GetRemoteMainBranchOrDie()) {
 			gitArgs = append(gitArgs, "origin/"+gitutil.GetRemoteMainBranchOrDie()+"..HEAD")
 		}

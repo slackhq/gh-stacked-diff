@@ -3,6 +3,7 @@ package gitutil
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/slackhq/gh-stacked-diff/v2/testutil"
@@ -202,4 +203,37 @@ func TestExtractRemoteFromPushArgs(t *testing.T) {
 	assert.Equal("upstream", extractRemoteFromPushArgs([]string{"push", "upstream", "branch:branch"}))
 	assert.Equal("origin", extractRemoteFromPushArgs([]string{"-c", "push.default=current", "push", "--force-with-lease", "-u"}))
 	assert.Equal("origin", extractRemoteFromPushArgs([]string{"push", "--force-with-lease", "origin", "branch:branch"}))
+}
+
+// When the first commit in a rebase is empty (already on main) and the second
+// conflicts, RebaseAndSkipAllEmpty must skip the empty commit and then return the
+// conflict error, leaving the rebase in progress for the caller to recover.
+// Regression test: if the output from the first rebase ("git commit --allow-empty")
+// is remembered across iterations, the conflict is mistaken for another empty
+// commit and the conflicting commit is silently skipped.
+func TestRebaseAndSkipAllEmpty_WhenEmptyCommitFollowedByConflict_SkipsThenReturnsError(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	mainBranch := GetLocalMainBranchOrDie()
+
+	testutil.CommitFileChange("base", "shared", "base")
+
+	// Branch: first commit adds a file that main will also add (empty when rebased),
+	// second commit conflicts with a divergent change on main.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", "-c", "feat")
+	testutil.CommitFileChange("feat adds file", "added", "same")
+	testutil.CommitFileChange("feat change", "shared", "feat version")
+
+	// Main reaches the same file contents through different patches (so git does not
+	// drop the commit as a cherry-pick) and diverges "shared".
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", mainBranch)
+	testutil.CommitFileChange("main adds file", "added", "different")
+	testutil.CommitFileChange("main changes file", "added", "same")
+	testutil.CommitFileChange("main diverge", "shared", "main version")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", "feat")
+
+	_, err := RebaseAndSkipAllEmpty(util.ExecuteOptions{}, "--empty=stop", mainBranch)
+	assert.Error(err)
+	gitDir := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--absolute-git-dir")
+	assert.DirExists(filepath.Join(gitDir, "rebase-merge"))
 }
