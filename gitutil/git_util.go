@@ -295,6 +295,21 @@ func GetMergeBase(remoteBaseBranch string, localBranchName string) string {
 	return util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "merge-base", "origin/"+remoteBaseBranch, localBranchName)
 }
 
+// GetSyncStartPoint returns the ref that a PR branch targeting baseBranch should be reset to
+// when syncing. For the main branch this is the merge-base of origin/main and the local main
+// branch. For any other base branch it is the local copy of that branch, falling back to
+// origin/<baseBranch> if there is no local copy.
+func GetSyncStartPoint(baseBranch string, mainBranch string) string {
+	if baseBranch == GetRemoteMainBranchOrDie() {
+		return GetMergeBase(baseBranch, mainBranch)
+	}
+	if GetLocalHasBranchOrDie(baseBranch) {
+		return baseBranch
+	}
+	slog.Debug(fmt.Sprint("No local branch ", baseBranch, ", using origin/", baseBranch))
+	return "origin/" + baseBranch
+}
+
 // Returns whether branchName is on remote.
 func RemoteHasBranch(branchName string) bool {
 	remoteBranch := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "-r", "--list", "origin/"+branchName)

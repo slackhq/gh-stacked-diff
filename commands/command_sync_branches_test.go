@@ -633,3 +633,43 @@ func TestSdSyncBranches_WhenPRTargetsNonMainBase_UsesCorrectBase(t *testing.T) {
 	assert.Contains(branchFiles, "base-file")
 	assert.NotContains(branchFiles, "main-only-file")
 }
+
+func TestSdSyncBranches_WhenPRTargetsNonMainBase_ResetsToLocalBaseBranch(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	mainBranch := gitutil.GetLocalMainBranchOrDie()
+
+	testutil.AddCommit("base", "base-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "release", "HEAD")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", "release")
+
+	testutil.AddCommit("main-only", "main-only-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", mainBranch)
+
+	testutil.CommitFileChange("feature", "feature-file", "original")
+	testParseArguments("new", "--base", "release", "1")
+
+	// Add a commit that exists only on the local release branch.
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", "release")
+	testutil.AddCommit("release-only", "release-only-file")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "switch", mainBranch)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--soft", "HEAD~1")
+	testutil.CommitFileChange("feature", "feature-file", "amended")
+
+	allCommits := templates.GetAllCommits()
+	testExecutor.SetResponse("release", nil, "gh", "pr", "view", allCommits[0].Branch, "--json", "baseRefName", util.MatchAnyRemainingArgs)
+	testExecutor.SetResponse("isDraft,true\nstate,OPEN\nnumber,1\nreviewRequestCount,0\nmergeStateStatus,BLOCKED",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	interactive.SendToProgram(0, interactive.NewMessageKey(tea.KeyEnter))
+	testParseArguments("sync-branches")
+
+	branchFiles := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "ls-tree", "--name-only", allCommits[0].Branch)
+	assert.Contains(branchFiles, "base-file")
+	assert.Contains(branchFiles, "release-only-file")
+	assert.NotContains(branchFiles, "main-only-file")
+	assert.Equal("amended", util.ExecuteOrDie(util.ExecuteOptions{}, "git", "show", allCommits[0].Branch+":feature-file"))
+}
