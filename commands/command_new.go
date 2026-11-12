@@ -297,7 +297,14 @@ func squashCommitsOnLocalMain(commits []templates.GitLog) {
 func pushAndCreateGhPr(prText templates.PullRequestText, draft bool, remoteBaseBranch string) {
 	slog.Info("Pushing to remote")
 	// -u is required because in newer versions of Github CLI the upstream must be set.
-	gitutil.GitPushOrDie(util.ExecuteOptions{}, "-c", "push.default=current", "push", "--force-with-lease", "-u")
+	appConfig := util.GetAppConfig()
+	pushOptions := util.ExecuteOptions{
+		Io: util.StdIo{Out: appConfig.Io.Out, Err: appConfig.Io.Err},
+	}
+	gitutil.GitPushOrDie(
+		pushOptions,
+		"-c", "push.default=current", "push", "--progress", "--force-with-lease", "-u",
+	)
 	slog.Info("Creating PR via gh")
 	createPrOutput := createPr(prText, remoteBaseBranch, draft)
 	slog.Info(fmt.Sprint("Created PR ", createPrOutput))

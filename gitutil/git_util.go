@@ -448,51 +448,36 @@ func CherryPick(options util.ExecuteOptions, gitDir string, commits ...string) (
 // Genuine failures (merge conflicts) are returned to the caller with the
 // cherry-pick left in progress, so the caller can run its own conflict recovery.
 func cherryPickWithRetry(options util.ExecuteOptions, gitDir string, cherryPickArgs ...string) (string, error) {
-	outRecorder := util.NewWriteRecorder(options.Io.Out)
-	recorderOptions := options
-	recorderOptions.Io.Out = outRecorder
-	recorderOptions.Io.Err = outRecorder
 	fullArgs := PrependGitDir(gitDir, append([]string{"cherry-pick"}, cherryPickArgs...)...)
-	_, err := util.Execute(recorderOptions, "git", fullArgs)
-	if err == nil || !strings.Contains(outRecorder.String(), "cherry-pick is already in progress") {
-		return outRecorder.String(), err
+	out, err := util.Execute(options, "git", fullArgs)
+	if err == nil || !strings.Contains(out, "cherry-pick is already in progress") {
+		return out, err
 	}
 	slog.Warn("Cherry-pick was interrupted by index.lock contention; aborting partial cherry-pick and restarting")
 	abortArgs := PrependGitDir(gitDir, "cherry-pick", "--abort")
 	if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", abortArgs); abortErr != nil {
-		return outRecorder.String(), fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
+		return out, fmt.Errorf("could not abort interrupted cherry-pick: %w", abortErr)
 	}
-	_, err = util.Execute(recorderOptions, "git", fullArgs)
-	return outRecorder.String(), err
+	return util.Execute(options, "git", fullArgs)
 }
 
 func RebaseAndSkipAllEmpty(options util.ExecuteOptions, otherRebaseArgs ...string) (string, error) {
-	outRecorder := util.NewWriteRecorder(options.Io.Out)
-	options.Io.Out = outRecorder
-	options.Io.Err = outRecorder
 	out, err := util.Execute(options,
 		"git", append(rebaseNoVerify(), otherRebaseArgs...))
-	for err != nil {
-		if strings.Contains(outRecorder.String(), "git commit --allow-empty") {
-			slog.Debug("Skipping empty commit (already on main)")
-			out, err = util.Execute(options, "git", "rebase", "--skip")
-		} else {
-			break
-		}
+	for err != nil && strings.Contains(out, "git commit --allow-empty") {
+		slog.Debug("Skipping empty commit (already on main)")
+		out, err = util.Execute(options, "git", "rebase", "--skip")
 	}
 	return out, err
 }
 
 func RebaseAndSkipAllEmptyOrDie(options util.ExecuteOptions, otherRebaseArgs ...string) string {
-	outRecorder := util.NewWriteRecorder(options.Io.Out)
-	options.Io.Out = outRecorder
-	options.Io.Err = outRecorder
 	out, err := RebaseAndSkipAllEmpty(options, otherRebaseArgs...)
 	if err != nil {
 		if _, abortErr := util.Execute(util.ExecuteOptions{}, "git", "rebase", "--abort"); abortErr != nil {
 			slog.Warn(fmt.Sprint("Failed to abort rebase: ", abortErr.Error()))
 		}
-		panic("Rebase failed: " + outRecorder.String() + " (" + err.Error() + ")")
+		panic("Rebase failed: " + out + " (" + err.Error() + ")")
 	}
 	return out
 }

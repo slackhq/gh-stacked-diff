@@ -38,7 +38,7 @@ type ShouldRetryFunc func(executionCount int, stderr string) bool
 // Options for [ExecuteWithOptions].
 type ExecuteOptions struct {
 	// What to use for input and output. Overriding input is useful for "git apply"
-	// If output is not set then output is returned from Execute.
+	// Output is returned from Execute whether or not Out/Err are set.
 	// Any nil In/Err/Out values are ignored.
 	Io StdIo
 	// For example "MY_VAR=some_value"
@@ -109,20 +109,20 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 		if options.Io.In != nil {
 			cmd.Stdin = options.Io.In
 		}
-		// stderr is captured separately (in addition to the combined output) so that
-		// the retry predicate can inspect it. combined is written by both the stdout and
-		// stderr copy goroutines, so it must be synchronized.
+		// Output is always captured in combined (in addition to being written to
+		// options.Io, if set) so that it can be returned, interleaved in the order it was
+		// written. stderr is also captured separately so that the retry predicate can
+		// inspect it. combined is written by both the stdout and stderr copy goroutines,
+		// so it must be synchronized.
 		combined := &lockedBuffer{}
 		var stderrBuf bytes.Buffer
+		cmd.Stdout = combined
 		if options.Io.Out != nil {
-			cmd.Stdout = options.Io.Out
-		} else {
-			cmd.Stdout = combined
+			cmd.Stdout = io.MultiWriter(options.Io.Out, combined)
 		}
+		cmd.Stderr = io.MultiWriter(combined, &stderrBuf)
 		if options.Io.Err != nil {
-			cmd.Stderr = io.MultiWriter(options.Io.Err, &stderrBuf)
-		} else {
-			cmd.Stderr = io.MultiWriter(combined, &stderrBuf)
+			cmd.Stderr = io.MultiWriter(options.Io.Err, combined, &stderrBuf)
 		}
 		err := cmd.Run()
 		// Note: while it is tempting to trim the trailing \n here, some code flows require it,
