@@ -16,6 +16,9 @@ import (
 	"strings"
 )
 
+// StackEmoji marks commits whose branch is part of a `gh stack` stack.
+const StackEmoji = "🥞"
+
 type CommitType int
 
 const (
@@ -67,7 +70,11 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 			hasDuplicates = true
 			indexString += " " + color.YellowString("●")
 		} else if hasLocalBranch {
-			indexString += " " + color.GreenString("✓")
+			if len(gitutil.GetGhStackBranches(commit.Branch)) > 0 {
+				indexString += " " + StackEmoji
+			} else {
+				indexString += " " + color.GreenString("✓")
+			}
 		}
 		row := []string{indexString, commit.Commit, commit.Subject}
 		if rowEnabled(i) {

@@ -659,9 +659,10 @@ func TestSdLog_WhenBranchInGhStack_PrintsStackEmojiAndAlignsOtherRows(t *testing
 
 	out := testParseArguments("log")
 
-	assert.Regexp("✓.* 🥞 .*first", out)
+	assert.Regexp("🥞 .*first", out)
+	assert.NotRegexp("✓.*first", out)
 	assert.NotRegexp("🥞.*second", out)
-	assert.Contains(out, "✓    ")
+	assert.Contains(out, "✓  ")
 }
 
 func TestSdLog_WhenNoGhStack_DoesNotPrintStackEmoji(t *testing.T) {
