@@ -47,6 +47,27 @@ func TestSdLog_WhenPrCreatedForSomeCommits_PrintsCheckForCommitsWithPrs(t *testi
 	assert.Contains(out, "✓")
 }
 
+func TestSdLog_WhenBranchNotOnRemote_PrintsRedCheck(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	originalNoColor := color.NoColor
+	color.NoColor = false
+	t.Cleanup(func() { color.NoColor = originalNoColor })
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	out := testParseArguments("log")
+	assert.Contains(out, color.GreenString("✓"))
+	assert.NotContains(out, color.RedString("✓"))
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "branch", "-dr", "origin/"+templates.GetAllCommits()[0].Branch)
+
+	out = testParseArguments("log")
+	assert.Contains(out, color.RedString("✓"))
+	assert.NotContains(out, color.GreenString("✓"))
+}
+
 func TestSdLog_WhenDuplicateSubjects_PrintsYellowCircle(t *testing.T) {
 	assert := assert.New(t)
 	testutil.InitTest(t, slog.LevelError)
