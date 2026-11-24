@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const stackEmoji = "🥞"
+
 func createLogCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
@@ -29,6 +31,8 @@ func createLogCommand() *cobra.Command {
 			"using this workflow). If there is more than one commit on the\n" +
 			"associated branch, those commits are also listed (indented under\n" +
 			"their associated commit summary).\n" +
+			"\n" +
+			"A " + stackEmoji + " beside a commit means its branch is part of a `gh stack` stack.\n" +
 			"\n" +
 			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
 			"Change the subjects to differentiate commits.",
@@ -99,16 +103,31 @@ func printGitLog() {
 // printLogs prints commit logs and returns true if any duplicate subjects were found.
 func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) bool {
 	hasDuplicates := false
+	stacked := make([]bool, len(logs))
+	anyStacked := false
+	for i, log := range logs {
+		if slices.Contains(checkedBranches, log.Branch) && len(gitutil.GetGhStackBranches(log.Branch)) > 0 {
+			stacked[i] = true
+			anyStacked = true
+		}
+	}
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
+		// The stack emoji is 2 columns wide; pad other rows so commits stay aligned when any row has one.
+		stackMarker := ""
+		if stacked[i] {
+			stackMarker = stackEmoji + " "
+		} else if anyStacked {
+			stackMarker = "   "
+		}
 		if log.HasDuplicate {
 			hasDuplicates = true
-			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● "))
+			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● ")+stackMarker)
 		} else if hasPR {
-			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ "))
+			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ ")+stackMarker)
 		} else {
-			util.Fprint(stdIo.Out, numberPrefix+"  ")
+			util.Fprint(stdIo.Out, numberPrefix+"  "+stackMarker)
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
 		if hasPR {

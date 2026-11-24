@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fatih/color"
@@ -632,4 +634,44 @@ func TestSdLog_WhenOtherWorktreeHasOnlySharedCommits_DoesNotShowWorktreeSection(
 
 	assert.Contains(out, "shared-commit")
 	assert.NotContains(out, "secondary-worktree")
+}
+
+func writeGhStackFile(t *testing.T, branches ...string) {
+	var entries []string
+	for _, branch := range branches {
+		entries = append(entries, `{"branch":"`+branch+`"}`)
+	}
+	contents := `{"schemaVersion":1,"stacks":[{"branches":[` + strings.Join(entries, ",") + `]}]}`
+	gitDir := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "rev-parse", "--absolute-git-dir")
+	assert.NoError(t, os.WriteFile(filepath.Join(gitDir, "gh-stack"), []byte(contents), 0o644))
+}
+
+func TestSdLog_WhenBranchInGhStack_PrintsStackEmojiAndAlignsOtherRows(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testParseArguments("new", "2")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "2"))
+	writeGhStackFile(t, firstBranch, "other")
+
+	out := testParseArguments("log")
+
+	assert.Regexp("✓.* 🥞 .*first", out)
+	assert.NotRegexp("🥞.*second", out)
+	assert.Contains(out, "✓    ")
+}
+
+func TestSdLog_WhenNoGhStack_DoesNotPrintStackEmoji(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+
+	out := testParseArguments("log")
+
+	assert.NotContains(out, "🥞")
 }
