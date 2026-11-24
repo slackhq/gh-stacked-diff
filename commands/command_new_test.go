@@ -1028,3 +1028,30 @@ func TestSdNew_WhenCommitAlreadyOnRemoteMain_FailsWithoutChanges(t *testing.T) {
 
 	testParseArgumentsWithOut(out, "new", "--indicator", "commit", pushedCommit)
 }
+
+func TestSdNew_WhenDestinationCommitNotSpecifiedAndBranchInGhStack_ShowsStackEmoji(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testParseArguments("new", "2")
+	testParseArguments("new", "1")
+	testutil.AddCommit("third", "")
+	writeGhStackFile(t, strings.TrimSpace(testParseArguments("branch-name", "3")), "other")
+
+	interactive.SendToProgram(0,
+		// What commit do you want to create a PR from?
+		interactive.NewMessageRune('q'),
+	)
+	out := new(bytes.Buffer)
+	defer func() {
+		r := recover()
+		if r != nil {
+			assert.Regexp(`│3 🥞\s*│`, out.String())
+			assert.Regexp(`│2 ✓\s+│`, out.String())
+			assert.NotContains(out.String(), "✓ 🥞")
+		}
+	}()
+	testParseArgumentsWithOut(out, "--log-level=error", "new")
+	assert.Fail("did not panic on cancel")
+}

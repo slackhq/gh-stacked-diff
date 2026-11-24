@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const stackEmoji = "🥞"
-
 func createLogCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
@@ -32,7 +30,7 @@ func createLogCommand() *cobra.Command {
 			"associated branch, those commits are also listed (indented under\n" +
 			"their associated commit summary).\n" +
 			"\n" +
-			"A " + stackEmoji + " beside a commit means its branch is part of a `gh stack` stack.\n" +
+			"A " + interactive.StackEmoji + " beside a commit means its branch is part of a `gh stack` stack.\n" +
 			"\n" +
 			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
 			"Change the subjects to differentiate commits.",
@@ -114,26 +112,26 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
-		// The stack emoji is 2 columns wide; pad other rows so commits stay aligned when any row has one.
-		stackMarker := ""
-		if stacked[i] {
-			stackMarker = stackEmoji + " "
-		} else if anyStacked {
-			stackMarker = "   "
+		// The stack emoji is 2 columns wide, so other rows get an extra space when any row has one.
+		extraPad := ""
+		if anyStacked {
+			extraPad = " "
 		}
 		if log.HasDuplicate {
 			hasDuplicates = true
-			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● ")+stackMarker)
+			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● ")+extraPad)
+		} else if stacked[i] {
+			util.Fprint(stdIo.Out, numberPrefix+interactive.StackEmoji+" ")
 		} else if hasPR {
-			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ ")+stackMarker)
+			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ ")+extraPad)
 		} else {
-			util.Fprint(stdIo.Out, numberPrefix+"  "+stackMarker)
+			util.Fprint(stdIo.Out, numberPrefix+"  "+extraPad)
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
 		if hasPR {
 			branchCommits := templates.GetNewCommits(log.Branch, "")
 			if len(branchCommits) > 1 {
-				padding := strings.Repeat(" ", len(numberPrefix))
+				padding := strings.Repeat(" ", len(numberPrefix)+len(extraPad))
 				util.Fprint(stdIo.Out, interactive.FormatBranchCommits(branchCommits, padding))
 			}
 		}
