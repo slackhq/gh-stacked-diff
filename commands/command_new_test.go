@@ -1055,3 +1055,69 @@ func TestSdNew_WhenDestinationCommitNotSpecifiedAndBranchInGhStack_ShowsStackEmo
 	testParseArgumentsWithOut(out, "--log-level=error", "new")
 	assert.Fail("did not panic on cancel")
 }
+
+func countPrCreateCalls(testExecutor *util.TestExecutor) int {
+	count := 0
+	for _, response := range testExecutor.Responses {
+		if response.ProgramName == "gh" && len(response.Args) >= 2 && response.Args[0] == "pr" && response.Args[1] == "create" {
+			count++
+		}
+	}
+	return count
+}
+
+func TestSdNew_WhenNoPush_CreatesLocalBranchOnly(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	commit := templates.GetAllCommits()[0]
+
+	testParseArguments("new", "--no-push", "1")
+
+	assert.Equal(gitutil.GetLocalMainBranchOrDie(), util.GetCurrentBranchName())
+	assert.True(gitutil.GetLocalHasBranchOrDie(commit.Branch))
+	assert.False(gitutil.RemoteHasBranch(commit.Branch))
+	assert.Equal(0, countPrCreateCalls(testExecutor))
+}
+
+func TestSdNew_WhenNoPushAndSeparateStrategy_CreatesLocalBranchForEachCommit(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+
+	testParseArguments("new", "--no-push", "--multiple-strategy", "separate", "1", "2")
+
+	for _, commit := range templates.GetAllCommits()[:2] {
+		assert.True(gitutil.GetLocalHasBranchOrDie(commit.Branch))
+		assert.False(gitutil.RemoteHasBranch(commit.Branch))
+	}
+	assert.Equal(0, countPrCreateCalls(testExecutor))
+}
+
+func TestSdNew_WhenNoPushAndCombinedStrategy_CreatesSingleLocalBranch(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	commitsBeforeNew := templates.GetAllCommits()
+	secondBranch := commitsBeforeNew[0].Branch
+	firstBranch := commitsBeforeNew[1].Branch
+
+	testParseArguments("new", "--no-push", "--multiple-strategy", "combined", "2", "1")
+
+	assert.True(gitutil.GetLocalHasBranchOrDie(firstBranch))
+	assert.False(gitutil.RemoteHasBranch(firstBranch))
+	assert.False(gitutil.GetLocalHasBranchOrDie(secondBranch))
+	assert.Equal(0, countPrCreateCalls(testExecutor))
+}
+
+func TestSdNew_WhenNoPushWithPrOnlyFlags_WarnsIgnored(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelWarn)
+	testutil.AddCommit("first", "")
+
+	out := testParseArguments("new", "--no-push", "--draft=false", "--reviewers", "someone", "1")
+
+	assert.Contains(out, "Ignoring --draft, --reviewers")
+}
