@@ -108,7 +108,7 @@ func GetAllApprovingUsers(branchName string) []string {
 	lastCommit := GetBranchLatestCommit(branchName)
 	util.RequireHexString(lastCommit)
 	jq := ".reviews[] | select(.state == \"APPROVED\" and .commit.oid == \"" + lastCommit + "\") | .author.login"
-	out := util.ExecuteOrDie(util.ExecuteOptions{},
+	out := util.ExecuteOrDie(util.ExecuteOptions{ReturnStdoutOnly: true},
 		"gh", "pr", "view", branchName, "--json", "reviews", "--jq", jq, GhRepoArgs())
 	approvingUsers := strings.Fields(out)
 	slices.Sort(approvingUsers)
@@ -241,7 +241,7 @@ func GetPullRequestStatus(branchName string, minChecks int) PullRequestStatus {
 				}
 			}
 }`)
-	out := util.ExecuteOrDie(util.ExecuteOptions{},
+	out := util.ExecuteOrDie(util.ExecuteOptions{ReturnStdoutOnly: true},
 		"gh", "api", "graphql",
 		"-f", "query="+query,
 		"-f", "owner="+parts[0],

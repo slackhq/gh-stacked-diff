@@ -270,7 +270,7 @@ func GetBaseBranchForPr(branchName string) string {
 	remoteMain := GetRemoteMainBranchOrDie()
 	result := remoteMain
 	if branchName != remoteMain && branchName != GetLocalMainBranchOrDie() {
-		output, err := util.Execute(util.ExecuteOptions{}, "gh", "pr", "view", branchName, "--json", "baseRefName", "-q", ".baseRefName", GhRepoArgs())
+		output, err := util.Execute(util.ExecuteOptions{ReturnStdoutOnly: true}, "gh", "pr", "view", branchName, "--json", "baseRefName", "-q", ".baseRefName", GhRepoArgs())
 		baseBranch := strings.TrimSpace(output)
 		if err == nil && baseBranch != "" {
 			if _, verifyErr := util.Execute(util.ExecuteOptions{}, "git", "rev-parse", "--verify", "origin/"+baseBranch); verifyErr != nil {

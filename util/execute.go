@@ -46,6 +46,10 @@ type ExecuteOptions struct {
 	// ShouldRetry decides whether to re-run after a failure. If nil, a default is
 	// chosen based on the program name (see [defaultShouldRetry]).
 	ShouldRetry ShouldRetryFunc
+	// If true, only stdout is returned from Execute (stderr is left out).
+	// Useful when parsing output, as tools like "gh" can write hint text to stderr.
+	// stderr is still written to Io.Err if set, and still passed to ShouldRetry.
+	ReturnStdoutOnly bool
 }
 
 // defaultShouldRetry returns the retry policy used when [ExecuteOptions.ShouldRetry] is nil.
@@ -116,9 +120,10 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 		// so it must be synchronized.
 		combined := &lockedBuffer{}
 		var stderrBuf bytes.Buffer
-		cmd.Stdout = combined
+		stdoutBuf := &lockedBuffer{}
+		cmd.Stdout = io.MultiWriter(combined, stdoutBuf)
 		if options.Io.Out != nil {
-			cmd.Stdout = io.MultiWriter(options.Io.Out, combined)
+			cmd.Stdout = io.MultiWriter(options.Io.Out, combined, stdoutBuf)
 		}
 		cmd.Stderr = io.MultiWriter(combined, &stderrBuf)
 		if options.Io.Err != nil {
@@ -127,7 +132,12 @@ func (defaultExecutor DefaultExecutor) Execute(options ExecuteOptions, programNa
 		err := cmd.Run()
 		// Note: while it is tempting to trim the trailing \n here, some code flows require it,
 		//       namely `git diff | git apply`.`
-		stringOut := combined.String()
+		var stringOut string
+		if options.ReturnStdoutOnly {
+			stringOut = stdoutBuf.String()
+		} else {
+			stringOut = combined.String()
+		}
 		if err != nil && retry != nil && retry(executionCount, stderrBuf.String()) {
 			fullCommand := programName + " " + strings.Join(flatArgs, " ")
 			firstLineCmd, _, _ := strings.Cut(fullCommand, "\n")
