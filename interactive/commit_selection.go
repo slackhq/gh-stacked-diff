@@ -68,6 +68,14 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 		return (options.CommitType == CommitTypePr && hasLocalBranch) || (options.CommitType == CommitTypeNoPr && !hasLocalBranch)
 	}
 
+	stackBranches := make([]string, len(newCommits))
+	for i, commit := range newCommits {
+		if slices.Contains(prBranches, commit.Branch) {
+			stackBranches[i] = commit.Branch
+		}
+	}
+	stackLabels := gitutil.GetGhStackLabels(stackBranches)
+
 	hasEnabledRow := false
 	hasDuplicates := false
 	remoteBranches := gitutil.RemoteBranchSet()
@@ -80,8 +88,8 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 			hasDuplicates = true
 			indexString += " " + color.YellowString("●")
 		} else if hasLocalBranch {
-			if len(gitutil.GetGhStackBranches(commit.Branch)) > 0 {
-				indexString += " " + StackEmoji
+			if stackLabels[i].InStack {
+				indexString += " " + StackEmoji + stackLabels[i].Label
 			} else {
 				indexString += " " + PrCheckMark(remoteBranches[commit.Branch])
 			}

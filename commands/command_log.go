@@ -33,6 +33,9 @@ func createLogCommand() *cobra.Command {
 			"A " + color.RedString("✓") + " means the branch has not been pushed to the remote.\n" +
 			"\n" +
 			"A " + interactive.StackEmoji + " beside a commit means its branch is part of a `gh stack` stack.\n" +
+			"The letter after it (A, B, ...) identifies the stack, starting from the\n" +
+			"bottom of the list. Commits with the same letter are in the same stack.\n" +
+			"The letter is omitted when there is only one stack.\n" +
 			"\n" +
 			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
 			"Change the subjects to differentiate commits.",
@@ -103,28 +106,33 @@ func printGitLog() {
 // printLogs prints commit logs and returns true if any duplicate subjects were found.
 func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) bool {
 	hasDuplicates := false
-	stacked := make([]bool, len(logs))
-	anyStacked := false
+	stackBranches := make([]string, len(logs))
 	for i, log := range logs {
-		if slices.Contains(checkedBranches, log.Branch) && len(gitutil.GetGhStackBranches(log.Branch)) > 0 {
-			stacked[i] = true
-			anyStacked = true
+		if slices.Contains(checkedBranches, log.Branch) {
+			stackBranches[i] = log.Branch
 		}
+	}
+	stackLabels := gitutil.GetGhStackLabels(stackBranches)
+	maxLabelLen := 0
+	anyStacked := false
+	for _, label := range stackLabels {
+		anyStacked = anyStacked || label.InStack
+		maxLabelLen = max(maxLabelLen, len(label.Label))
 	}
 	remoteBranches := gitutil.RemoteBranchSet()
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
-		// The stack emoji is 2 columns wide, so other rows get an extra space when any row has one.
+		// The stack emoji is 2 columns wide, followed by its label, so other rows get extra spaces when any row has one.
 		extraPad := ""
 		if anyStacked {
-			extraPad = " "
+			extraPad = strings.Repeat(" ", 1+maxLabelLen)
 		}
 		if log.HasDuplicate {
 			hasDuplicates = true
 			util.Fprint(stdIo.Out, numberPrefix+color.YellowString("● ")+extraPad)
-		} else if stacked[i] {
-			util.Fprint(stdIo.Out, numberPrefix+interactive.StackEmoji+" ")
+		} else if stackLabels[i].InStack {
+			util.Fprint(stdIo.Out, numberPrefix+interactive.StackEmoji+stackLabels[i].Label+strings.Repeat(" ", maxLabelLen-len(stackLabels[i].Label))+" ")
 		} else if hasPR {
 			util.Fprint(stdIo.Out, numberPrefix+interactive.PrCheckMark(remoteBranches[log.Branch])+" "+extraPad)
 		} else {

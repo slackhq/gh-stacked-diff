@@ -60,3 +60,48 @@ func readGhStackBranches(stackFilePath string, branchName string) []string {
 	}
 	return []string{}
 }
+
+// GhStackLabel describes a branch's membership in a `gh stack` stack.
+type GhStackLabel struct {
+	// InStack is true if the branch is part of a stack.
+	InStack bool
+	// Label is "A", "B", ..., "Z", "AA", ... identifying the stack. Empty if the branch is not in a stack, or
+	// if there is only one stack (so there is nothing to distinguish).
+	Label string
+}
+
+// GetGhStackLabels returns the stack label for each of the given branches. Branches are in `sd log` order
+// (newest first), and labels are assigned from the bottom (last element), so the oldest stacked branch gets "A".
+// Branches in the same stack share a label.
+func GetGhStackLabels(branches []string) []GhStackLabel {
+	labels := make([]GhStackLabel, len(branches))
+	labelsByStack := make(map[string]string)
+	for i := len(branches) - 1; i >= 0; i-- {
+		stackBranches := GetGhStackBranches(branches[i])
+		if len(stackBranches) == 0 {
+			continue
+		}
+		stackKey := strings.Join(stackBranches, "\n")
+		label, ok := labelsByStack[stackKey]
+		if !ok {
+			label = stackLabel(len(labelsByStack))
+			labelsByStack[stackKey] = label
+		}
+		labels[i] = GhStackLabel{InStack: true, Label: label}
+	}
+	if len(labelsByStack) == 1 {
+		for i := range labels {
+			labels[i].Label = ""
+		}
+	}
+	return labels
+}
+
+// stackLabel returns the spreadsheet-style column name for a zero-based index: A..Z, AA, AB, ...
+func stackLabel(index int) string {
+	label := ""
+	for n := index + 1; n > 0; n = (n - 1) / 26 {
+		label = string(rune('A'+(n-1)%26)) + label
+	}
+	return label
+}
