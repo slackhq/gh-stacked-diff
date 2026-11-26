@@ -34,6 +34,7 @@ type logStatusRow struct {
 	sectionHeader string // if non-empty, rendered as a bold header before this row
 	log           templates.GitLog
 	hasPR         bool
+	hasRemote     bool
 	status        *gitutil.PullRequestStatus
 	branchCommits []templates.GitLog
 	numberPrefix  string
@@ -154,7 +155,7 @@ func (m logStatusModel) renderRow(row logStatusRow) string {
 	if row.log.HasDuplicate {
 		out.WriteString(row.numberPrefix + color.YellowString("● "))
 	} else if row.hasPR {
-		out.WriteString(row.numberPrefix + color.GreenString("✓ "))
+		out.WriteString(row.numberPrefix + PrCheckMark(row.hasRemote) + " ")
 	} else {
 		out.WriteString(row.numberPrefix + "  ")
 	}
@@ -396,11 +397,13 @@ func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSectio
 }
 
 func appendLogRows(rows []logStatusRow, logs []templates.GitLog, checkedBranches []string, sectionHeader string) []logStatusRow {
+	remoteBranches := gitutil.RemoteBranchSet()
 	for i, log := range logs {
 		prefix := GetLogNumberPrefix(i, len(logs))
 		row := logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
+			hasRemote:    remoteBranches[log.Branch],
 			numberPrefix: prefix,
 			padding:      strings.Repeat(" ", len(prefix)),
 		}

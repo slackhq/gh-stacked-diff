@@ -316,6 +316,19 @@ func RemoteHasBranch(branchName string) bool {
 	return remoteBranch != ""
 }
 
+// RemoteBranchSet returns the names (without the "origin/" prefix) of all remote-tracking
+// branches for origin, as of the last fetch.
+func RemoteBranchSet() map[string]bool {
+	output := util.ExecuteOrDieTrimmed(util.ExecuteOptions{}, "git", "branch", "-r", "--format=%(refname:short)")
+	branches := make(map[string]bool)
+	for _, line := range strings.Fields(output) {
+		if name, found := strings.CutPrefix(line, "origin/"); found {
+			branches[name] = true
+		}
+	}
+	return branches
+}
+
 func GetLocalHasBranchOrDie(branchName string) bool {
 	hasBranch, err := localHasBranch(branchName)
 	if err != nil {

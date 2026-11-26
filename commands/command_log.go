@@ -30,6 +30,8 @@ func createLogCommand() *cobra.Command {
 			"associated branch, those commits are also listed (indented under\n" +
 			"their associated commit summary).\n" +
 			"\n" +
+			"A " + color.RedString("✓") + " means the branch has not been pushed to the remote.\n" +
+			"\n" +
 			"A " + interactive.StackEmoji + " beside a commit means its branch is part of a `gh stack` stack.\n" +
 			"\n" +
 			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
@@ -109,6 +111,7 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 			anyStacked = true
 		}
 	}
+	remoteBranches := gitutil.RemoteBranchSet()
 	for i, log := range logs {
 		numberPrefix := interactive.GetLogNumberPrefix(i, len(logs))
 		hasPR := slices.Contains(checkedBranches, log.Branch)
@@ -123,7 +126,7 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 		} else if stacked[i] {
 			util.Fprint(stdIo.Out, numberPrefix+interactive.StackEmoji+" ")
 		} else if hasPR {
-			util.Fprint(stdIo.Out, numberPrefix+color.GreenString("✓ ")+extraPad)
+			util.Fprint(stdIo.Out, numberPrefix+interactive.PrCheckMark(remoteBranches[log.Branch])+" "+extraPad)
 		} else {
 			util.Fprint(stdIo.Out, numberPrefix+"  "+extraPad)
 		}

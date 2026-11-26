@@ -19,6 +19,15 @@ import (
 // StackEmoji marks commits whose branch is part of a `gh stack` stack.
 const StackEmoji = "🥞"
 
+// PrCheckMark returns the "✓" that marks a commit with a PR branch. It is red if the branch
+// has not been pushed to the remote, otherwise green.
+func PrCheckMark(hasRemoteBranch bool) string {
+	if hasRemoteBranch {
+		return color.GreenString("✓")
+	}
+	return color.RedString("✓")
+}
+
 type CommitType int
 
 const (
@@ -61,6 +70,7 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 
 	hasEnabledRow := false
 	hasDuplicates := false
+	remoteBranches := gitutil.RemoteBranchSet()
 	for i, commit := range newCommits {
 		hasLocalBranch := slices.Contains(prBranches, commit.Branch)
 		indexString := fmt.Sprint(i + 1)
@@ -73,7 +83,7 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 			if len(gitutil.GetGhStackBranches(commit.Branch)) > 0 {
 				indexString += " " + StackEmoji
 			} else {
-				indexString += " " + color.GreenString("✓")
+				indexString += " " + PrCheckMark(remoteBranches[commit.Branch])
 			}
 		}
 		row := []string{indexString, commit.Commit, commit.Subject}
