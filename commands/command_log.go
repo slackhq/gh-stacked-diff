@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"log/slog"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -36,6 +38,10 @@ func createLogCommand() *cobra.Command {
 			"The letter after it (A, B, ...) identifies the stack, starting from the\n" +
 			"bottom of the list. Commits with the same letter are in the same stack.\n" +
 			"The letter is omitted when there is only one stack.\n" +
+			"For a branch above another branch in the stack, only the commits since the\n" +
+			"merge-base with the branch below are listed, followed by a ⬇️ and the number of\n" +
+			"the commit for the branch below (omitted when it is the row directly below; its\n" +
+			"branch name if not in the list; ❓ if the merge-base could not be found).\n" +
 			"\n" +
 			"A " + color.YellowString("●") + " means that multiple commits have the same subject.\n" +
 			"Change the subjects to differentiate commits.",
@@ -103,6 +109,8 @@ func printGitLog() {
 	}
 }
 
+const stackArrow = "⬇️"
+
 // printLogs prints commit logs and returns true if any duplicate subjects were found.
 func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) bool {
 	hasDuplicates := false
@@ -140,14 +148,47 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 		}
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
 		if hasPR {
-			branchCommits := templates.GetNewCommits(log.Branch, "")
+			padding := strings.Repeat(" ", len(numberPrefix)+len(extraPad))
+			branchCommits, below := getBranchCommits(logs, i, stackLabels[i].InStack)
 			if len(branchCommits) > 1 {
-				padding := strings.Repeat(" ", len(numberPrefix)+len(extraPad))
 				util.Fprint(stdIo.Out, interactive.FormatBranchCommits(branchCommits, padding))
+			}
+			if below != "" {
+				util.Fprintln(stdIo.Out, padding+"  "+below)
 			}
 		}
 	}
 	return hasDuplicates
+}
+
+// getBranchCommits returns the commits to show beneath logs[i] (newest first). For a branch that is above another
+// branch in a `gh stack`, these are the commits since the merge-base with the previous branch, and the second
+// return value is the "⬇️ <target>" line to print last, where target is the list number of the commit for the
+// previous branch (omitted if it is the row directly below, or its branch name if it is not in logs), or ❓ if the merge-base could not be determined.
+// Otherwise the commits are those since the remote main branch and the second return value is empty.
+func getBranchCommits(logs []templates.GitLog, i int, inStack bool) ([]templates.GitLog, string) {
+	branch := logs[i].Branch
+	if inStack {
+		stackBranches := gitutil.GetGhStackBranches(branch)
+		if index := slices.Index(stackBranches, branch); index > 0 {
+			previous := stackBranches[index-1]
+			mergeBase, err := util.Execute(util.ExecuteOptions{}, "git", "merge-base", previous, branch)
+			if err != nil {
+				slog.Debug(fmt.Sprint("Could not find merge-base of ", previous, " and ", branch, ": ", err))
+				return templates.GetNewCommits(branch, ""), stackArrow + " ❓"
+			}
+			target := previous
+			if j := slices.IndexFunc(logs, func(l templates.GitLog) bool { return l.Branch == previous }); j >= 0 {
+				target = fmt.Sprint(j + 1)
+				if j == i+1 {
+					// The commit directly below is the one being pointed to, so there is no need to name it.
+					target = ""
+				}
+			}
+			return templates.GetCommitsSince(strings.TrimSpace(mergeBase), branch), strings.TrimSpace(stackArrow + " " + target)
+		}
+	}
+	return templates.GetNewCommits(branch, ""), ""
 }
 
 // Returns info about worktrees other than the current one.

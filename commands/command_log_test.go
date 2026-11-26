@@ -697,3 +697,67 @@ func TestSdLog_WhenNoGhStack_DoesNotPrintStackEmoji(t *testing.T) {
 
 	assert.NotContains(out, "🥞")
 }
+
+func TestSdLog_WhenBranchDirectlyAboveAnotherInGhStack_PrintsArrowWithoutIndex(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testParseArguments("new", "2")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "2"))
+	secondBranch := strings.TrimSpace(testParseArguments("branch-name", "1"))
+	writeGhStackFile(t, firstBranch, secondBranch)
+
+	out := testParseArguments("log")
+
+	assert.Regexp("(?m)^\\s+⬇️$", out)
+	assert.Equal(1, strings.Count(out, "⬇️"))
+}
+
+func TestSdLog_WhenBranchNotDirectlyAboveAnotherInGhStack_PrintsArrowWithIndex(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("middle", "")
+	testutil.AddCommit("third", "")
+	testParseArguments("new", "3")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "3"))
+	thirdBranch := strings.TrimSpace(testParseArguments("branch-name", "1"))
+	writeGhStackFile(t, firstBranch, thirdBranch)
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "⬇️ 3")
+}
+
+func TestSdLog_WhenPreviousGhStackBranchNotInLog_PrintsQuestionMark(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "1"))
+	writeGhStackFile(t, "deleted-branch", firstBranch)
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "⬇️ ❓")
+}
+
+func TestSdLog_WhenBranchAtBottomOfGhStack_DoesNotPrintArrow(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "1"))
+	writeGhStackFile(t, firstBranch)
+
+	out := testParseArguments("log")
+
+	assert.NotContains(out, "⬇️")
+}
