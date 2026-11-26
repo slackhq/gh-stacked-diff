@@ -816,3 +816,17 @@ func TestSdLog_WhenOnBottomBranchOfGhStack_ShowsCommitsSinceMain(t *testing.T) {
 	assert.Contains(out, "first")
 	assert.NotContains(out, "⬇️")
 }
+
+func TestSdLog_WhenMainFlagOnFeatureBranch_PrintsMainLogs(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "feature")
+	testutil.AddCommit("second", "")
+
+	out := testParseArguments("log", "--main")
+
+	assert.Contains(out, "first")
+	assert.NotContains(out, "second")
+}
