@@ -2,6 +2,12 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- A letter after the 🥞 in `log` and commit selection (e.g. 🥞A) identifies which `gh stack` stack a commit is in. Lettering starts from the bottom of the `sd log` list, and commits in the same stack share a letter. The letter is omitted when there is only one stack.
+
 ## [2.1.11](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.10...v2.1.11) - 2026-10-13
 
 ### Added
