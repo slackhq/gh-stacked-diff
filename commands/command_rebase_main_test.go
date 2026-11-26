@@ -50,6 +50,40 @@ func TestSdRebaseMain_WithDifferentCommits_DropsCommits(t *testing.T) {
 	assert.Equal("rebase-will-keep-this-file", dirEntries[2].Name())
 }
 
+// PRs merged as part of a stack have a base branch other than main, so the merged PR
+// query must not filter by base.
+func TestSdRebaseMain_WithMergedPrNotBasedOnMain_DropsCommits(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "rebase-will-keep-this-file")
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "push", "origin", gitutil.GetLocalMainBranchOrDie())
+
+	allOriginalCommits := templates.GetAllCommits()
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "reset", "--hard", allOriginalCommits[1].Commit)
+
+	testutil.AddCommit("second", "rebase-will-drop-this-file")
+
+	testExecutor.SetResponse("",
+		nil, "gh", "pr", "list", "--author", "@me", "--state", "closed", "--search", "is:unmerged", util.MatchAnyRemainingArgs)
+
+	// Only responds when there is no "--base" filter.
+	testExecutor.SetResponse(allOriginalCommits[0].Branch+" abcd1234",
+		nil, "gh", "pr", "list", "--author", "@me", "--state", "merged", "--json", util.MatchAnyRemainingArgs)
+
+	testParseArguments("rebase-main")
+
+	dirEntries, err := os.ReadDir(".")
+	if err != nil {
+		panic("Could not read dir: " + err.Error())
+	}
+	assert.Equal(3, len(dirEntries))
+	assert.Equal("rebase-will-keep-this-file", dirEntries[2].Name())
+}
+
 func TestSdRebaseMain_WithMulitpleMergedBranches_DropsCommits(t *testing.T) {
 	assert := assert.New(t)
 	testExecutor := testutil.InitTest(t, slog.LevelError)

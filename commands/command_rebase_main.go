@@ -163,8 +163,10 @@ func getClosedBranches() []string {
 func getBranchesByPRState(mergedState bool) []string {
 	var branchesRaw string
 	if mergedState {
+		// No "--base" filter: PRs merged as part of a stack have another stack branch as
+		// their base, yet their merge commit still lands on the remote main branch.
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{ReturnStdoutOnly: true},
-			"gh", "pr", "list", "--author", "@me", "--state", "merged", "--base", gitutil.GetRemoteMainBranchOrDie(),
+			"gh", "pr", "list", "--author", "@me", "--state", "merged",
 			"--json", "headRefName,mergeCommit", "--jq", ".[ ] | .headRefName + \" \" +  .mergeCommit.oid", gitutil.GhRepoArgs())
 	} else {
 		branchesRaw = util.ExecuteOrDie(util.ExecuteOptions{ReturnStdoutOnly: true},
