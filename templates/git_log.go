@@ -53,6 +53,12 @@ func GetNewCommits(to string, gitDir string) []GitLog {
 	return newGitLogs(logsRaw)
 }
 
+// GetCommitsSince returns the commits reachable from "to" but not from "from", newest first.
+func GetCommitsSince(from string, to string) []GitLog {
+	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "--no-pager", "log", newGitLogsFormat, "--abbrev-commit", from+".."+to)
+	return newGitLogs(logsRaw)
+}
+
 func newGitLogs(logsRaw string) []GitLog {
 	logLines := strings.Split(strings.TrimSpace(logsRaw), "\n")
 	var logs []GitLog
