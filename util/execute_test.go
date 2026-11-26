@@ -173,3 +173,16 @@ func TestShouldRetrySeesStderr(t *testing.T) {
 
 	assert.Contains(seenStderr, marker)
 }
+
+func TestExecute_ReturnStdoutOnly(t *testing.T) {
+	script := "echo out; echo err >&2"
+
+	out, err := Execute(ExecuteOptions{ReturnStdoutOnly: true}, "sh", "-c", script)
+	assert.NoError(t, err)
+	assert.Equal(t, "out\n", out)
+
+	out, err = Execute(ExecuteOptions{}, "sh", "-c", script)
+	assert.NoError(t, err)
+	assert.Contains(t, out, "out\n")
+	assert.Contains(t, out, "err\n")
+}
