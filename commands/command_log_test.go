@@ -173,6 +173,7 @@ func TestSdLog_LogsOutput(t *testing.T) {
 	out := testParseArguments("log")
 
 	assert.Contains(out, "first")
+	assert.NotContains(out, "⬇️")
 }
 
 func TestSdLog_WhenManyCommits_PadsFirstCommits(t *testing.T) {
@@ -759,5 +760,59 @@ func TestSdLog_WhenBranchAtBottomOfGhStack_DoesNotPrintArrow(t *testing.T) {
 
 	out := testParseArguments("log")
 
+	assert.NotContains(out, "⬇️")
+}
+
+func TestSdLog_WhenStatusFlagAndBranchesInGhStack_ShowsStackEmojiAndArrow(t *testing.T) {
+	assert := assert.New(t)
+	testExecutor := testutil.InitTest(t, slog.LevelError)
+
+	testutil.AddCommit("first", "")
+	testutil.AddCommit("second", "")
+	testParseArguments("new", "2")
+	testParseArguments("new", "1")
+	firstBranch := strings.TrimSpace(testParseArguments("branch-name", "2"))
+	secondBranch := strings.TrimSpace(testParseArguments("branch-name", "1"))
+	writeGhStackFile(t, firstBranch, secondBranch)
+	testExecutor.SetResponse(
+		"state,OPEN\nreviewRequestCount,0\nmergeStateStatus,BLOCKED\nisDraft,false\nautoMerge,false",
+		nil, "gh", "api", "graphql", util.MatchAnyRemainingArgs)
+
+	out := testParseArguments("log", "--status")
+
+	assert.Regexp("🥞 .*first", out)
+	assert.Regexp("🥞 .*second", out)
+	assert.Regexp("(?m)^\\s+⬇️\\s*$", out)
+	assert.Equal(1, strings.Count(out, "⬇️"))
+}
+
+func TestSdLog_WhenOnBranchAboveAnotherInGhStack_OnlyShowsCommitsSincePreviousBranch(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "stack-1")
+	testutil.AddCommit("first", "")
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "stack-2")
+	testutil.AddCommit("second", "")
+	writeGhStackFile(t, "stack-1", "stack-2")
+
+	out := testParseArguments("log")
+
+	assert.NotContains(out, "first")
+	assert.Contains(out, "second")
+	assert.Contains(out, "⬇️ stack-1")
+}
+
+func TestSdLog_WhenOnBottomBranchOfGhStack_ShowsCommitsSinceMain(t *testing.T) {
+	assert := assert.New(t)
+	testutil.InitTest(t, slog.LevelError)
+
+	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "stack-1")
+	testutil.AddCommit("first", "")
+	writeGhStackFile(t, "stack-1", "stack-2")
+
+	out := testParseArguments("log")
+
+	assert.Contains(out, "first")
 	assert.NotContains(out, "⬇️")
 }

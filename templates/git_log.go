@@ -1,6 +1,8 @@
 package templates
 
 import (
+	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -53,9 +55,42 @@ func GetNewCommits(to string, gitDir string) []GitLog {
 	return newGitLogs(logsRaw)
 }
 
+// StackArrow ends the commit list of a branch that is above another branch in a `gh stack`.
+const StackArrow = "⬇️"
+
+// GetBranchCommits returns the commits to show beneath logs[i] (newest first). For a branch that is above another
+// branch in a `gh stack`, these are the commits since the merge-base with the previous branch, and the second
+// return value is the "⬇️ <target>" line to print last, where target is the list number of the commit for the
+// previous branch (omitted if it is the row directly below, or its branch name if it is not in logs), or ❓ if the merge-base could not be determined.
+// Otherwise the commits are those since the remote main branch and the second return value is empty.
+func GetBranchCommits(logs []GitLog, i int, inStack bool, gitDir string) ([]GitLog, string) {
+	branch := logs[i].Branch
+	if inStack {
+		stackBranches := gitutil.GetGhStackBranches(branch)
+		if index := slices.Index(stackBranches, branch); index > 0 {
+			previous := stackBranches[index-1]
+			mergeBase, err := util.Execute(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(gitDir, "merge-base", previous, branch))
+			if err != nil {
+				slog.Debug(fmt.Sprint("Could not find merge-base of ", previous, " and ", branch, ": ", err))
+				return GetNewCommits(branch, gitDir), StackArrow + " ❓"
+			}
+			target := previous
+			if j := slices.IndexFunc(logs, func(l GitLog) bool { return l.Branch == previous }); j >= 0 {
+				target = fmt.Sprint(j + 1)
+				if j == i+1 {
+					// The commit directly below is the one being pointed to, so there is no need to name it.
+					target = ""
+				}
+			}
+			return GetCommitsSince(strings.TrimSpace(mergeBase), branch, gitDir), strings.TrimSpace(StackArrow + " " + target)
+		}
+	}
+	return GetNewCommits(branch, gitDir), ""
+}
+
 // GetCommitsSince returns the commits reachable from "to" but not from "from", newest first.
-func GetCommitsSince(from string, to string) []GitLog {
-	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", "--no-pager", "log", newGitLogsFormat, "--abbrev-commit", from+".."+to)
+func GetCommitsSince(from string, to string, gitDir string) []GitLog {
+	logsRaw := util.ExecuteOrDie(util.ExecuteOptions{}, "git", gitutil.PrependGitDir(gitDir, "--no-pager", "log", newGitLogsFormat, "--abbrev-commit", from+".."+to))
 	return newGitLogs(logsRaw)
 }
 

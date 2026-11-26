@@ -37,8 +37,14 @@ type logStatusRow struct {
 	hasRemote     bool
 	status        *gitutil.PullRequestStatus
 	branchCommits []templates.GitLog
-	numberPrefix  string
-	padding       string
+	// Last line for a branch that is above another branch in a `gh stack`, see [templates.GetBranchCommits].
+	stackArrow   string
+	stack        gitutil.GhStackLabel
+	stackPad     string
+	sectionLogs  []templates.GitLog
+	indexInLogs  int
+	numberPrefix string
+	padding      string
 }
 
 type logStatusModel struct {
@@ -77,6 +83,7 @@ type updateLogStatusRowMsg struct {
 type updateLogStatusBranchCommitsMsg struct {
 	index         int
 	branchCommits []templates.GitLog
+	stackArrow    string
 	generation    int
 }
 
@@ -109,6 +116,7 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if old, ok := oldByBranch[msg.rows[i].log.Branch]; ok {
 				msg.rows[i].status = old.status
 				msg.rows[i].branchCommits = old.branchCommits
+				msg.rows[i].stackArrow = old.stackArrow
 			}
 		}
 		m.rows = msg.rows
@@ -122,6 +130,7 @@ func (m logStatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateLogStatusBranchCommitsMsg:
 		if msg.generation == m.generation && msg.index < len(m.rows) {
 			m.rows[msg.index].branchCommits = msg.branchCommits
+			m.rows[msg.index].stackArrow = msg.stackArrow
 		}
 		return m, nil
 	case allStatusesLoadedMsg:
@@ -153,11 +162,13 @@ func (m logStatusModel) renderRow(row logStatusRow) string {
 		out.WriteString("\n" + color.New(color.Bold).Sprint(row.sectionHeader) + "\n")
 	}
 	if row.log.HasDuplicate {
-		out.WriteString(row.numberPrefix + color.YellowString("● "))
+		out.WriteString(row.numberPrefix + color.YellowString("● ") + row.stackPad)
+	} else if row.stack.InStack {
+		out.WriteString(row.numberPrefix + StackEmoji + row.stack.Label + strings.Repeat(" ", len(row.stackPad)-1-len(row.stack.Label)) + " ")
 	} else if row.hasPR {
-		out.WriteString(row.numberPrefix + PrCheckMark(row.hasRemote) + " ")
+		out.WriteString(row.numberPrefix + PrCheckMark(row.hasRemote) + " " + row.stackPad)
 	} else {
-		out.WriteString(row.numberPrefix + "  ")
+		out.WriteString(row.numberPrefix + "  " + row.stackPad)
 	}
 	out.WriteString(coloredCommit(row) + " " + row.log.Subject + "\n")
 	if row.hasPR {
@@ -172,6 +183,9 @@ func (m logStatusModel) renderRow(row logStatusRow) string {
 	}
 	if row.hasPR && len(row.branchCommits) > 1 {
 		out.WriteString(FormatBranchCommits(row.branchCommits, row.padding))
+	}
+	if row.hasPR && row.stackArrow != "" {
+		out.WriteString(row.padding + "  " + row.stackArrow + "\n")
 	}
 	return out.String()
 }
@@ -398,14 +412,33 @@ func buildRows(logs []templates.GitLog, checkedBranches []string, worktreeSectio
 
 func appendLogRows(rows []logStatusRow, logs []templates.GitLog, checkedBranches []string, sectionHeader string) []logStatusRow {
 	remoteBranches := gitutil.RemoteBranchSet()
+	stackBranches := make([]string, len(logs))
+	for i, log := range logs {
+		if slices.Contains(checkedBranches, log.Branch) {
+			stackBranches[i] = log.Branch
+		}
+	}
+	stackLabels := gitutil.GetGhStackLabels(stackBranches)
+	// The stack emoji is 2 columns wide, followed by its label, so other rows get extra spaces when any row has one.
+	stackPad := ""
+	for _, label := range stackLabels {
+		if label.InStack {
+			stackPad = strings.Repeat(" ", 1+maxStackLabelLen(stackLabels))
+			break
+		}
+	}
 	for i, log := range logs {
 		prefix := GetLogNumberPrefix(i, len(logs))
 		row := logStatusRow{
 			log:          log,
 			hasPR:        slices.Contains(checkedBranches, log.Branch),
 			hasRemote:    remoteBranches[log.Branch],
+			stack:        stackLabels[i],
+			stackPad:     stackPad,
+			sectionLogs:  logs,
+			indexInLogs:  i,
 			numberPrefix: prefix,
-			padding:      strings.Repeat(" ", len(prefix)),
+			padding:      strings.Repeat(" ", len(prefix)+len(stackPad)),
 		}
 		if i == 0 && sectionHeader != "" {
 			row.sectionHeader = sectionHeader
@@ -413,6 +446,14 @@ func appendLogRows(rows []logStatusRow, logs []templates.GitLog, checkedBranches
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func maxStackLabelLen(labels []gitutil.GhStackLabel) int {
+	maxLen := 0
+	for _, label := range labels {
+		maxLen = max(maxLen, len(label.Label))
+	}
+	return maxLen
 }
 
 func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, pollInterval time.Duration, refreshFunc LogDataFunc) {
@@ -432,8 +473,8 @@ func fetchAllStatuses(program *tea.Program, rows []logStatusRow, polling bool, p
 					defer wg.Done()
 					defer SendErrorOnPanic(program)
 					// Branch commits are a local git operation — fetch without semaphore.
-					branchCommits := templates.GetNewCommits(row.log.Branch, "")
-					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, generation: gen})
+					branchCommits, stackArrow := templates.GetBranchCommits(row.sectionLogs, row.indexInLogs, row.stack.InStack, "")
+					program.Send(updateLogStatusBranchCommitsMsg{index: i, branchCommits: branchCommits, stackArrow: stackArrow, generation: gen})
 					// API calls are rate-limited by semaphore.
 					sem <- struct{}{}
 					defer func() { <-sem }()
