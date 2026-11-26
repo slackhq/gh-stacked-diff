@@ -89,11 +89,17 @@ func printGitLog() {
 	stdIo := util.GetAppConfig().Io
 	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit", "--decorate"}
-		if gitutil.RemoteHasBranch(gitutil.GetRemoteMainBranchOrDie()) {
+		mergeBase, previousBranch := getStackMergeBase()
+		if mergeBase != "" {
+			gitArgs = append(gitArgs, mergeBase+"..HEAD")
+		} else if gitutil.RemoteHasBranch(gitutil.GetRemoteMainBranchOrDie()) {
 			gitArgs = append(gitArgs, "origin/"+gitutil.GetRemoteMainBranchOrDie()+"..HEAD")
 		}
 		gitArgs = append(gitArgs, "--color=always")
 		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs)
+		if previousBranch != "" {
+			util.Fprintln(stdIo.Out, templates.StackArrow+" "+previousBranch)
+		}
 		return
 	}
 	logs, checkedBranches := getLogsAndBranches()
@@ -109,7 +115,24 @@ func printGitLog() {
 	}
 }
 
-const stackArrow = "⬇️"
+// getStackMergeBase returns the merge-base of HEAD and the previous branch in its `gh stack`, along with the
+// name of that previous branch. Both are empty if the current branch is not above another branch in a stack.
+// Only the merge-base is empty if it cannot be found.
+func getStackMergeBase() (string, string) {
+	branch := util.GetCurrentBranchName()
+	stackBranches := gitutil.GetGhStackBranches(branch)
+	index := slices.Index(stackBranches, branch)
+	if index <= 0 {
+		return "", ""
+	}
+	previous := stackBranches[index-1]
+	mergeBase, err := util.Execute(util.ExecuteOptions{}, "git", "merge-base", previous, "HEAD")
+	if err != nil {
+		slog.Debug(fmt.Sprint("Could not find merge-base of ", previous, " and HEAD: ", err))
+		return "", previous
+	}
+	return strings.TrimSpace(mergeBase), previous
+}
 
 // printLogs prints commit logs and returns true if any duplicate subjects were found.
 func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []string) bool {
@@ -149,7 +172,7 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 		util.Fprintln(stdIo.Out, color.YellowString(log.Commit)+" "+log.Subject)
 		if hasPR {
 			padding := strings.Repeat(" ", len(numberPrefix)+len(extraPad))
-			branchCommits, below := getBranchCommits(logs, i, stackLabels[i].InStack)
+			branchCommits, below := templates.GetBranchCommits(logs, i, stackLabels[i].InStack, "")
 			if len(branchCommits) > 1 {
 				util.Fprint(stdIo.Out, interactive.FormatBranchCommits(branchCommits, padding))
 			}
@@ -159,36 +182,6 @@ func printLogs(stdIo util.StdIo, logs []templates.GitLog, checkedBranches []stri
 		}
 	}
 	return hasDuplicates
-}
-
-// getBranchCommits returns the commits to show beneath logs[i] (newest first). For a branch that is above another
-// branch in a `gh stack`, these are the commits since the merge-base with the previous branch, and the second
-// return value is the "⬇️ <target>" line to print last, where target is the list number of the commit for the
-// previous branch (omitted if it is the row directly below, or its branch name if it is not in logs), or ❓ if the merge-base could not be determined.
-// Otherwise the commits are those since the remote main branch and the second return value is empty.
-func getBranchCommits(logs []templates.GitLog, i int, inStack bool) ([]templates.GitLog, string) {
-	branch := logs[i].Branch
-	if inStack {
-		stackBranches := gitutil.GetGhStackBranches(branch)
-		if index := slices.Index(stackBranches, branch); index > 0 {
-			previous := stackBranches[index-1]
-			mergeBase, err := util.Execute(util.ExecuteOptions{}, "git", "merge-base", previous, branch)
-			if err != nil {
-				slog.Debug(fmt.Sprint("Could not find merge-base of ", previous, " and ", branch, ": ", err))
-				return templates.GetNewCommits(branch, ""), stackArrow + " ❓"
-			}
-			target := previous
-			if j := slices.IndexFunc(logs, func(l templates.GitLog) bool { return l.Branch == previous }); j >= 0 {
-				target = fmt.Sprint(j + 1)
-				if j == i+1 {
-					// The commit directly below is the one being pointed to, so there is no need to name it.
-					target = ""
-				}
-			}
-			return templates.GetCommitsSince(strings.TrimSpace(mergeBase), branch), strings.TrimSpace(stackArrow + " " + target)
-		}
-	}
-	return templates.GetNewCommits(branch, ""), ""
 }
 
 // Returns info about worktrees other than the current one.

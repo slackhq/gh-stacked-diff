@@ -134,7 +134,7 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go updateRowBranches(ctx, program, newCommits, prBranches, options.GitDir, &wg)
+	go updateRowBranches(ctx, program, newCommits, prBranches, stackLabels, options.GitDir, &wg)
 	finalModel := runProgram(appConfig.Io, program)
 	cancel()
 	wg.Wait()
@@ -150,14 +150,14 @@ func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, err
 
 // Add lines for each commit for every PR that has more than one commit.
 // Stops early when done is closed (i.e. when the interactive UI exits).
-func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []templates.GitLog, prBranches []string, gitDir string, wg *sync.WaitGroup) {
+func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []templates.GitLog, prBranches []string, stackLabels []gitutil.GhStackLabel, gitDir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for i, newCommit := range newCommits {
 		if ctx.Err() != nil {
 			return
 		}
 		if slices.Contains(prBranches, newCommit.Branch) {
-			branchCommits := templates.GetNewCommits(newCommit.Branch, gitDir)
+			branchCommits, stackArrow := templates.GetBranchCommits(newCommits, i, stackLabels[i].InStack, gitDir)
 			summary := newCommit.Subject
 			if len(branchCommits) > 1 {
 				// Reverse the commits so that they are ordered from the earliest to more recent.
@@ -173,6 +173,9 @@ func updateRowBranches(ctx context.Context, program *tea.Program, newCommits []t
 				for _, branchCommit := range branchCommits {
 					summary += "\n- " + branchCommit.Subject
 				}
+			}
+			if stackArrow != "" {
+				summary += "\n" + stackArrow
 			}
 			program.Send(updateCommitSelectorSummaryMsg{Index: i, Summary: summary})
 		}

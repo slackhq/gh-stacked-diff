@@ -6,8 +6,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- `log` run from a branch above another branch in a `gh stack` lists only the commits since the merge-base with the branch below, instead of since main, followed by a ⬇️ line with the name of that branch.
 - A letter after the 🥞 in `log` and commit selection (e.g. 🥞A) identifies which `gh stack` stack a commit is in. Lettering starts from the bottom of the `sd log` list, and commits in the same stack share a letter. The letter is omitted when there is only one stack.
-- In `log`, a branch above another branch in a `gh stack` lists only the commits since the merge-base with the branch below, followed by a ⬇️ line with the number of the commit for the branch below (omitted when it is the row directly below; or its branch name, or ❓ if the merge-base could not be found).
+- In `log`, a branch above another branch in a `gh stack` lists only the commits since the merge-base with the branch below, followed by a ⬇️ line with the number of the commit for the branch below (omitted when it is the row directly below; or its branch name, or ❓ if the merge-base could not be found). The same applies to `log --status` (which now also shows the 🥞 markers) and to the commit selector.
 
 ## [2.1.11](https://github.com/slackhq/gh-stacked-diff/compare/v2.1.10...v2.1.11) - 2026-10-13
 
