@@ -57,23 +57,29 @@ func createLogCommand() *cobra.Command {
 	poll := cmd.Flags().BoolP("poll", "p", false,
 		"Keep polling for status updates. Implies --status.\n"+
 			"Press Esc or Ctrl+C to exit.")
+	main := cmd.Flags().BoolP("main", "m", false,
+		"Show the log as if run from the local main branch, instead of the current branch.")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
+		ref := "HEAD"
+		if *main {
+			ref = gitutil.GetLocalMainBranchOrDie()
+		}
 		if *status || *poll {
-			printGitLogWithStatus(cmd, *poll)
+			printGitLogWithStatus(cmd, *poll, *main, ref)
 		} else {
-			printGitLog()
+			printGitLog(*main, ref)
 		}
 	}
 	return cmd
 }
 
-func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
-	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
-		panic("--status is only supported on the main branch")
+func printGitLogWithStatus(cmd *cobra.Command, poll bool, main bool, ref string) {
+	if !main && util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
+		panic("--status is only supported on the main branch (or with --main)")
 	}
 	userConfig := util.GetUserConfig()
 	var worktreeSections []interactive.WorktreeLogSection
-	logs, checkedBranches := getLogsAndBranches()
+	logs, checkedBranches := getLogsAndBranches(ref)
 	if userConfig.ShowWorktrees {
 		worktreeSections = getWorktreeSections(logs)
 	}
@@ -81,13 +87,15 @@ func printGitLogWithStatus(cmd *cobra.Command, poll bool) {
 	if poll {
 		pollInterval = userConfig.PollInterval
 	}
-	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, getLogsAndBranchesWithWorktrees, worktreeSections)
+	interactive.ShowLogStatus(logs, checkedBranches, pollInterval, func() ([]templates.GitLog, []string, []interactive.WorktreeLogSection) {
+		return getLogsAndBranchesWithWorktrees(ref)
+	}, worktreeSections)
 }
 
-// Prints changes in the current branch compared to the main branch to out.
-func printGitLog() {
+// Prints changes in ref (the current branch, or local main if main is true) compared to the remote main branch to out.
+func printGitLog(main bool, ref string) {
 	stdIo := util.GetAppConfig().Io
-	if util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
+	if !main && util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit", "--decorate"}
 		mergeBase, previousBranch := getStackMergeBase()
 		if mergeBase != "" {
@@ -102,7 +110,7 @@ func printGitLog() {
 		}
 		return
 	}
-	logs, checkedBranches := getLogsAndBranches()
+	logs, checkedBranches := getLogsAndBranches(ref)
 	hasDuplicates := printLogs(stdIo, logs, checkedBranches)
 	if util.GetUserConfig().ShowWorktrees {
 		if printWorktreeLogs(stdIo, logs) {
@@ -210,8 +218,8 @@ func printWorktreeLogs(stdIo util.StdIo, currentLogs []templates.GitLog) bool {
 	return hasDuplicates
 }
 
-func getLogsAndBranches() ([]templates.GitLog, []string) {
-	logs := templates.GetNewCommits("HEAD", "")
+func getLogsAndBranches(ref string) ([]templates.GitLog, []string) {
+	logs := templates.GetNewCommits(ref, "")
 	branchNames := make([]string, len(logs))
 	for i, log := range logs {
 		branchNames[i] = log.Branch
@@ -220,8 +228,8 @@ func getLogsAndBranches() ([]templates.GitLog, []string) {
 	return logs, checkedBranches
 }
 
-func getLogsAndBranchesWithWorktrees() ([]templates.GitLog, []string, []interactive.WorktreeLogSection) {
-	logs, checkedBranches := getLogsAndBranches()
+func getLogsAndBranchesWithWorktrees(ref string) ([]templates.GitLog, []string, []interactive.WorktreeLogSection) {
+	logs, checkedBranches := getLogsAndBranches(ref)
 	worktreeSections := getWorktreeSections(logs)
 	return logs, checkedBranches, worktreeSections
 }
