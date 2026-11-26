@@ -41,6 +41,11 @@ func createNewCommand() *cobra.Command {
 			"\n" +
 			"Use \"--multiple-strategy\" (combined, stacked, or separate) to skip the question.\n" +
 			"\n" +
+			color.HiWhiteString("No Push:") + "\n" +
+			"\n" +
+			"Use \"--no-push\" to only create the local branches. Nothing is pushed, no PRs\n" +
+			"are created, and PR-only flags (--draft, --reviewers, etc.) are ignored.\n" +
+			"\n" +
 			color.HiWhiteString("Ticket Number:") + "\n" +
 			"\n" +
 			"If you prefix a (Jira-like formatted) ticket number to the git commit\n" +
@@ -95,6 +100,8 @@ func createNewCommand() *cobra.Command {
 		return branches, cobra.ShellCompDirectiveNoFileComp
 	})
 
+	noPush := cmd.Flags().Bool("no-push", false, "Only create the local branches, do not push or create PRs")
+
 	multipleStrategy := cmd.Flags().String("multiple-strategy", "", "How to handle multiple commits, skipping the prompt: "+strings.Join(multiCommitStrategyNames(), ", "))
 	_ = cmd.RegisterFlagCompletionFunc("multiple-strategy", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return multiCommitStrategyNames(), cobra.ShellCompDirectiveNoFileComp
@@ -127,8 +134,11 @@ func createNewCommand() *cobra.Command {
 			util.RequireGitRef(*baseBranch)
 			remoteBaseBranch = *baseBranch
 		}
+		if *noPush {
+			warnFlagsIgnoredWithoutPrs(cmd, "--no-push")
+		}
 		ticketUrlPattern := userConfig.TicketUrlPattern
-		if !*noTemplate && ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
+		if !*noPush && !*noTemplate && ticketUrlPattern == "" && templates.HasTicketNumber(targetCommits[0].Subject) && templates.TemplateUsesTicketUrlPattern() {
 			ticketUrlPattern = interactive.PromptForStringOrDie(
 				"Ticket URL pattern (use {TicketNumber} as placeholder):",
 				util.ExampleTicketUrlPattern,
@@ -143,7 +153,8 @@ func createNewCommand() *cobra.Command {
 			ticketUrlPattern:      ticketUrlPattern,
 			baseBranch:            *baseBranch,
 			remoteBaseBranch:      remoteBaseBranch,
-			shouldPromptReviewers: len(args) == 0 && *draft && *reviewers == "",
+			noPush:                *noPush,
+			shouldPromptReviewers: !*noPush && len(args) == 0 && *draft && *reviewers == "",
 			userConfig:            userConfig,
 			reviewers:             *reviewers,
 			reviewerOptions: AddReviewersOptions{
@@ -169,6 +180,8 @@ func createNewCommand() *cobra.Command {
 }
 
 type newPrOptions struct {
+	// Only create the local branches, do not push or create PRs.
+	noPush                bool
 	draft                 bool
 	noTemplate            bool
 	featureFlag           string
@@ -186,6 +199,9 @@ func createSeparatePrs(targetCommits []templates.GitLog, opts newPrOptions) {
 	for _, targetCommit := range targetCommits {
 		createNewPr([]templates.GitLog{targetCommit}, opts)
 	}
+	if opts.noPush {
+		return
+	}
 	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, targetCommits, opts.reviewerOptions)
 }
 
@@ -193,6 +209,9 @@ func createSeparatePrs(targetCommits []templates.GitLog, opts newPrOptions) {
 func createCombinedPr(targetCommits []templates.GitLog, opts newPrOptions) {
 	selectedReviewers, markReady := promptForReviewers(opts.shouldPromptReviewers, opts.userConfig, opts.reviewerOptions.AutoMerge)
 	createNewPr(targetCommits, opts)
+	if opts.noPush {
+		return
+	}
 	maybeAddReviewers(opts.reviewers, selectedReviewers, markReady, targetCommits[:1], opts.reviewerOptions)
 }
 
@@ -223,8 +242,8 @@ func createStackedBranches(targetCommits []templates.GitLog, opts newPrOptions) 
 	})
 }
 
-// Warns about flags that only apply when creating PRs, as stacked branches are not pushed.
-func warnFlagsIgnoredForStackedBranches(cmd *cobra.Command) {
+// Warns about flags that only apply when creating PRs. The reason is why PRs are not created.
+func warnFlagsIgnoredWithoutPrs(cmd *cobra.Command, reason string) {
 	var ignored []string
 	for _, name := range []string{"draft", "no-template", "feature-flag", "reviewers", "silent", "min-checks", "merge"} {
 		if cmd.Flags().Changed(name) {
@@ -232,7 +251,7 @@ func warnFlagsIgnoredForStackedBranches(cmd *cobra.Command) {
 		}
 	}
 	if len(ignored) > 0 {
-		slog.Warn(fmt.Sprint("Ignoring ", strings.Join(ignored, ", "), " as PRs are not created for stacked branches"))
+		slog.Warn(fmt.Sprint("Ignoring ", strings.Join(ignored, ", "), " as PRs are not created: ", reason))
 	}
 }
 
@@ -246,14 +265,21 @@ func createNewPr(commits []templates.GitLog, opts newPrOptions) {
 	gitutil.WithStashAndRollback("sd new "+gitLog.Commit+" "+gitLog.Subject, func(rollbackManager *gitutil.GitRollbackManager) {
 		// Get the PR text before squashing, as squashing changes the commit hash.
 		var prText templates.PullRequestText
-		if opts.noTemplate {
-			prText = templates.GetPullRequestTextRaw(gitLog.Commit)
-		} else {
-			prText = templates.GetPullRequestText(gitLog.Commit, opts.featureFlag, opts.ticketUrlPattern)
+		if !opts.noPush {
+			if opts.noTemplate {
+				prText = templates.GetPullRequestTextRaw(gitLog.Commit)
+			} else {
+				prText = templates.GetPullRequestText(gitLog.Commit, opts.featureFlag, opts.ticketUrlPattern)
+			}
 		}
 		createBranchAndCherryPick(rollbackManager, opts.baseBranch, commits)
 		if len(commits) > 1 {
 			squashCommitsOnLocalMain(commits)
+		}
+		if opts.noPush {
+			rollbackManager.Clear()
+			switchBackToMain()
+			return
 		}
 		pushAndCreateGhPr(prText, opts.draft, opts.remoteBaseBranch)
 		rollbackManager.Clear()
@@ -345,7 +371,9 @@ var multiCommitStrategies = []multiCommitStrategy{
 		name:  "stacked",
 		label: "Use GitHub Stacked PRs (gh stack)",
 		create: func(cmd *cobra.Command, targetCommits []templates.GitLog, opts newPrOptions) {
-			warnFlagsIgnoredForStackedBranches(cmd)
+			if !opts.noPush {
+				warnFlagsIgnoredWithoutPrs(cmd, "stacked branches are not pushed")
+			}
 			createStackedBranches(targetCommits, opts)
 		},
 	},
