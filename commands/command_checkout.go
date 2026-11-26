@@ -30,6 +30,8 @@ func createCheckoutCommand() *cobra.Command {
 			Prompt:      "What commit do you want to checkout the associated branch for?",
 			CommitType:  interactive.CommitTypePr,
 			MultiSelect: false,
+
+			FromLocalMain: true,
 		}
 		targetCommit := getTargetCommits(args, indicatorTypeString, selectCommitOptions)
 		util.ExecuteOrDie(

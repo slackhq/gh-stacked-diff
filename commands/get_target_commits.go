@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/slackhq/gh-stacked-diff/v2/gitutil"
 	"github.com/slackhq/gh-stacked-diff/v2/interactive"
 	"github.com/slackhq/gh-stacked-diff/v2/templates"
 	"github.com/slackhq/gh-stacked-diff/v2/util"
@@ -36,8 +37,12 @@ func getTargetCommits(
 		return selectedCommits
 	} else {
 		indicatorType := checkIndicatorFlag(indicatorTypeString)
+		listBranch := util.GetCurrentBranchName()
+		if options.FromLocalMain {
+			listBranch = gitutil.GetLocalMainBranchOrDie()
+		}
 		return util.MapSlice(commitsFromCommandLine, func(commit string) templates.GitLog {
-			return templates.ResolveCommitIndicator(commit, indicatorType)
+			return templates.ResolveCommitIndicatorFrom(commit, indicatorType, listBranch)
 		})
 	}
 }

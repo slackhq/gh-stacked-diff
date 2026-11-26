@@ -42,13 +42,23 @@ type CommitSelectionOptions struct {
 	Prompt           string
 	GitDir           string
 	DisabledBranches map[string]bool
+	// List commits from the local main branch instead of the current branch.
+	FromLocalMain bool
+}
+
+// Branch that new commits are listed from.
+func (options CommitSelectionOptions) ListBranch() string {
+	if options.FromLocalMain {
+		return gitutil.GetLocalMainBranchOrDie()
+	}
+	return "HEAD"
 }
 
 // Returns an empty array if user cancelled.
 func GetCommitSelection(options CommitSelectionOptions) ([]templates.GitLog, error) {
 	appConfig := util.GetAppConfig()
 	columns := []string{"Index", "Commit", "Summary"}
-	newCommits := templates.GetNewCommits("HEAD", options.GitDir)
+	newCommits := templates.GetNewCommits(options.ListBranch(), options.GitDir)
 	branchNames := make([]string, len(newCommits))
 	for i, log := range newCommits {
 		branchNames[i] = log.Branch

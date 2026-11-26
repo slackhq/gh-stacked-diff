@@ -72,6 +72,11 @@ func (indicator IndicatorType) IsValid() bool {
 // ResolveCommitIndicator resolves a commit indicator (hash, PR number, or list index)
 // into a GitLog with commit hash, subject, and branch information.
 func ResolveCommitIndicator(commitIndicator string, indicatorType IndicatorType) GitLog {
+	return ResolveCommitIndicatorFrom(commitIndicator, indicatorType, util.GetCurrentBranchName())
+}
+
+// Like ResolveCommitIndicator, but list indexes are relative to the new commits on listBranch.
+func ResolveCommitIndicatorFrom(commitIndicator string, indicatorType IndicatorType, listBranch string) GitLog {
 	util.RequireNotEmptyString(commitIndicator)
 	if !indicatorType.IsValid() {
 		panic("Invalid IndicatorType " + string(indicatorType))
@@ -109,7 +114,7 @@ func ResolveCommitIndicator(commitIndicator string, indicatorType IndicatorType)
 		slog.Info("Using commit " + info.Commit + ", branch " + info.Branch)
 	case IndicatorTypeList:
 		slog.Debug("Using commitIndicator as a list index " + commitIndicator)
-		newCommits := GetNewCommits(util.GetCurrentBranchName(), "")
+		newCommits := GetNewCommits(listBranch, "")
 		listIndex, err := strconv.Atoi(commitIndicator)
 		if err != nil {
 			panic("When indicator type is " + string(IndicatorTypeList) + " commit indicator must be a number, given " + commitIndicator)
