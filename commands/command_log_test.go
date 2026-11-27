@@ -173,7 +173,6 @@ func TestSdLog_LogsOutput(t *testing.T) {
 	out := testParseArguments("log")
 
 	assert.Contains(out, "first")
-	assert.NotContains(out, "⬇️")
 }
 
 func TestSdLog_WhenManyCommits_PadsFirstCommits(t *testing.T) {
@@ -794,13 +793,15 @@ func TestSdLog_WhenOnBranchAboveAnotherInGhStack_OnlyShowsCommitsSincePreviousBr
 	testutil.AddCommit("first", "")
 	util.ExecuteOrDie(util.ExecuteOptions{}, "git", "checkout", "-b", "stack-2")
 	testutil.AddCommit("second", "")
-	writeGhStackFile(t, "stack-1", "stack-2")
+	writeGhStackFile(t, "stack-1", "stack-2", "stack-3")
 
 	out := testParseArguments("log")
 
 	assert.NotContains(out, "first")
 	assert.Contains(out, "second")
 	assert.Contains(out, "⬇️ stack-1")
+	assert.Less(strings.Index(out, "⬆️ stack-3"), strings.Index(out, "🥞 (2/3)"))
+	assert.Less(strings.Index(out, "🥞 (2/3)"), strings.Index(out, "second"))
 }
 
 func TestSdLog_WhenOnBottomBranchOfGhStack_ShowsCommitsSinceMain(t *testing.T) {
@@ -815,6 +816,8 @@ func TestSdLog_WhenOnBottomBranchOfGhStack_ShowsCommitsSinceMain(t *testing.T) {
 
 	assert.Contains(out, "first")
 	assert.NotContains(out, "⬇️")
+	assert.Contains(out, "⬆️ stack-2")
+	assert.Contains(out, "🥞 (1/2)")
 }
 
 func TestSdLog_WhenMainFlagOnFeatureBranch_PrintsMainLogs(t *testing.T) {

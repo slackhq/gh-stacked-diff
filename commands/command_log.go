@@ -97,13 +97,19 @@ func printGitLog(main bool, ref string) {
 	stdIo := util.GetAppConfig().Io
 	if !main && util.GetCurrentBranchName() != gitutil.GetLocalMainBranchOrDie() {
 		gitArgs := []string{"--no-pager", "log", "--pretty=oneline", "--abbrev-commit", "--decorate"}
-		mergeBase, previousBranch := getStackMergeBase()
+		mergeBase, previousBranch, nextBranch, position, stackSize := getStackInfo()
 		if mergeBase != "" {
 			gitArgs = append(gitArgs, mergeBase+"..HEAD")
 		} else if gitutil.RemoteHasBranch(gitutil.GetRemoteMainBranchOrDie()) {
 			gitArgs = append(gitArgs, "origin/"+gitutil.GetRemoteMainBranchOrDie()+"..HEAD")
 		}
 		gitArgs = append(gitArgs, "--color=always")
+		if nextBranch != "" {
+			util.Fprintln(stdIo.Out, StackUpArrow+" "+nextBranch)
+		}
+		if stackSize > 0 {
+			util.Fprintln(stdIo.Out, fmt.Sprint(interactive.StackEmoji, " (", position, "/", stackSize, ")"))
+		}
 		util.ExecuteOrDie(util.ExecuteOptions{Io: stdIo}, "git", gitArgs)
 		if previousBranch != "" {
 			util.Fprintln(stdIo.Out, templates.StackArrow+" "+previousBranch)
@@ -123,23 +129,33 @@ func printGitLog(main bool, ref string) {
 	}
 }
 
-// getStackMergeBase returns the merge-base of HEAD and the previous branch in its `gh stack`, along with the
-// name of that previous branch. Both are empty if the current branch is not above another branch in a stack.
-// Only the merge-base is empty if it cannot be found.
-func getStackMergeBase() (string, string) {
+// StackUpArrow starts the log of a branch that has another branch above it in a `gh stack`.
+const StackUpArrow = "⬆️"
+
+// getStackInfo returns, for the current branch in its `gh stack`: the merge-base of HEAD and the previous branch,
+// the name of the previous branch, and the name of the next branch. Names are empty if there is no such branch
+// (or the current branch is not in a stack), and the merge-base is also empty if it cannot be found. position is the
+// 1-based position of the current branch from the bottom of the stack out of stackSize branches; both are 0 if not in a stack.
+func getStackInfo() (mergeBase string, previous string, next string, position int, stackSize int) {
 	branch := util.GetCurrentBranchName()
 	stackBranches := gitutil.GetGhStackBranches(branch)
 	index := slices.Index(stackBranches, branch)
-	if index <= 0 {
-		return "", ""
+	if index < 0 {
+		return "", "", "", 0, 0
 	}
-	previous := stackBranches[index-1]
+	if index+1 < len(stackBranches) {
+		next = stackBranches[index+1]
+	}
+	if index == 0 {
+		return "", "", next, 1, len(stackBranches)
+	}
+	previous = stackBranches[index-1]
 	mergeBase, err := util.Execute(util.ExecuteOptions{}, "git", "merge-base", previous, "HEAD")
 	if err != nil {
 		slog.Debug(fmt.Sprint("Could not find merge-base of ", previous, " and HEAD: ", err))
-		return "", previous
+		return "", previous, next, index + 1, len(stackBranches)
 	}
-	return strings.TrimSpace(mergeBase), previous
+	return strings.TrimSpace(mergeBase), previous, next, index + 1, len(stackBranches)
 }
 
 // printLogs prints commit logs and returns true if any duplicate subjects were found.
