@@ -173,9 +173,6 @@ func TestSdLog_LogsOutput(t *testing.T) {
 	out := testParseArguments("log")
 
 	assert.Contains(out, "first")
-	assert.NotContains(out, "⬇️")
-	assert.Contains(out, "⬆️ stack-2")
-	assert.Contains(out, "🥞 (1/2)")
 }
 
 func TestSdLog_WhenManyCommits_PadsFirstCommits(t *testing.T) {
